@@ -1,0 +1,25 @@
+[workspace]
+members = [
+  "programs/gachapon-game",
+  # "programs/gachapon-marketplace",  # Temporarily disabled due to compilation issues
+]
+
+[programs.localnet]
+gachapon_game = "4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG"
+gachapon_marketplace = "4zHkHBrSyBsi2L5J1ikZ5kQwNcGMcE2x3wKrG3FY7UqC"
+
+[programs.devnet]
+gachapon_game = "4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG"
+gachapon_marketplace = "4zHkHBrSyBsi2L5J1ikZ5kQwNcGMcE2x3wKrG3FY7UqC"
+
+[provider]
+cluster = "localnet"
+wallet = "./phantom-devnet-keypair.json"
+
+# [scripts]
+# test = "anchor test"  # Commented out to use default test behavior
+
+[toolchain]
+anchor_version = "0.32.1"
+
+

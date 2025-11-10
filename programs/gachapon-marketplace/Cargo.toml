@@ -1,0 +1,20 @@
+[package]
+name = "gachapon-marketplace"
+version = "0.1.0"
+description = "Solana Gachapon Marketplace Program"
+edition = "2021"
+
+[lib]
+name = "gachapon_marketplace"
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.32.1", features = ["token", "associated_token"] }
+
+

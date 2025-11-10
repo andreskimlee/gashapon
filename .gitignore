@@ -1,0 +1,25 @@
+target/
+.anchor/
+node_modules/
+dist/
+build/
+.DS_Store
+
+# Anchor keypairs (optional, keep if you plan to commit)
+*.json
+!package*.json
+!tsconfig.json
+
+# Treasury keypairs (NEVER commit these)
+treasury-*-keypair.json
+phantom-devnet-keypair.json
+
+
+# Env files
+.env
+.env.*
+
+# pnpm
+.pnpm-store
+
+

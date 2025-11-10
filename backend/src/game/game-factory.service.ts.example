@@ -1,0 +1,155 @@
+import { Injectable } from '@nestjs/common';
+import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
+import { Program, BN } from '@coral-xyz/anchor';
+import { PrismaService } from '../prisma/prisma.service';
+
+export interface CreateGameConfig {
+  name: string;
+  description: string;
+  prizeSetId: string; // e.g., "pokemon-series-1"
+  category: string;
+  costUsdCents: number; // e.g., 500 = $5.00
+  tokenMint: PublicKey;
+  treasuryWallet: PublicKey;
+  prizePool: PrizeConfig[];
+}
+
+export interface PrizeConfig {
+  prizeId: number;
+  name: string;
+  metadataUri: string;
+  physicalSku: string;
+  tier: 'common' | 'uncommon' | 'rare' | 'legendary';
+  probabilityBp: number; // basis points (10000 = 100%)
+  supplyTotal: number;
+  supplyRemaining: number;
+}
+
+@Injectable()
+export class GameFactoryService {
+  constructor(
+    private prisma: PrismaService,
+    private connection: Connection,
+    private gameProgram: Program<any>, // Your game program
+  ) {}
+
+  /**
+   * Get next available game ID
+   */
+  async getNextGameId(): Promise<BN> {
+    const lastGame = await this.prisma.game.findFirst({
+      orderBy: { gameId: 'desc' },
+    });
+    return new BN((lastGame?.gameId || 0) + 1);
+  }
+
+  /**
+   * Derive game PDA from game ID
+   */
+  getGamePda(gameId: BN): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('game'), Buffer.from(gameId.toArray('le', 8))],
+      this.gameProgram.programId,
+    );
+    return pda;
+  }
+
+  /**
+   * Create a new game instance
+   */
+  async createGame(config: CreateGameConfig) {
+    // 1. Get next game ID
+    const gameId = await this.getNextGameId();
+
+    // 2. Derive game PDA
+    const gamePda = this.getGamePda(gameId);
+
+    // 3. Initialize on-chain
+    const tx = await this.gameProgram.methods
+      .initializeGame(
+        gameId,
+        new BN(config.costUsdCents),
+        config.tokenMint,
+        config.prizePool.map((p) => ({
+          prizeId: new BN(p.prizeId),
+          name: p.name,
+          metadataUri: p.metadataUri,
+          physicalSku: p.physicalSku,
+          tier: { [p.tier]: {} },
+          probabilityBp: p.probabilityBp,
+          supplyTotal: p.supplyTotal,
+          supplyRemaining: p.supplyRemaining,
+        })),
+      )
+      .accounts({
+        authority: this.adminWallet.publicKey,
+        game: gamePda,
+        treasury: config.treasuryWallet,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    // 4. Store in database
+    const gameRecord = await this.prisma.game.create({
+      data: {
+        gameId: gameId.toNumber(),
+        name: config.name,
+        description: config.description,
+        prizeSetId: config.prizeSetId,
+        category: config.category,
+        gamePda: gamePda.toString(),
+        treasury: config.treasuryWallet.toString(),
+        tokenMint: config.tokenMint.toString(),
+        costUsdCents: config.costUsdCents,
+        status: 'active',
+      },
+    });
+
+    return {
+      gameId: gameId.toNumber(),
+      gamePda: gamePda.toString(),
+      transaction: tx,
+      ...gameRecord,
+    };
+  }
+
+  /**
+   * List all games with filters
+   */
+  async listGames(filters?: {
+    status?: string;
+    category?: string;
+    prizeSetId?: string;
+  }) {
+    return this.prisma.game.findMany({
+      where: filters,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get game with on-chain state
+   */
+  async getGame(gameId: number) {
+    const dbGame = await this.prisma.game.findUnique({
+      where: { gameId },
+    });
+
+    if (!dbGame) throw new Error('Game not found');
+
+    // Fetch on-chain state
+    const gamePda = this.getGamePda(new BN(gameId));
+    const onChainGame = await this.gameProgram.account.game.fetch(gamePda);
+
+    return {
+      ...dbGame,
+      onChain: {
+        totalPlays: onChainGame.totalPlays.toString(),
+        isActive: onChainGame.isActive,
+        costUsd: onChainGame.costUsd.toString(),
+        prizePool: onChainGame.prizePool,
+      },
+    };
+  }
+}
+

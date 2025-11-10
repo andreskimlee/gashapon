@@ -1,0 +1,104 @@
+/**
+ * Example: How to create multiple games using your current program
+ * 
+ * This shows how easy it is to create new games - no deployment needed!
+ */
+
+import * as anchor from "@coral-xyz/anchor";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+// Load your program
+const program = anchor.workspace.GachaponGame;
+
+// Admin wallet (signer)
+const admin = anchor.AnchorProvider.env().wallet;
+
+// Example: Create multiple games with different prize sets
+
+async function createPokemonGame() {
+  const gameId = new BN(1);
+  const [gamePda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("game"), Buffer.from(gameId.toArray("le", 8))],
+    program.programId
+  );
+
+  const prizePool = [
+    {
+      prizeId: new BN(1),
+      name: "Pikachu Plush",
+      metadataUri: "ipfs://pikachu",
+      physicalSku: "POKE-PIKA-001",
+      tier: { common: {} },
+      probabilityBp: 6000, // 60%
+      supplyTotal: 1000,
+      supplyRemaining: 1000,
+    },
+    {
+      prizeId: new BN(2),
+      name: "Charizard Figure",
+      metadataUri: "ipfs://charizard",
+      physicalSku: "POKE-CHAR-001",
+      tier: { rare: {} },
+      probabilityBp: 500, // 5%
+      supplyTotal: 100,
+      supplyRemaining: 100,
+    },
+    // ... more prizes
+  ];
+
+  await program.methods
+    .initializeGame(gameId, new BN(500), tokenMint, prizePool)
+    .accounts({
+      authority: admin.publicKey,
+      game: gamePda,
+      treasury: treasuryWallet,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  console.log(`✅ Created Pokemon Game (ID: ${gameId})`);
+}
+
+async function createAnimeGame() {
+  const gameId = new BN(2); // Different ID
+  const [gamePda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("game"), Buffer.from(gameId.toArray("le", 8))],
+    program.programId
+  );
+
+  const prizePool = [
+    // Different prize set
+    {
+      prizeId: new BN(1),
+      name: "Naruto Figure",
+      metadataUri: "ipfs://naruto",
+      physicalSku: "ANIME-NAR-001",
+      tier: { common: {} },
+      probabilityBp: 7000,
+      supplyTotal: 500,
+      supplyRemaining: 500,
+    },
+    // ... more prizes
+  ];
+
+  await program.methods
+    .initializeGame(gameId, new BN(300), tokenMint, prizePool) // $3 price
+    .accounts({
+      authority: admin.publicKey,
+      game: gamePda,
+      treasury: treasuryWallet,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  console.log(`✅ Created Anime Game (ID: ${gameId})`);
+}
+
+// Run all
+async function main() {
+  await createPokemonGame();
+  await createAnimeGame();
+  // Add more games as needed...
+}
+

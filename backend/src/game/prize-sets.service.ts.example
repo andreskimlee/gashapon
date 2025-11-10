@@ -1,0 +1,133 @@
+/**
+ * Prize Set Templates
+ * Reusable prize configurations for creating games
+ */
+
+export interface PrizeSetTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  prizes: PrizeTemplate[];
+}
+
+export interface PrizeTemplate {
+  prizeId: number;
+  name: string;
+  metadataUri: string; // IPFS/Arweave
+  physicalSku: string;
+  tier: 'common' | 'uncommon' | 'rare' | 'legendary';
+  probabilityBp: number; // Must sum to 10000
+  supplyTotal: number;
+  estimatedCost: number; // USD
+}
+
+export const PRIZE_SET_TEMPLATES: Record<string, PrizeSetTemplate> = {
+  'pokemon-series-1': {
+    id: 'pokemon-series-1',
+    name: 'Pokemon Series 1',
+    description: 'Classic Pokemon collectibles',
+    category: 'anime',
+    prizes: [
+      {
+        prizeId: 1,
+        name: 'Pikachu Plush',
+        metadataUri: 'ipfs://...',
+        physicalSku: 'POKE-PIKA-001',
+        tier: 'common',
+        probabilityBp: 6000, // 60%
+        supplyTotal: 1000,
+        estimatedCost: 2.00,
+      },
+      {
+        prizeId: 2,
+        name: 'Charizard Figure',
+        metadataUri: 'ipfs://...',
+        physicalSku: 'POKE-CHAR-001',
+        tier: 'rare',
+        probabilityBp: 500, // 5%
+        supplyTotal: 100,
+        estimatedCost: 25.00,
+      },
+      // ... more prizes (must sum to 10000 bp)
+    ],
+  },
+  'anime-collection': {
+    id: 'anime-collection',
+    name: 'Anime Collection',
+    description: 'Popular anime figures',
+    category: 'anime',
+    prizes: [
+      // Different prize set
+    ],
+  },
+};
+
+/**
+ * Service to manage prize set templates
+ */
+export class PrizeSetsService {
+  /**
+   * Get all available prize sets
+   */
+  getAvailableSets(): PrizeSetTemplate[] {
+    return Object.values(PRIZE_SET_TEMPLATES);
+  }
+
+  /**
+   * Get prize set by ID
+   */
+  getPrizeSet(setId: string): PrizeSetTemplate {
+    const set = PRIZE_SET_TEMPLATES[setId];
+    if (!set) throw new Error(`Prize set ${setId} not found`);
+    return set;
+  }
+
+  /**
+   * Validate prize set probabilities sum to 10000
+   */
+  validatePrizeSet(set: PrizeSetTemplate): boolean {
+    const sum = set.prizes.reduce((acc, p) => acc + p.probabilityBp, 0);
+    return sum === 10000;
+  }
+
+  /**
+   * Create game from prize set template
+   */
+  createGameFromTemplate(
+    setId: string,
+    config: {
+      name: string;
+      costUsdCents: number;
+      tokenMint: PublicKey;
+      treasury: PublicKey;
+    },
+  ) {
+    const template = this.getPrizeSet(setId);
+    
+    if (!this.validatePrizeSet(template)) {
+      throw new Error('Invalid prize set: probabilities must sum to 10000');
+    }
+
+    return {
+      name: config.name || template.name,
+      description: template.description,
+      prizeSetId: setId,
+      category: template.category,
+      costUsdCents: config.costUsdCents,
+      tokenMint: config.tokenMint,
+      treasuryWallet: config.treasury,
+      prizePool: template.prizes.map((p) => ({
+        prizeId: p.prizeId,
+        name: p.name,
+        metadataUri: p.metadataUri,
+        physicalSku: p.physicalSku,
+        tier: p.tier,
+        probabilityBp: p.probabilityBp,
+        supplyTotal: p.supplyTotal,
+        supplyRemaining: p.supplyTotal, // Start with full supply
+      })),
+    };
+  }
+}
+

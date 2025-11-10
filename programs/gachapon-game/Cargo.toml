@@ -1,0 +1,26 @@
+[package]
+name = "gachapon-game"
+version = "0.1.0"
+description = "Solana Gachapon Game Program"
+edition = "2021"
+
+[lib]
+name = "gachapon_game"
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+default = []
+
+# Suppress warnings from Anchor's internal macro cfg flags
+# These are used by Anchor's #[program] macro internally
+[lints.rust]
+unexpected_cfgs = { level = "allow" }
+
+[dependencies]
+anchor-lang = "0.32.1"
+anchor-spl = { version = "0.32.1", features = ["token", "associated_token"] }
+mpl-token-metadata = "5.1.0"
+
+

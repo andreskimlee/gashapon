@@ -1,5 +1,5 @@
-/* 1) Load fonts (primary = Poppins, display = Fredoka) */
-@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Poppins:wght@300;400;500;600;700&display=swap");
+/* 1) Load fonts (primary = Poppins, display = Bungee for titles) */
+@import url("https://fonts.googleapis.com/css2?family=Bungee&family=Poppins:wght@300;400;500;600;700&display=swap");
 
 /* 2) Tailwind layers */
 @tailwind base;
@@ -9,7 +9,7 @@
 /* 3) CSS variables so you can swap fonts later in one place */
 :root {
   --font-sans: "Poppins", system-ui, sans-serif;
-  --font-display: "Fredoka", system-ui, sans-serif;
+  --font-display: "Bungee", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   
   --background: #FFF5E1;

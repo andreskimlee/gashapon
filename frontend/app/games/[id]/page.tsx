@@ -10,6 +10,7 @@
 import ArcadeCard from "@/components/ui/ArcadeCard";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import ClawMachine3D from "@/components/game/ClawMachine3D";
 import Loading from "@/components/ui/Loading";
 import NeonSign from "@/components/ui/NeonSign";
 import { usePlayRealtime } from "@/hooks/api/usePlayRealtime";
@@ -120,18 +121,8 @@ export default function GameDetailPage() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        <ArcadeCard className="md:col-span-2 overflow-hidden">
-          {game.imageUrl ? (
-            <img
-              src={game.imageUrl}
-              alt={game.name}
-              className="w-full h-72 object-cover"
-            />
-          ) : (
-            <div className="w-full h-72 arcade-gradient-soft flex items-center justify-center text-6xl">
-              🎮
-            </div>
-          )}
+        <ArcadeCard className="md:col-span-2 overflow-hidden bg-black/40">
+          <ClawMachine3D />
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               {game.isActive ? (

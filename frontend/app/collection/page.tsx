@@ -1,21 +1,21 @@
 /**
  * Collection Page
- * 
+ *
  * Displays user's NFT collection (requires wallet connection).
  * Shows unredeemed and redeemed NFTs with actions to redeem or list.
  */
 
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import Button from '@/components/ui/Button';
-import ArcadeCard from '@/components/ui/ArcadeCard';
-import Badge from '@/components/ui/Badge';
-import { usersApi } from '@/services/api/users';
-import { redemptionApi } from '@/services/api/redemption';
-import type { NFT, RedemptionRequest } from '@/types/api/nfts';
-import { encryptShippingData, type ShippingData } from '@/utils/encryption';
+import ArcadeCard from "@/components/ui/ArcadeCard";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import { redemptionApi } from "@/services/api/redemption";
+import { usersApi } from "@/services/api/users";
+import type { NFT, RedemptionRequest } from "@/types/api/nfts";
+import { encryptShippingData, type ShippingData } from "@/utils/encryption";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function CollectionPage() {
   const { publicKey, connected } = useWallet();
@@ -24,23 +24,23 @@ export default function CollectionPage() {
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [redeemingMint, setRedeemingMint] = useState<string | null>(null);
   const [shipping, setShipping] = useState<ShippingData>({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'US',
-    email: '',
+    name: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: "US",
+    email: "",
   });
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
 
-  const unredeemed = useMemo(() => nfts.filter(n => !n.isRedeemed), [nfts]);
-  const redeemed = useMemo(() => nfts.filter(n => n.isRedeemed), [nfts]);
+  const unredeemed = useMemo(() => nfts.filter((n) => !n.isRedeemed), [nfts]);
+  const redeemed = useMemo(() => nfts.filter((n) => n.isRedeemed), [nfts]);
 
   const fetchCollection = async () => {
     const walletAddress = publicKey?.toBase58();
     if (!walletAddress) {
-      setError('Connect your wallet to view collection');
+      setError("Connect your wallet to view collection");
       return;
     }
     try {
@@ -49,7 +49,7 @@ export default function CollectionPage() {
       const data = await usersApi.getCollection(walletAddress);
       setNfts(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load collection');
+      setError(e instanceof Error ? e.message : "Failed to load collection");
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function CollectionPage() {
   const submitRedeem = async () => {
     const walletAddress = publicKey?.toBase58();
     if (!redeemingMint || !walletAddress) return;
-    setRedeemMessage('Submitting redemption...');
+    setRedeemMessage("Submitting redemption...");
     try {
       // For testing, signature verification on backend is a placeholder: send any string
       const signature = `redeem-${Date.now()}`;
@@ -100,14 +100,14 @@ export default function CollectionPage() {
 
       const res = await redemptionApi.redeemNft(payload);
       if (res.success) {
-        setRedeemMessage(`Redeemed! Tracking ${res.trackingNumber || 'TBD'}`);
+        setRedeemMessage(`Redeemed! Tracking ${res.trackingNumber || "TBD"}`);
         // Refresh collection
         await fetchCollection();
       } else {
-        setRedeemMessage(res.error || 'Redemption failed');
+        setRedeemMessage(res.error || "Redemption failed");
       }
     } catch (e) {
-      setRedeemMessage(e instanceof Error ? e.message : 'Redemption failed');
+      setRedeemMessage(e instanceof Error ? e.message : "Redemption failed");
     }
   };
 
@@ -117,7 +117,9 @@ export default function CollectionPage() {
 
       {!connected && (
         <div className="mb-6">
-          <p className="text-white/80">Connect your wallet to view your collection.</p>
+          <p className="text-white/80">
+            Connect your wallet to view your collection.
+          </p>
         </div>
       )}
 
@@ -128,21 +130,74 @@ export default function CollectionPage() {
         <div className="mb-8 p-4 rounded-xl border border-white/10 bg-white/5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xl font-semibold text-white">Redeem NFT</h3>
-            <Button variant="outline" size="sm" onClick={cancelRedeem}>Close</Button>
+            <Button variant="outline" size="sm" onClick={cancelRedeem}>
+              Close
+            </Button>
           </div>
           <p className="text-white/70 text-sm mb-4">Mint: {redeemingMint}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40" placeholder="Full Name" value={shipping.name} onChange={e => setShipping(s => ({ ...s, name: e.target.value }))} />
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40" placeholder="Email (optional)" value={shipping.email} onChange={e => setShipping(s => ({ ...s, email: e.target.value }))} />
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40 md:col-span-2" placeholder="Address" value={shipping.address} onChange={e => setShipping(s => ({ ...s, address: e.target.value }))} />
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40" placeholder="City" value={shipping.city} onChange={e => setShipping(s => ({ ...s, city: e.target.value }))} />
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40" placeholder="State" value={shipping.state} onChange={e => setShipping(s => ({ ...s, state: e.target.value }))} />
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40" placeholder="ZIP" value={shipping.zip} onChange={e => setShipping(s => ({ ...s, zip: e.target.value }))} />
-            <input className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40" placeholder="Country" value={shipping.country} onChange={e => setShipping(s => ({ ...s, country: e.target.value }))} />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
+              placeholder="Full Name"
+              value={shipping.name}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, name: e.target.value }))
+              }
+            />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
+              placeholder="Email (optional)"
+              value={shipping.email}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, email: e.target.value }))
+              }
+            />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40 md:col-span-2"
+              placeholder="Address"
+              value={shipping.address}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, address: e.target.value }))
+              }
+            />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
+              placeholder="City"
+              value={shipping.city}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, city: e.target.value }))
+              }
+            />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
+              placeholder="State"
+              value={shipping.state}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, state: e.target.value }))
+              }
+            />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
+              placeholder="ZIP"
+              value={shipping.zip}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, zip: e.target.value }))
+              }
+            />
+            <input
+              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
+              placeholder="Country"
+              value={shipping.country}
+              onChange={(e) =>
+                setShipping((s) => ({ ...s, country: e.target.value }))
+              }
+            />
           </div>
           <div className="mt-4 flex gap-2">
             <Button onClick={submitRedeem}>Submit Redemption</Button>
-            {redeemMessage && <span className="text-white/80">{redeemMessage}</span>}
+            {redeemMessage && (
+              <span className="text-white/80">{redeemMessage}</span>
+            )}
           </div>
         </div>
       )}
@@ -157,12 +212,21 @@ export default function CollectionPage() {
             {unredeemed.map((nft) => (
               <ArcadeCard key={nft.id} className="p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-semibold">{nft.name || `Prize #${nft.prizeId}`}</h3>
-                  {nft.tier && <Badge variant="info">{nft.tier}</Badge>}
+                  <h3 className="text-white font-semibold">
+                    {nft.name || `Prize #${nft.prizeId}`}
+                  </h3>
+                  {nft.tier && <Badge variant="common">{nft.tier}</Badge>}
                 </div>
-                <p className="text-xs text-white/60 mb-4 break-all">{nft.mintAddress}</p>
+                <p className="text-xs text-white/60 mb-4 break-all">
+                  {nft.mintAddress}
+                </p>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => startRedeem(nft.mintAddress)}>Redeem</Button>
+                  <Button
+                    size="sm"
+                    onClick={() => startRedeem(nft.mintAddress)}
+                  >
+                    Redeem
+                  </Button>
                 </div>
               </ArcadeCard>
             ))}
@@ -180,12 +244,18 @@ export default function CollectionPage() {
             {redeemed.map((nft) => (
               <ArcadeCard key={nft.id} className="p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-semibold">{nft.name || `Prize #${nft.prizeId}`}</h3>
+                  <h3 className="text-white font-semibold">
+                    {nft.name || `Prize #${nft.prizeId}`}
+                  </h3>
                   <Badge variant="success">Redeemed</Badge>
                 </div>
-                <p className="text-xs text-white/60 break-all">{nft.mintAddress}</p>
+                <p className="text-xs text-white/60 break-all">
+                  {nft.mintAddress}
+                </p>
                 {nft.redeemedAt && (
-                  <p className="text-xs text-white/40 mt-2">Redeemed at: {new Date(nft.redeemedAt).toLocaleString()}</p>
+                  <p className="text-xs text-white/40 mt-2">
+                    Redeemed at: {new Date(nft.redeemedAt).toLocaleString()}
+                  </p>
                 )}
               </ArcadeCard>
             ))}
@@ -195,4 +265,3 @@ export default function CollectionPage() {
     </div>
   );
 }
-

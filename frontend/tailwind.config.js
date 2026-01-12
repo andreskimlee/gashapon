@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
   darkMode: "class",
   theme: {
     extend: {
@@ -13,108 +10,91 @@ module.exports = {
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       colors: {
-        // Pastel arcade palette (from the claw machine)
+        // Pastel kawaii palette (Claw & Catch style)
+        pastel: {
+          sky: "#B8E4F0", // Light sky blue background
+          skyLight: "#D4EEF7", // Lighter sky
+          cloud: "#FFFFFF", // White clouds
+          coral: "#F7ABAD", // Coral/salmon pink for buttons
+          coralLight: "#F9B4AE", // Lighter coral
+          pink: "#F5C6D6", // Soft pink
+          pinkLight: "#FCE4EC", // Very light pink
+          mint: "#A1E5CC", // Mint green
+          mintLight: "#D4F0E7", // Light mint
+          cream: "#FFF8E7", // Cream/off-white
+          yellow: "#FFE5A0", // Soft yellow
+          peach: "#FFD4B8", // Peach
+          lavender: "#E0D4F7", // Soft lavender
+          purple: "#D4B8E8", // Light purple
+          text: "#5A5A6E", // Dark gray text
+          textLight: "#8B8B9E", // Light gray text
+        },
+        // Keep some candy colors for compatibility
         candy: {
-          pink: "#F9C7CF",
-          lightPink: "#FFDCE5",
-          mint: "#B3F1E5",
+          pink: "#F5C6D6",
+          lightPink: "#FCE4EC",
+          mint: "#A1E5CC",
           teal: "#80D3C4",
-          cream: "#FFF5E1",
-          yellow: "#FFD88D",
-          lavender: "#E1D7FF",
+          cream: "#FFF8E7",
+          yellow: "#FFE5A0",
+          lavender: "#E0D4F7",
           deepBlue: "#5076D1",
           white: "#FFFFFF",
-          dark: "#2E2E3A",
-        },
-        // Neon arcade colors for glow effects
-        neon: {
-          pink: "#FF10F0",
-          cyan: "#00FFFF",
-          yellow: "#FFFF00",
-          purple: "#9D4EDD",
-          blue: "#4CC9F0",
-          orange: "#FF6B35",
-        },
-        // Dark background colors
-        arcade: {
-          dark: "#1A0B2E",
-          purple: "#2D1B4E",
-          blue: "#16213E",
+          dark: "#5A5A6E",
         },
       },
       boxShadow: {
-        soft: "0 8px 24px rgba(0,0,0,0.08)",
-        pill: "0 6px 0 rgba(0,0,0,0.12)",
-        neon: {
-          pink: "0 0 20px rgba(255, 16, 240, 0.5), 0 0 40px rgba(255, 16, 240, 0.3)",
-          cyan: "0 0 20px rgba(0, 255, 255, 0.5), 0 0 40px rgba(0, 255, 255, 0.3)",
-          yellow: "0 0 20px rgba(255, 255, 0, 0.5), 0 0 40px rgba(255, 255, 0, 0.3)",
-          purple: "0 0 20px rgba(157, 78, 221, 0.5), 0 0 40px rgba(157, 78, 221, 0.3)",
-          blue: "0 0 20px rgba(76, 201, 240, 0.5), 0 0 40px rgba(76, 201, 240, 0.3)",
-        },
-        glow: {
-          pink: "0 0 10px rgba(255, 16, 240, 0.8), 0 0 20px rgba(255, 16, 240, 0.6), 0 0 30px rgba(255, 16, 240, 0.4)",
-          cyan: "0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.6), 0 0 30px rgba(0, 255, 255, 0.4)",
-        },
+        soft: "0 4px 12px rgba(0,0,0,0.08)",
+        card: "0 8px 24px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04)",
+        button: "0 4px 0 rgba(0,0,0,0.1)",
+        buttonHover: "0 2px 0 rgba(0,0,0,0.1)",
+        pill: "0 3px 0 rgba(0,0,0,0.08)",
       },
       borderRadius: {
         xl2: "1.25rem",
+        "3xl": "1.5rem",
+        "4xl": "2rem",
       },
       keyframes: {
         "button-bounce": {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-2px)" },
         },
-        "press": {
+        press: {
           "0%": { transform: "translateY(0)" },
           "100%": { transform: "translateY(2px)" },
         },
-        "shimmer": {
+        shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
-        "glow-pulse": {
-          "0%, 100%": { 
-            opacity: "1",
-            filter: "brightness(1)",
-          },
-          "50%": { 
-            opacity: "0.8",
-            filter: "brightness(1.2)",
-          },
-        },
-        "neon-flicker": {
-          "0%, 100%": { opacity: "1" },
-          "41.99%": { opacity: "1" },
-          "42%": { opacity: "0" },
-          "43%": { opacity: "0" },
-          "43.01%": { opacity: "1" },
-          "45.99%": { opacity: "1" },
-          "46%": { opacity: "0" },
-          "46.01%": { opacity: "1" },
-        },
-        "float": {
+        float: {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-10px)" },
+        },
+        "cloud-drift": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(100vw)" },
         },
       },
       animation: {
         "button-bounce": "button-bounce .8s ease-in-out infinite",
         press: "press .08s linear forwards",
         shimmer: "shimmer 2.5s linear infinite",
-        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
-        "neon-flicker": "neon-flicker 3s linear infinite",
         float: "float 3s ease-in-out infinite",
+        "cloud-drift": "cloud-drift 60s linear infinite",
       },
-      gradientColorStops: ({ theme }) => ({
-        ...theme("colors"),
-      }),
     },
   },
-  // ensure gradient utilities are always available in first builds
   safelist: [
-    { pattern: /(from|via|to)-(candy)-(pink|mint|teal|yellow|lavender|cream|deepBlue)/ },
+    {
+      pattern:
+        /(from|via|to)-(pastel|candy)-(sky|coral|pink|mint|cream|yellow|lavender|peach|purple)/,
+    },
+    {
+      pattern:
+        /bg-(pastel|candy)-(sky|coral|pink|mint|cream|yellow|lavender|peach|purple)/,
+    },
   ],
   plugins: [],
 };
-

@@ -1,7 +1,8 @@
 /**
  * Neon Sign Component
  * 
- * Creates a neon sign effect with glow and flicker animation
+ * Creates stylized text with optional color effects
+ * Now supports pastel kawaii style
  */
 
 'use client';
@@ -11,23 +12,26 @@ import { cn } from '@/utils/helpers';
 
 interface NeonSignProps {
   children: ReactNode;
-  color?: 'pink' | 'cyan' | 'yellow' | 'purple' | 'blue';
+  color?: 'pink' | 'cyan' | 'yellow' | 'purple' | 'blue' | 'coral' | 'mint' | 'default';
   className?: string;
   flicker?: boolean;
 }
 
 export default function NeonSign({
   children,
-  color = 'cyan',
+  color = 'default',
   className,
-  flicker = true,
+  flicker = false,
 }: NeonSignProps) {
   const colorClasses = {
-    pink: 'text-neon-pink neon-glow-pink',
-    cyan: 'text-neon-cyan neon-glow-cyan',
-    yellow: 'text-neon-yellow neon-glow-yellow',
-    purple: 'text-neon-purple',
-    blue: 'text-neon-blue',
+    pink: 'text-pastel-pink',
+    cyan: 'text-pastel-mint',
+    yellow: 'text-pastel-yellow',
+    purple: 'text-pastel-purple',
+    blue: 'text-pastel-sky',
+    coral: 'text-pastel-coral',
+    mint: 'text-pastel-mint',
+    default: 'text-pastel-text',
   };
 
   return (
@@ -35,7 +39,6 @@ export default function NeonSign({
       className={cn(
         'font-display font-bold',
         colorClasses[color],
-        flicker && 'neon-text',
         className
       )}
     >

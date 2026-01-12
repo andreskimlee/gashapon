@@ -40,6 +40,9 @@ pub mod gachapon_game {
   pub fn initialize_game(
     ctx: Context<InitializeGame>,
     game_id: u64,
+    name: String,
+    description: String,
+    image_url: String,
     cost_usd: u64,
     token_mint: Pubkey,
     prize_pool: Vec<PrizeConfig>,
@@ -49,6 +52,23 @@ pub mod gachapon_game {
       ctx.accounts.authority.key() == ctx.accounts.config.authority,
       ErrorCode::Unauthorized
     );
+
+    // Validate string lengths (conservative limits to stay under 10KB)
+    require!(name.len() <= 50, ErrorCode::StringTooLong);
+    require!(description.len() <= 150, ErrorCode::StringTooLong);
+    require!(image_url.len() <= 150, ErrorCode::StringTooLong);
+    
+    // Validate prize string lengths
+    for prize in &prize_pool {
+      require!(prize.name.len() <= 50, ErrorCode::StringTooLong);
+      require!(prize.description.len() <= 100, ErrorCode::StringTooLong);
+      require!(prize.image_url.len() <= 150, ErrorCode::StringTooLong);
+      require!(prize.metadata_uri.len() <= 150, ErrorCode::StringTooLong);
+      require!(prize.physical_sku.len() <= 30, ErrorCode::StringTooLong);
+    }
+    
+    // Limit number of prizes (each prize ~500 bytes, so max ~15 prizes to stay under 10KB)
+    require!(prize_pool.len() <= 15, ErrorCode::TooManyPrizes);
 
     // Validate prize distribution
     // Allow probabilities to sum to less than 10,000 (enables win/loss)
@@ -67,6 +87,9 @@ pub mod gachapon_game {
     let game = &mut ctx.accounts.game;
     game.authority = ctx.accounts.authority.key();
     game.game_id = game_id;
+    game.name = name;
+    game.description = description;
+    game.image_url = image_url;
     game.token_mint = token_mint;
     game.cost_usd = cost_usd;
     game.treasury = ctx.accounts.treasury.key();
@@ -91,6 +114,7 @@ pub mod gachapon_game {
     require!(token_amount > 0, ErrorCode::InvalidTokenAmount);
 
     // Transfer tokens from user to treasury
+    // Note: Price verification is done off-chain by the indexer before calling finalize_play
     let cpi_accounts = Transfer {
       from: ctx.accounts.user_token_account.to_account_info(),
       to: ctx.accounts.treasury_token_account.to_account_info(),
@@ -281,10 +305,13 @@ pub enum PrizeTier {
 pub struct PrizeConfig {
   pub prize_id: u64,
   pub name: String,
+  pub description: String,
+  pub image_url: String,
   pub metadata_uri: String,
   pub physical_sku: String,
   pub tier: PrizeTier,
-  pub probability_bp: u16,
+  pub probability_bp: u16,      // Probability in basis points (0-10000)
+  pub cost_usd: u64,            // Cost/value of the prize in cents
   pub supply_total: u32,
   pub supply_remaining: u32,
 }
@@ -299,8 +326,11 @@ pub struct Config {
 pub struct Game {
   pub authority: Pubkey,
   pub game_id: u64,
+  pub name: String,              // Game name (max 64 chars)
+  pub description: String,       // Game description (max 256 chars)
+  pub image_url: String,         // Game image URL (max 200 chars)
   pub token_mint: Pubkey,
-  pub cost_usd: u64, // in cents
+  pub cost_usd: u64,             // Cost per play in cents
   pub treasury: Pubkey,
   pub prize_pool: Vec<PrizeConfig>,
   pub total_plays: u64,
@@ -344,7 +374,7 @@ pub struct InitializeGame<'info> {
   #[account(
     init,
     payer = authority,
-    space = 8 + 8192,
+    space = 10240, // Max allowed in inner instructions (10KB limit)
     seeds = [b"game", game_id.to_le_bytes().as_ref()],
     bump
   )]
@@ -535,6 +565,10 @@ pub enum ErrorCode {
   InvalidTokenAmount,
   #[msg("Math overflow")] 
   MathOverflow,
+  #[msg("String exceeds maximum length")]
+  StringTooLong,
+  #[msg("Too many prizes (max 15)")]
+  TooManyPrizes,
 }
 
 // Helpers

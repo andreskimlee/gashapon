@@ -17,7 +17,7 @@ export class GameEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 44, unique: true })
+  @Column({ type: 'varchar', length: 100, unique: true })
   onChainAddress: string;
 
   @Column({ type: 'bigint', unique: true })

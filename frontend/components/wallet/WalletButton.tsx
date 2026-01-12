@@ -15,5 +15,9 @@ const WalletMultiButton = dynamic(
 );
 
 export default function WalletButton() {
-  return <WalletMultiButton className="!bg-neon-cyan !text-black hover:!opacity-90" />;
+  return (
+    <WalletMultiButton 
+      className="!bg-pastel-coral !text-white !rounded-full !font-semibold !shadow-button hover:!bg-pastel-coralLight !transition-all" 
+    />
+  );
 }

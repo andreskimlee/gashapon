@@ -9,9 +9,10 @@ import { MarketplaceService } from './services/marketplace.service';
 import { HeliusModule } from '../helius/helius.module';
 import { DatabaseModule } from '../database/database.module';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { PriceModule } from '../price/price.module';
 
 @Module({
-  imports: [HeliusModule, DatabaseModule, SupabaseModule],
+  imports: [HeliusModule, DatabaseModule, SupabaseModule, PriceModule],
   providers: [
     IndexerService,
     EventParserService,
@@ -21,7 +22,7 @@ import { SupabaseModule } from '../supabase/supabase.module';
     NftService,
     MarketplaceService,
   ],
-  exports: [IndexerService],
+  exports: [IndexerService, EventParserService, GameService],
 })
 export class IndexerModule {}
 

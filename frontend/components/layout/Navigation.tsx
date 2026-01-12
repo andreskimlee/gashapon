@@ -24,19 +24,19 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="relative border-b border-neon-cyan/30 bg-white/5 backdrop-blur-sm">
+    <nav className="relative bg-white/70 backdrop-blur-sm border-b border-pastel-pink/30">
       <div className="container mx-auto px-4">
-        <div className="flex space-x-8">
+        <div className="flex space-x-6">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`py-4 px-2 border-b-2 transition-colors font-semibold font-sans ${
+                className={`py-3 px-3 border-b-2 transition-colors font-medium font-sans text-sm ${
                   isActive
-                    ? 'border-neon-cyan text-neon-cyan neon-glow-cyan'
-                    : 'border-transparent text-white/80 hover:text-white hover:neon-glow-cyan'
+                    ? 'border-pastel-coral text-pastel-coral'
+                    : 'border-transparent text-pastel-text hover:text-pastel-coral hover:border-pastel-coralLight'
                 }`}
               >
                 {item.label}

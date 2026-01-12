@@ -1,165 +1,119 @@
 /**
  * Home Page
  * 
- * Retro-futuristic arcade landing page with:
- * - Dark vaporwave hero section with neon signs
- * - Featured games with glassmorphism cards
- * - How it works section with neon effects
- * - Floating decorative elements
+ * Pastel kawaii landing page with:
+ * - Sky background with fluffy clouds
+ * - 3D claw machine in hero section
+ * - Game cards grid in pastel style
  */
 
 'use client';
 
 import Link from 'next/link';
-import NeonSign from '@/components/ui/NeonSign';
-import ArcadeCard from '@/components/ui/ArcadeCard';
+import dynamic from 'next/dynamic';
+import CTAButton from '@/components/ui/CTAButton';
+import GameCard from '@/components/home/GameCard';
+import HeroSection from '@/components/home/HeroSection';
+
+// Dynamically import ClawMachine3D to avoid SSR issues with Three.js
+const ClawMachine3D = dynamic(
+  () => import('@/components/game/ClawMachine3D'),
+  { ssr: false, loading: () => <div className="w-full h-full bg-pastel-mintLight/50 rounded-2xl animate-pulse" /> }
+);
+
+const featuredGames = [
+  {
+    id: 1,
+    name: 'Plushie Paradise',
+    image: '🧸',
+    color: 'pink',
+    room: '#101',
+    cost: 100,
+  },
+  {
+    id: 2,
+    name: 'Tech Toys',
+    image: '🎮',
+    color: 'mint',
+    room: '#101',
+    cost: 100,
+  },
+  {
+    id: 3,
+    name: 'Anime Figures',
+    image: '✨',
+    color: 'lavender',
+    room: '#101',
+    cost: 100,
+  },
+  {
+    id: 4,
+    name: 'Wild Drains',
+    image: '🐉',
+    color: 'mint',
+    room: '#101',
+    cost: 100,
+  },
+  {
+    id: 5,
+    name: 'Teech Toys',
+    image: '🧸',
+    color: 'peach',
+    room: '#101',
+    cost: 100,
+  },
+  {
+    id: 6,
+    name: "Blo's & Whens",
+    image: '🎀',
+    color: 'pink',
+    room: '#101',
+    cost: 100,
+  },
+];
 
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 py-16">
-        {/* Ambient floating lights */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-neon-cyan/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-40 h-40 bg-neon-pink/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-neon-purple/20 rounded-full blur-2xl animate-float" style={{ animationDelay: '2s' }} />
-        
-        {/* Floating coins */}
-        <div className="absolute top-32 right-20 text-6xl animate-float" style={{ animationDelay: '0.5s' }}>
-          ⭐
-        </div>
-        <div className="absolute bottom-32 left-20 text-5xl animate-float" style={{ animationDelay: '1.5s' }}>
-          💰
-        </div>
-        
-        <div className="relative z-10 max-w-5xl text-center">
-          {/* Main Neon Title */}
-          <NeonSign color="cyan" className="text-7xl md:text-8xl mb-6" flicker={true}>
-            GACHAPON
-          </NeonSign>
-          
-          {/* Subtitle with glow */}
-          <p className="text-2xl md:text-3xl mb-4 neon-glow-yellow font-display">
-            RETRO ARCADE • BLOCKCHAIN PRIZES
-          </p>
-          
-          <p className="text-lg md:text-xl mb-12 text-white/90 max-w-2xl mx-auto">
-            Play games, win NFTs, redeem physical prizes
-            <br />
-            <span className="text-neon-cyan">Experience the future of arcade gaming</span>
-          </p>
-          
-          {/* CTA Button */}
-          <Link
-            href="/games"
-            className="btn btn-neon text-xl px-10 py-5 inline-block"
-          >
-            🎮 PLAY NOW
-          </Link>
-          
-          {/* Decorative neon arrows */}
-          <div className="mt-16 flex justify-center gap-8">
-            <div className="text-4xl neon-glow-cyan animate-float">↓</div>
-            <div className="text-4xl neon-glow-pink animate-float" style={{ animationDelay: '0.3s' }}>↓</div>
-            <div className="text-4xl neon-glow-yellow animate-float" style={{ animationDelay: '0.6s' }}>↓</div>
-          </div>
-        </div>
-      </section>
+      <HeroSection />
 
-      {/* Featured Games Section */}
-      <section className="relative py-20 px-4">
+      {/* Games Grid Section */}
+      <section className="relative py-12 px-4">
         <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <NeonSign color="pink" className="text-5xl md:text-6xl mb-4" flicker={false}>
-              FEATURED GAMES
-            </NeonSign>
-            <p className="text-white/70 text-lg">Choose your adventure</p>
-          </div>
-          
-          {/* Placeholder for game cards - will be replaced with actual games */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <ArcadeCard glow="cyan" ambient={true} className="text-center">
-              <div className="text-6xl mb-4">🎰</div>
-              <h3 className="text-2xl font-display mb-3 neon-glow-cyan">Classic Gacha</h3>
-              <p className="text-white/80 mb-4">Traditional arcade experience</p>
-              <div className="text-neon-cyan font-bold text-xl">100 tokens</div>
-            </ArcadeCard>
-            
-            <ArcadeCard glow="pink" ambient={true} className="text-center">
-              <div className="text-6xl mb-4">🎯</div>
-              <h3 className="text-2xl font-display mb-3 neon-glow-pink">Premium Prize</h3>
-              <p className="text-white/80 mb-4">Higher stakes, better rewards</p>
-              <div className="text-neon-pink font-bold text-xl">500 tokens</div>
-            </ArcadeCard>
-            
-            <ArcadeCard glow="purple" ambient={true} className="text-center">
-              <div className="text-6xl mb-4">🏆</div>
-              <h3 className="text-2xl font-display mb-3 neon-glow-yellow">Legendary Box</h3>
-              <p className="text-white/80 mb-4">Ultra rare prizes await</p>
-              <div className="text-neon-yellow font-bold text-xl">1000 tokens</div>
-            </ArcadeCard>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {featuredGames.map((game) => (
+              <GameCard key={game.id} game={game} />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="relative py-20 px-4">
-        
-        <div className="container mx-auto relative z-10">
-          <div className="text-center mb-12">
-            <NeonSign color="yellow" className="text-5xl md:text-6xl mb-4" flicker={false}>
-              HOW IT WORKS
-            </NeonSign>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <ArcadeCard glow="cyan" className="text-center relative">
-              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
-                <div className="text-5xl neon-glow-cyan">🎮</div>
-              </div>
-              <div className="pt-8">
-                <h3 className="text-xl font-display mb-3 text-white">1. Play Games</h3>
-                <p className="text-white/70">Use tokens to play and win prizes</p>
-              </div>
-            </ArcadeCard>
-            
-            <ArcadeCard glow="pink" className="text-center relative">
-              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
-                <div className="text-5xl neon-glow-pink">🎁</div>
-              </div>
-              <div className="pt-8">
-                <h3 className="text-xl font-display mb-3 text-white">2. Win NFTs</h3>
-                <p className="text-white/70">Collect rare prize NFTs</p>
-              </div>
-            </ArcadeCard>
-            
-            <ArcadeCard glow="purple" className="text-center relative">
-              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
-                <div className="text-5xl neon-glow-yellow">📦</div>
-              </div>
-              <div className="pt-8">
-                <h3 className="text-xl font-display mb-3 text-white">3. Redeem Prizes</h3>
-                <p className="text-white/70">Trade NFTs for physical items</p>
-              </div>
-            </ArcadeCard>
+      {/* Footer */}
+      <footer className="relative py-6 px-4 border-t border-pastel-pink/30 bg-white/50">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex gap-6 text-sm text-pastel-text">
+              <a href="#" className="hover:text-pastel-coral transition-colors">About</a>
+              <a href="#" className="hover:text-pastel-coral transition-colors">Support</a>
+              <a href="#" className="hover:text-pastel-coral transition-colors">Terms</a>
+            </div>
+            <div className="flex gap-4">
+              <a href="#" className="text-pastel-text hover:text-pastel-coral transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              </a>
+              <a href="#" className="text-pastel-text hover:text-pastel-coral transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
+              </a>
+              <a href="#" className="text-pastel-text hover:text-pastel-coral transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              </a>
+              <a href="#" className="text-pastel-text hover:text-pastel-coral transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+              </a>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* Call to Action Footer */}
-      <section className="relative py-16 px-4 border-t border-neon-cyan/30">
-        <div className="container mx-auto text-center">
-          <NeonSign color="cyan" className="text-4xl mb-6" flicker={true}>
-            READY TO PLAY?
-          </NeonSign>
-          <Link
-            href="/games"
-            className="btn btn-neon text-lg px-8 py-4 inline-block"
-          >
-            EXPLORE GAMES →
-          </Link>
-        </div>
-      </section>
+      </footer>
     </div>
   );
 }

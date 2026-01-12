@@ -9,6 +9,7 @@ import {
 import { GameService } from './game.service';
 import { PrizeService } from './prize.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { PriceService } from '../../price/price.service';
 
 @Injectable()
 export class PlayService {
@@ -19,45 +20,9 @@ export class PlayService {
     private gameService: GameService,
     private prizeService: PrizeService,
     private supabaseService: SupabaseService,
+    private priceService: PriceService,
   ) {}
 
-  /**
-   * Create a new play record
-   */
-  async createPlay(
-    gameId: string | BN,
-    userWallet: string,
-    transactionSignature: string,
-    tokenAmountPaid: string | BN,
-    timestamp: number,
-  ): Promise<void> {
-    const gameIdStr = gameId.toString();
-
-    // Find game by game_id
-    const game = await this.gameService.findGameByGameId(gameIdStr);
-
-    if (!game) {
-      this.logger.warn(`Game not found: game_id=${gameIdStr}`);
-      return;
-    }
-
-    // Insert play record
-    const playedAt = new Date(timestamp * 1000).toISOString();
-    await this.databaseService.execute(
-      `INSERT INTO plays ("gameId", "userWallet", "transactionSignature", "tokenAmountPaid", "status", "playedAt")
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        game.id,
-        userWallet,
-        transactionSignature,
-        tokenAmountPaid.toString(),
-        'pending',
-        playedAt,
-      ],
-    );
-
-    this.logger.log(`Play recorded: ${transactionSignature}`);
-  }
 
   /**
    * Update play record with prize information and NFT mint
@@ -101,18 +66,129 @@ export class PlayService {
 
   /**
    * Handle GamePlayInitiated event
+   * Verifies payment amount against current token price before recording play
    */
   async handleGamePlayInitiated(
     eventData: GamePlayInitiatedEventData,
     signature: string,
   ): Promise<void> {
-    await this.createPlay(
-      eventData.game_id,
-      eventData.user,
-      signature,
-      eventData.token_amount,
-      eventData.timestamp,
+    const gameIdStr = eventData.game_id.toString();
+    const tokenAmount = BigInt(eventData.token_amount.toString());
+    
+    // Fetch game data from chain to get costUsd and tokenMint
+    const gameData = await this.gameService.fetchGameFromChain(Number(gameIdStr));
+    
+    if (!gameData) {
+      this.logger.error(`Cannot verify payment - game not found on chain: game_id=${gameIdStr}`);
+      // Still record the play but mark as unverified
+      await this.createPlayWithStatus(
+        eventData.game_id,
+        eventData.user,
+        signature,
+        eventData.token_amount,
+        eventData.timestamp,
+        'unverified',
+      );
+      return;
+    }
+    
+    // Verify payment using pump.fun price oracle
+    const costUsdCents = Number(gameData.costUsd);
+    const tokenMint = gameData.tokenMint.toString();
+    
+    this.logger.log(
+      `Verifying payment: game_id=${gameIdStr}, cost=$${(costUsdCents / 100).toFixed(2)}, ` +
+      `token_amount=${tokenAmount}, token_mint=${tokenMint.slice(0, 8)}...`
     );
+    
+    const verification = await this.priceService.verifyPayment(
+      tokenAmount,
+      costUsdCents,
+      tokenMint,
+      6, // Token decimals (pump.fun tokens typically have 6)
+      eventData.timestamp, // Pass tx timestamp for staleness check
+    );
+
+    // Log flags for monitoring
+    if (verification.flags) {
+      if (verification.flags.isManipulated) {
+        this.logger.warn(
+          `⚠️ Price manipulation detected for play: ${signature}`,
+        );
+      }
+      if (verification.flags.usedTwap) {
+        this.logger.log(`Used TWAP price for verification: ${signature}`);
+      }
+    }
+
+    if (verification.isValid) {
+      this.logger.log(`✅ Payment verified: ${verification.message}`);
+      await this.createPlayWithStatus(
+        eventData.game_id,
+        eventData.user,
+        signature,
+        eventData.token_amount,
+        eventData.timestamp,
+        'pending', // Verified, waiting for finalize
+      );
+    } else {
+      this.logger.warn(`❌ Insufficient payment: ${verification.message}`);
+      await this.createPlayWithStatus(
+        eventData.game_id,
+        eventData.user,
+        signature,
+        eventData.token_amount,
+        eventData.timestamp,
+        'rejected', // Payment was insufficient
+      );
+
+      // Broadcast rejection to frontend
+      await this.broadcastFinalize(signature, {
+        transactionSignature: signature,
+        status: 'failed',
+        prizeId: null,
+        nftMint: null,
+      });
+    }
+  }
+  
+  /**
+   * Create a play record with a specific status
+   */
+  private async createPlayWithStatus(
+    gameId: string | BN,
+    userWallet: string,
+    transactionSignature: string,
+    tokenAmountPaid: string | BN,
+    timestamp: number,
+    status: 'pending' | 'rejected' | 'unverified',
+  ): Promise<void> {
+    const gameIdStr = gameId.toString();
+
+    // Find game by game_id
+    const game = await this.gameService.findGameByGameId(gameIdStr);
+
+    if (!game) {
+      this.logger.warn(`Game not found: game_id=${gameIdStr}`);
+      return;
+    }
+
+    // Insert play record
+    const playedAt = new Date(timestamp * 1000).toISOString();
+    await this.databaseService.execute(
+      `INSERT INTO plays ("gameId", "userWallet", "transactionSignature", "tokenAmountPaid", "status", "playedAt")
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        game.id,
+        userWallet,
+        transactionSignature,
+        tokenAmountPaid.toString(),
+        status,
+        playedAt,
+      ],
+    );
+
+    this.logger.log(`Play recorded: ${transactionSignature}, status=${status}`);
   }
 
   /**

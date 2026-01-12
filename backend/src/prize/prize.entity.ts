@@ -6,6 +6,8 @@ import {
   OneToMany,
   Index,
   CreateDateColumn,
+  UpdateDateColumn,
+  Unique,
 } from 'typeorm';
 import { GameEntity } from '../game/game.entity';
 import { NftEntity } from '../nft/nft.entity';
@@ -13,6 +15,7 @@ import { PlayEntity } from '../play/play.entity';
 
 @Entity('prizes')
 @Index(['gameId', 'tier'])
+@Unique(['gameId', 'prizeId']) // Required for ON CONFLICT upsert
 export class PrizeEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -42,6 +45,9 @@ export class PrizeEntity {
   @Column({ type: 'int' })
   probabilityBasisPoints: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  costInUsd: number | null;
+
   @Column({ type: 'int' })
   supplyTotal: number;
 
@@ -54,6 +60,9 @@ export class PrizeEntity {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @ManyToOne(() => GameEntity, (game) => game.prizes)
   game: GameEntity;

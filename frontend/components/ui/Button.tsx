@@ -25,14 +25,14 @@ export default function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-semibold rounded-xl2 shadow-soft transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'font-semibold rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-button hover:shadow-buttonHover';
   
   const variants = {
-    primary: 'bg-candy-teal text-candy-dark hover:brightness-110 active:translate-y-[1px]',
-    secondary: 'bg-candy-deepBlue text-candy-white hover:brightness-110 active:translate-y-[1px]',
-    outline: 'border-2 border-candy-teal text-candy-teal hover:bg-candy-mint/20 active:translate-y-[1px]',
-    ghost: 'text-candy-dark hover:bg-candy-lightPink/50 active:translate-y-[1px]',
-    danger: 'bg-red-500 text-white hover:brightness-110 active:translate-y-[1px]',
+    primary: 'bg-pastel-coral text-white hover:bg-pastel-coralLight active:translate-y-[2px]',
+    secondary: 'bg-pastel-mint text-pastel-text hover:bg-pastel-mintLight active:translate-y-[2px]',
+    outline: 'border-2 border-pastel-coral text-pastel-coral bg-white hover:bg-pastel-pinkLight active:translate-y-[2px]',
+    ghost: 'text-pastel-text hover:bg-pastel-pinkLight/50 active:translate-y-[2px] shadow-none',
+    danger: 'bg-red-400 text-white hover:bg-red-500 active:translate-y-[2px]',
   };
 
   const sizes = {

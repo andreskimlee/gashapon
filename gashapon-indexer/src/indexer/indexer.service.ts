@@ -157,15 +157,16 @@ export class IndexerService implements OnModuleInit {
   }
 
   /**
-   * Handle GameCreated event
+   * Handle GameCreated event - create game in database from on-chain data
    */
   private async handleGameCreated(event: ParsedEvent): Promise<void> {
     if (event.name !== 'GameCreated') return;
 
     const data =
       event.data as import('./events/event-parser.service').GameCreatedEventData;
-    this.gameService.logGameCreated(data.game_id, data.authority);
-    // Note: Game data should be created via admin API, not from events
+    
+    // Create game in database from on-chain data
+    await this.gameService.handleGameCreated(data);
   }
 
   /**

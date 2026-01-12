@@ -23,14 +23,14 @@ export default function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: 'bg-candy-lightPink text-candy-dark',
-    common: 'bg-candy-lightPink text-candy-dark',
-    uncommon: 'bg-candy-mint text-candy-dark',
-    rare: 'bg-candy-teal text-candy-dark',
-    legendary: 'bg-candy-lavender text-candy-dark',
-    success: 'bg-candy-mint text-candy-dark',
-    warning: 'bg-candy-yellow text-candy-dark',
-    error: 'bg-red-400 text-white',
+    default: 'bg-pastel-pinkLight text-pastel-text',
+    common: 'bg-pastel-pinkLight text-pastel-text',
+    uncommon: 'bg-pastel-mint text-pastel-text',
+    rare: 'bg-pastel-sky text-pastel-text',
+    legendary: 'bg-pastel-lavender text-pastel-text',
+    success: 'bg-pastel-mint text-green-700',
+    warning: 'bg-pastel-yellow text-amber-700',
+    error: 'bg-red-200 text-red-700',
   };
 
   const sizes = {

@@ -1,7 +1,7 @@
 /**
  * Arcade Card Component
  * 
- * Card with retro arcade aesthetic - glassmorphism + neon glow
+ * Card with pastel kawaii aesthetic - soft shadows
  */
 
 'use client';
@@ -11,6 +11,7 @@ import { cn } from '@/utils/helpers';
 
 interface ArcadeCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
+  color?: 'pink' | 'mint' | 'lavender' | 'peach' | 'coral' | 'white';
   glow?: 'pink' | 'cyan' | 'purple' | 'blue' | 'none';
   ambient?: boolean;
 }
@@ -18,24 +19,25 @@ interface ArcadeCardProps extends HTMLAttributes<HTMLDivElement> {
 export default function ArcadeCard({
   children,
   className,
-  glow = 'cyan',
+  color = 'white',
+  glow = 'none',
   ambient = false,
   ...props
 }: ArcadeCardProps) {
-  const glowStyles = {
-    pink: 'shadow-glow-pink border-neon-pink/30',
-    cyan: 'shadow-glow-cyan border-neon-cyan/30',
-    purple: 'shadow-neon-purple border-neon-purple/30',
-    blue: 'shadow-neon-blue border-neon-blue/30',
-    none: '',
+  const colorStyles = {
+    pink: 'bg-pastel-pinkLight border-pastel-pink/30',
+    mint: 'bg-pastel-mintLight border-pastel-mint/30',
+    lavender: 'bg-pastel-lavender border-pastel-purple/30',
+    peach: 'bg-pastel-peach border-pastel-coral/30',
+    coral: 'bg-pastel-coralLight border-pastel-coral/30',
+    white: 'bg-white border-gray-100',
   };
 
   return (
     <div
       className={cn(
-        'card-neon rounded-2xl p-6 relative overflow-hidden',
-        glow !== 'none' && glowStyles[glow],
-        ambient && 'ambient-light',
+        'card-pastel rounded-3xl p-6 relative overflow-hidden border',
+        colorStyles[color],
         className
       )}
       {...props}

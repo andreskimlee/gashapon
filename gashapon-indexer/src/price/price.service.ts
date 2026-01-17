@@ -42,6 +42,15 @@ interface TokenPrice {
 export class PriceService {
   private readonly logger = new Logger(PriceService.name);
 
+  // Network configuration
+  private readonly network = process.env.SOLANA_NETWORK || 'devnet';
+  private readonly isDevnet = this.network === 'devnet';
+
+  // pump.fun API URLs
+  private readonly PUMP_FUN_API_URL = this.isDevnet
+    ? 'https://frontend-api-devnet-v3.pump.fun/coins-v2'
+    : 'https://frontend-api-v3.pump.fun/coins-v2';
+
   // Cache prices for 5 seconds to reduce stale price risk
   private priceCache: Map<string, { price: TokenPrice; expiresAt: number }> =
     new Map();
@@ -93,43 +102,46 @@ export class PriceService {
 
   /**
    * Fetch price from pump.fun API
+   * Uses devnet or mainnet API based on SOLANA_NETWORK env var
    */
   private async fetchPumpFunPrice(
     tokenMint: string,
   ): Promise<TokenPrice | null> {
     try {
-      const response = await fetch(
-        `https://frontend-api.pump.fun/coins/${tokenMint}`,
-        {
-          headers: {
-            Accept: 'application/json',
-            'User-Agent': 'Gashapon-Indexer/1.0',
-          },
-        },
+      const apiUrl = `${this.PUMP_FUN_API_URL}/${tokenMint}`;
+      this.logger.debug(
+        `Fetching price from pump.fun (${this.network}): ${apiUrl}`,
       );
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'Gashapon-Indexer/1.0',
+        },
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
-          this.logger.debug(`Token ${tokenMint} not found on pump.fun`);
+          this.logger.debug(
+            `Token ${tokenMint} not found on pump.fun (${this.network})`,
+          );
           return null;
         }
-        throw new Error(`pump.fun API returned ${response.status}`);
+        throw new Error(`pump.fun API (${this.network}) returned ${response.status}`);
       }
 
       const data: PumpFunCoinResponse = await response.json();
 
-      // Calculate price from reserves (bonding curve formula)
-      // price = virtual_sol_reserves / virtual_token_reserves
-      // Then multiply by SOL price to get USD price
-      const priceSol = data.virtual_sol_reserves / data.virtual_token_reserves;
+      // All pump.fun tokens have a fixed supply of 1 billion tokens
+      const PUMP_FUN_TOTAL_SUPPLY = 1_000_000_000;
 
-      // Get SOL price from market cap calculation
-      // usd_market_cap = total_supply * price_usd
-      // So: price_usd = usd_market_cap / total_supply
-      const priceUsd = data.usd_market_cap / data.total_supply;
+      // Price per token = market cap / total supply
+      const priceUsd = data.usd_market_cap / PUMP_FUN_TOTAL_SUPPLY;
+      const priceSol = data.market_cap / PUMP_FUN_TOTAL_SUPPLY;
 
       this.logger.debug(
-        `pump.fun price for ${data.symbol}: $${priceUsd.toFixed(10)} (${priceSol.toFixed(10)} SOL)`,
+        `pump.fun price for ${data.symbol}: $${priceUsd.toFixed(10)}/token ` +
+          `(market cap: $${data.usd_market_cap.toFixed(2)})`,
       );
 
       return {

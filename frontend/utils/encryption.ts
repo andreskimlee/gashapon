@@ -41,29 +41,44 @@ function getKeyBytes(): Uint8Array {
 }
 
 export async function encryptShippingData(data: ShippingData): Promise<string> {
-  // const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-  // const keyBytes = getKeyBytes();
-  // // const cryptoKey = await crypto.subtle.importKey(
-  // //   'raw',
-  // //   keyBytes,
-  // //   { name: ALGORITHM },
-  // //   false,
-  // //   ['encrypt']
-  // // );
-  // // const encoded = new TextEncoder().encode(JSON.stringify(data));
-  // // const ciphertext = await crypto.subtle.encrypt(
-  // //   { name: ALGORITHM, iv: iv, tagLength: 128 },
-  // //   cryptoKey,
-  // //   encoded
-  // // );
-  // // WebCrypto returns ciphertext concatenated with tag at the end for AES-GCM
-  // const cipherBytes = new Uint8Array(ciphertext);
-  // const tagLengthBytes = 16;
-  // const tag = cipherBytes.slice(cipherBytes.length - tagLengthBytes);
-  // const encrypted = cipherBytes.slice(0, cipherBytes.length - tagLengthBytes);
-  // const ivB64 = btoa(String.fromCharCode(...iv));
-  // const tagB64 = btoa(String.fromCharCode(...tag));
-  // const encB64 = btoa(String.fromCharCode(...encrypted));
-  // return `${ivB64}:${tagB64}:${encB64}`;
-  return "";
+  if (typeof window === "undefined" || !crypto?.subtle) {
+    throw new Error("Encryption is only supported in the browser");
+  }
+
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+  const keyBytes = getKeyBytes();
+  const keyBuffer = keyBytes.buffer.slice(
+    keyBytes.byteOffset,
+    keyBytes.byteOffset + keyBytes.byteLength
+  ) as ArrayBuffer;
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyBuffer,
+    { name: ALGORITHM },
+    false,
+    ["encrypt"]
+  );
+  const encoded = new TextEncoder().encode(JSON.stringify(data));
+  const encodedBuffer = encoded.buffer.slice(
+    encoded.byteOffset,
+    encoded.byteOffset + encoded.byteLength
+  ) as ArrayBuffer;
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: ALGORITHM, iv, tagLength: 128 },
+    cryptoKey,
+    encodedBuffer
+  );
+
+  // WebCrypto returns ciphertext concatenated with tag at the end for AES-GCM
+  const cipherBytes = new Uint8Array(ciphertext);
+  const tagLengthBytes = 16;
+  const tag = cipherBytes.slice(cipherBytes.length - tagLengthBytes);
+  const encrypted = cipherBytes.slice(0, cipherBytes.length - tagLengthBytes);
+
+  const toBase64 = (bytes: Uint8Array) =>
+    btoa(String.fromCharCode(...bytes));
+  const ivB64 = toBase64(iv);
+  const tagB64 = toBase64(tag);
+  const encB64 = toBase64(encrypted);
+  return `${ivB64}:${tagB64}:${encB64}`;
 }

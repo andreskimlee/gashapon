@@ -38,6 +38,9 @@ export class GameEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   costInUsd: number | null;
 
+  @Column({ type: 'varchar', length: 44, nullable: true })
+  currencyTokenMintAddress: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 

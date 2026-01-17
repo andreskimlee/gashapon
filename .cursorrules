@@ -1,0 +1,205 @@
+# Gashapon Project - Cursor Rules
+
+## Project Overview
+
+Gashapon is a Solana-based claw machine game with a **pastel kawaii** aesthetic. The frontend uses Next.js 14, React Three Fiber for 3D, and Tailwind CSS.
+
+---
+
+## 🎨 Design System Rules
+
+### Typography
+
+- **Titles & Headings**: Always use `font-display` (Bungee font)
+  ```tsx
+  <h2 className="font-display text-3xl">GAME TITLE</h2>
+  ```
+- **Body Text**: Use default `font-sans` (Poppins)
+- **Title Effects**: Apply `text-outline-xl` class for kawaii bubble text effect on game titles
+  ```tsx
+  <h1 className="font-display text-4xl text-pastel-coral text-outline-xl">
+    GASHAPON
+  </h1>
+  ```
+
+### Buttons
+
+**Use the correct button component based on context:**
+
+| Context                                 | Component   | Example                                            |
+| --------------------------------------- | ----------- | -------------------------------------------------- |
+| Primary game actions (Play, Enter Room) | `CTAButton` | `<CTAButton variant="orange">PLAY NOW</CTAButton>` |
+
+**Note:** Do NOT use emojis in buttons - they cheapen the look.
+| Secondary UI actions | `Button` | `<Button variant="primary">Submit</Button>` |
+| Tertiary/subtle actions | `Button variant="ghost"` | `<Button variant="ghost">Cancel</Button>` |
+
+**CTAButton Variants:**
+
+- `orange` - Primary CTA (Play buttons, main actions)
+- `pink` - Secondary CTA (Game card entries)
+
+**Button Variants:**
+
+- `primary` - Coral background
+- `secondary` - Mint background
+- `outline` - White with coral border
+- `ghost` - Transparent
+- `danger` - Red (destructive actions)
+
+### Colors
+
+Use the `pastel-*` color palette from Tailwind config:
+
+```
+Primary:    pastel-coral (#F7ABAD)
+Secondary:  pastel-mint (#A1E5CC)
+Background: pastel-sky (#B8E4F0)
+Currency:   pastel-yellow (#FFE5A0)
+Text:       pastel-text (#5A5A6E)
+```
+
+### Currency/Token Display
+
+Always use this pattern for displaying token amounts (matches wallet balance):
+
+```tsx
+<div className="inline-flex items-center gap-2 bg-pastel-yellow rounded-full px-4 py-2 border-2 border-yellow-400/50">
+  <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-yellow-500">
+    <span className="text-yellow-700 text-xs font-bold">$</span>
+  </div>
+  <span className="text-sm font-bold text-pastel-text">{amount}</span>
+</div>
+```
+
+**Do NOT** add "COINS" text after the amount - the icon implies the currency.
+
+### Cards
+
+Use the `Card` component with appropriate variants:
+
+| Context               | Variant   | Shadow Color |
+| --------------------- | --------- | ------------ |
+| Game listing cards    | `arcade`  | `mint`       |
+| Intro/loading screens | `arcade`  | `pink`       |
+| Win screens           | `arcade`  | `coral`      |
+| Lose screens          | `arcade`  | `purple`     |
+| General content       | `default` | N/A          |
+
+```tsx
+import Card from '@/components/ui/Card';
+
+// Game card (mint shadow)
+<Card variant="arcade" shadowColor="mint" hover padding="none">
+  ...
+</Card>
+
+// Splash screen card (pink shadow)
+<Card variant="arcade" shadowColor="pink" padding="xl">
+  ...
+</Card>
+```
+
+**Do NOT** create inline card styles - always use the Card component.
+
+---
+
+## 🏗️ Architecture Rules
+
+### Frontend Structure
+
+```
+frontend/
+├── components/ui/     # Reusable atoms/molecules (Button, Badge, Card, etc.)
+├── components/game/   # Game-specific components (ClawMachine3D, etc.)
+├── components/home/   # Homepage components
+├── components/layout/ # Header, Navigation
+├── services/          # API and blockchain services
+├── hooks/             # Custom React hooks
+└── types/             # TypeScript types
+```
+
+### Import Order
+
+1. React/Next.js imports
+2. Third-party libraries
+3. UI components (`@/components/ui/`)
+4. Other components
+5. Hooks and services
+6. Types
+7. Utils/constants
+
+### Component Guidelines
+
+- All UI components should be in `components/ui/`
+- Use the `cn()` helper from `@/utils/helpers` for conditional classes
+- Prefer existing UI components over creating new ones
+- Components should be client components (`'use client'`) only when necessary
+
+---
+
+## 🎮 3D/Game Development Rules
+
+### React Three Fiber
+
+- Use ACES Filmic tone mapping for proper color reproduction
+- Keep lighting balanced: ambient ~0.5, directional ~1.0
+- Use `Environment preset="city"` for balanced reflections
+- Maintain pastel sky background in 3D scenes
+
+### Physics (Rapier)
+
+- Use appropriate collision groups for claw/balls
+- Avoid high impulse values that cause explosive behavior
+- Ball magnetization should use gentle forces, not teleportation
+
+### Animation
+
+- Use `useFrame` for smooth Three.js animations
+- Respect animation phases (IDLE → DROPPING → GRABBING → etc.)
+- Apply smooth lerping for position/rotation changes
+
+---
+
+## ⚠️ Common Mistakes to Avoid
+
+1. **Wrong button component**: Don't use `Button` for primary game CTAs - use `CTAButton`
+2. **Missing font-display**: All game titles must use `font-display` class
+3. **Adding "COINS" text**: Currency displays should not have redundant "COINS" label
+4. **Custom button styles**: Use existing Button/CTAButton variants, don't create new styles
+5. **Harsh colors**: Stay within the pastel palette, avoid saturated/neon colors
+6. **Dark mode in game UI**: The game UI should always be light/pastel themed
+7. **Emojis in buttons**: Do NOT use emojis in buttons - they cheapen the professional look
+
+---
+
+## 📝 File Naming
+
+- Components: PascalCase (`GameCard.tsx`, `CTAButton.tsx`)
+- Hooks: camelCase with `use` prefix (`useGame.ts`, `usePlayRealtime.ts`)
+- Utils: camelCase (`helpers.ts`, `constants.ts`)
+- Types: camelCase (`game.ts`, `marketplace.ts`)
+
+---
+
+## 🔗 Key Files Reference
+
+| Purpose              | File                                           |
+| -------------------- | ---------------------------------------------- |
+| Design tokens        | `frontend/tailwind.config.js`                  |
+| Global CSS           | `frontend/app/globals.css`                     |
+| Button component     | `frontend/components/ui/Button.tsx`            |
+| CTA Button           | `frontend/components/ui/CTAButton.tsx`         |
+| Currency display     | `frontend/components/wallet/WalletBalance.tsx` |
+| Game screens         | `frontend/components/game/ClawMachine3D.tsx`   |
+| Design documentation | `frontend/DESIGN_SYSTEM.md`                    |
+
+---
+
+## 🚀 Blockchain/Solana Rules
+
+- Never hardcode token mints - fetch from on-chain game data
+- Use PDAs for account derivation
+- Handle wallet connection states gracefully
+- Keep transactions under Solana's compute limits
+- Use the indexer for reading game state, not direct RPC calls

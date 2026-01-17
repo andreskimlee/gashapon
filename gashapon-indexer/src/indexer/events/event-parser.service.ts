@@ -6,6 +6,7 @@ import gameIdl from '../../idl/gachapon_game.json';
 type DiscriminatorMap = Record<string, number[]>;
 export type EventName =
   | 'GameCreated'
+  | 'PrizeAdded'
   | 'GamePlayInitiated'
   | 'PrizeWon'
   | 'PlayLost'
@@ -30,6 +31,15 @@ export interface GameCreatedEventData {
   timestamp: number;
 }
 
+export interface PrizeAddedEventData {
+  game_id: BN;
+  prize_index: number;
+  prize_id: BN;
+  probability_bp: number;
+  supply_total: number;
+  timestamp: number;
+}
+
 export interface GamePlayInitiatedEventData {
   user: string;
   game_id: BN;
@@ -41,6 +51,7 @@ export interface PrizeWonEventData {
   user: string;
   game_id: BN;
   prize_id: BN;
+  prize_index: number;
   tier: 'common' | 'uncommon' | 'rare' | 'legendary';
   nft_mint: string;
   random_value: number[];
@@ -63,6 +74,7 @@ export interface GameStatusUpdatedEventData {
 export interface SupplyReplenishedEventData {
   game_id: BN;
   prize_id: BN;
+  prize_index: number;
   new_supply: number;
   timestamp: number;
 }
@@ -76,6 +88,7 @@ export interface TreasuryWithdrawnEventData {
 
 export type EventData =
   | GameCreatedEventData
+  | PrizeAddedEventData
   | GamePlayInitiatedEventData
   | PrizeWonEventData
   | PlayLostEventData
@@ -207,6 +220,9 @@ export class EventParserService {
       case 'GameCreated':
         return this.parseGameCreated(data);
 
+      case 'PrizeAdded':
+        return this.parsePrizeAdded(data);
+
       case 'GamePlayInitiated':
         return this.parseGamePlayInitiated(data);
 
@@ -238,6 +254,18 @@ export class EventParserService {
     };
   }
 
+  private parsePrizeAdded(data: Uint8Array): PrizeAddedEventData {
+    // PrizeAdded: game_id (8), prize_index (1), prize_id (8), probability_bp (2), supply_total (4), timestamp (8)
+    return {
+      game_id: this.readU64(data, 0),
+      prize_index: data[8],
+      prize_id: this.readU64(data, 9),
+      probability_bp: this.readU16(data, 17),
+      supply_total: this.readU32(data, 19),
+      timestamp: this.readI64(data, 23),
+    };
+  }
+
   private parseGamePlayInitiated(data: Uint8Array): GamePlayInitiatedEventData {
     return {
       user: new PublicKey(data.slice(0, 32)).toBase58(),
@@ -248,11 +276,12 @@ export class EventParserService {
   }
 
   private parsePrizeWon(data: Uint8Array): PrizeWonEventData {
-    // PrizeWon structure: user (32), game_id (8), prize_id (8), tier (1), nft_mint (32), random_value (32), timestamp (8)
+    // PrizeWon structure: user (32), game_id (8), prize_id (8), prize_index (1), tier (1), nft_mint (32), random_value (32), timestamp (8)
     const userPubkey = new PublicKey(data.slice(0, 32)).toBase58();
     const gameId = this.readU64(data, 32);
     const prizeId = this.readU64(data, 40);
-    const tierValue = data[48]; // Tier enum is 1 byte
+    const prizeIndex = data[48]; // prize_index is 1 byte
+    const tierValue = data[49]; // Tier enum is 1 byte
     const tierMap: Array<'common' | 'uncommon' | 'rare' | 'legendary'> = [
       'common',
       'uncommon',
@@ -260,14 +289,15 @@ export class EventParserService {
       'legendary',
     ];
     const tier = tierMap[tierValue] || 'common';
-    const nftMint = new PublicKey(data.slice(49, 81)).toBase58(); // 32 bytes after tier
-    const randomValue = Array.from(data.slice(81, 113)); // 32 bytes after nft_mint
-    const timestamp = this.readI64(data, 113); // 8 bytes after random_value
+    const nftMint = new PublicKey(data.slice(50, 82)).toBase58(); // 32 bytes after tier
+    const randomValue = Array.from(data.slice(82, 114)); // 32 bytes after nft_mint
+    const timestamp = this.readI64(data, 114); // 8 bytes after random_value
 
     return {
       user: userPubkey,
       game_id: gameId,
       prize_id: prizeId,
+      prize_index: prizeIndex,
       tier,
       nft_mint: nftMint,
       random_value: randomValue,
@@ -299,11 +329,13 @@ export class EventParserService {
   }
 
   private parseSupplyReplenished(data: Uint8Array): SupplyReplenishedEventData {
+    // SupplyReplenished: game_id (8), prize_id (8), prize_index (1), new_supply (4), timestamp (8)
     return {
       game_id: this.readU64(data, 0),
       prize_id: this.readU64(data, 8),
-      new_supply: this.readU32(data, 16),
-      timestamp: this.readI64(data, 20),
+      prize_index: data[16],
+      new_supply: this.readU32(data, 17),
+      timestamp: this.readI64(data, 21),
     };
   }
 
@@ -320,6 +352,11 @@ export class EventParserService {
   private readU64(data: Uint8Array, offset: number): BN {
     const bytes = data.slice(offset, offset + 8);
     return new BN(bytes, 'le');
+  }
+
+  private readU16(data: Uint8Array, offset: number): number {
+    const bytes = data.slice(offset, offset + 2);
+    return new BN(bytes, 'le').toNumber();
   }
 
   private readU32(data: Uint8Array, offset: number): number {

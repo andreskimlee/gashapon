@@ -6,13 +6,15 @@ import { GameService } from './game.service';
 import { GameController } from './game.controller';
 import { GameAdminController } from './game-admin.controller';
 import { GameAdminService } from './game-admin.service';
+import { BlockchainModule } from '../blockchain/blockchain.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([GameEntity, PrizeEntity])],
+  imports: [
+    TypeOrmModule.forFeature([GameEntity, PrizeEntity]),
+    BlockchainModule,
+  ],
   controllers: [GameController, GameAdminController],
   providers: [GameService, GameAdminService],
   exports: [GameService, GameAdminService],
 })
 export class GameModule {}
-
-

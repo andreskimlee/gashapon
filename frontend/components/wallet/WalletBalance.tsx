@@ -12,10 +12,11 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
+import { formatCompact } from "@/utils/format";
 
-// Game token mint address (same as in deploy-game.ts)
+// Game token mint address (pump.fun token)
 const GAME_TOKEN_MINT = new PublicKey(
-  "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+  "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump"
 );
 
 // Token decimals (USDC-style has 6 decimals)
@@ -112,10 +113,10 @@ export default function WalletBalance() {
       ) : (
         <>
           <span className="text-sm font-bold text-pastel-text">
-            {balance !== null ? balance.toLocaleString() : "—"}
+            {balance !== null ? formatCompact(balance) : "—"}
           </span>
           <span className="text-xs font-semibold text-pastel-text/70">
-            COINS
+            TOKENS
           </span>
         </>
       )}

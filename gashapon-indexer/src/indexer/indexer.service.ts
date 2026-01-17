@@ -69,7 +69,9 @@ export class IndexerService implements OnModuleInit {
 
     // Check if transaction failed
     if (meta.err) {
-      this.logger.debug(`Transaction failed, skipping: ${JSON.stringify(meta.err)}`);
+      this.logger.debug(
+        `Transaction failed, skipping: ${JSON.stringify(meta.err)}`,
+      );
       return;
     }
 
@@ -85,18 +87,24 @@ export class IndexerService implements OnModuleInit {
     // Parse logs for Anchor events
     const logs = meta.logMessages || [];
     this.logger.debug(`Found ${logs.length} log messages`);
-    
+
     const events = this.eventParser.parseEvents(logs, signature, slot);
-    this.logger.log(`📊 Parsed ${events.length} events from transaction ${signature}`);
+    this.logger.log(
+      `📊 Parsed ${events.length} events from transaction ${signature}`,
+    );
 
     if (events.length === 0) {
-      this.logger.debug(`No events found in transaction ${signature}. Logs: ${logs.slice(0, 3).join('; ')}`);
+      this.logger.debug(
+        `No events found in transaction ${signature}. Logs: ${logs.slice(0, 3).join('; ')}`,
+      );
     }
 
     // Process each event
     for (const event of events) {
       try {
-        this.logger.log(`🎯 Handling event: ${event.name} from transaction ${signature}`);
+        this.logger.log(
+          `🎯 Handling event: ${event.name} from transaction ${signature}`,
+        );
         await this.handleEvent(event);
         this.logger.log(`✅ Successfully processed event: ${event.name}`);
       } catch (error) {
@@ -117,6 +125,10 @@ export class IndexerService implements OnModuleInit {
     switch (event.name) {
       case 'GameCreated':
         await this.handleGameCreated(event);
+        break;
+
+      case 'PrizeAdded':
+        await this.handlePrizeAdded(event);
         break;
 
       case 'GamePlayInitiated':
@@ -164,9 +176,22 @@ export class IndexerService implements OnModuleInit {
 
     const data =
       event.data as import('./events/event-parser.service').GameCreatedEventData;
-    
+
     // Create game in database from on-chain data
     await this.gameService.handleGameCreated(data);
+  }
+
+  /**
+   * Handle PrizeAdded event - add prize to game in database
+   */
+  private async handlePrizeAdded(event: ParsedEvent): Promise<void> {
+    if (event.name !== 'PrizeAdded') return;
+
+    const data =
+      event.data as import('./events/event-parser.service').PrizeAddedEventData;
+
+    // Add prize to game in database
+    await this.prizeService.handlePrizeAdded(data);
   }
 
   /**
@@ -225,9 +250,9 @@ export class IndexerService implements OnModuleInit {
       );
     } catch (e) {
       this.logger.error(
-        `Error persisting NFT for PrizeWon: ${e instanceof Error ? e.message : String(
-          e,
-        )}`,
+        `Error persisting NFT for PrizeWon: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
       );
     }
   }

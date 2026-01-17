@@ -89,8 +89,8 @@ export default function AdminPage() {
     setMounted(true);
   }, []);
 
-  // Default token mint (pump.fun token or partner token)
-  const DEFAULT_TOKEN_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+  // Default token mint (pump.fun token)
+  const DEFAULT_TOKEN_MINT = 'Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump';
   // Default treasury wallet
   const DEFAULT_TREASURY = 'EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo';
 
@@ -252,6 +252,7 @@ export default function AdminPage() {
       metadataUri: '',
       physicalSku: '',
       costUsd: 1.00,
+      weightGrams: 0,
       supplyTotal: 100,
     };
     setPrizes(prev => [...prev, newPrize]);
@@ -398,6 +399,7 @@ export default function AdminPage() {
         tier: prize.tier,
         probabilityBp: prize.probabilityBasisPoints,
         costUsd: Math.round(prize.costUsd * 100), // Convert to cents
+        weightGrams: prize.weightGrams ?? 0,
         supplyTotal: prize.supplyTotal,
         supplyRemaining: prize.supplyTotal, // Start with full supply
       }));
@@ -842,6 +844,19 @@ export default function AdminPage() {
                             />
                           </div>
                           
+                          <div>
+                            <label className="block text-xs font-medium text-pastel-textLight mb-1">Weight (g)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={prize.weightGrams ?? 0}
+                              onChange={(e) =>
+                                updatePrize(prize.id, { weightGrams: parseInt(e.target.value) || 0 })
+                              }
+                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-pastel-coral focus:outline-none text-sm bg-white text-pastel-text"
+                            />
+                          </div>
+
                           <div>
                             <label className="block text-xs font-medium text-pastel-textLight mb-1">Supply</label>
                             <input

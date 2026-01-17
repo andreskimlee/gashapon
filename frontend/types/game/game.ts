@@ -15,6 +15,7 @@ export interface Prize {
   physicalItemSku: string;
   tier: PrizeTier;
   probabilityBasisPoints: number; // 10000 = 100%
+  weightGrams?: number;
   supplyTotal: number;
   supplyRemaining: number;
 }
@@ -26,8 +27,10 @@ export interface Game {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
+  /** @deprecated Use costInUsd instead; token amounts are volatile. */
   costInTokens: number | string; // Can be bigint from backend
   costInUsd?: number | string | null;
+  currencyTokenMintAddress?: string | null; // Token mint for price lookups
   isActive: boolean;
   totalPlays: number;
   createdAt: string | Date;

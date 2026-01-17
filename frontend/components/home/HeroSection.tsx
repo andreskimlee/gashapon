@@ -19,8 +19,8 @@ export default function HeroSection({ className }: { className?: string }) {
         "relative w-full overflow-hidden",
         "border-y-4 border-[#111827]",
         "bg-[#BFEFFF]",
-        // Fixed hero height so the machine art can be edge-to-edge vertically
-        "h-[450px] md:h-[370px] lg:h-[410px]",
+        // Fixed hero height - increased to fit larger machine
+        "h-[500px] md:h-[480px] lg:h-[520px]",
         className
       )}
     >
@@ -38,41 +38,40 @@ export default function HeroSection({ className }: { className?: string }) {
         }}
       />
 
-      {/* Machine art (edge-to-edge vertically) */}
-      <div
-        className={cn(
-          "absolute inset-y-0 left-1/2 -translate-x-1/2",
-          "w-[520px] md:left-0 md:translate-x-0 md:w-[420px] lg:w-[480px]",
-          "pointer-events-none z-0"
-        )}
-        aria-hidden="true"
-      >
-        <Image
-          src="/images/hero_machine.png"
-          alt=""
-          fill
-          priority
-          sizes="(min-width: 1024px) 480px, (min-width: 768px) 420px, 520px"
-          className="select-none object-contain object-left-bottom origin-bottom-left scale-[1.12] translate-y-[12px] md:translate-y-[14px] lg:translate-y-[16px]"
-        />
-      </div>
-
-      {/* Content overlay */}
+      {/* Content container - matches cards grid width */}
       <div className="relative z-10 h-full">
         <div className="container mx-auto h-full px-4">
-          <div className="max-w-6xl mx-auto h-full flex items-center">
-            <div className="w-full md:pl-[420px] lg:pl-[480px]">
-              <div className="max-w-xl ml-auto text-center md:text-left">
-                <h1 className="font-display uppercase text-[42px] md:text-[56px] lg:text-[60px] leading-[0.92] tracking-wide text-outline-xl text-white">
-                  <span className="text-white">WIN </span>
-                  <span className="text-[#F59E0B]">REAL </span>
-                  <span className="text-white">PRIZES ONLINE!</span>
-                </h1>
-                <div className="mt-6">
-                  <CTAButton href="/games" size="lg">
-                    PLAY NOW
-                  </CTAButton>
-                </div>
+          <div className="max-w-4xl mx-auto h-full flex items-center relative">
+            {/* Machine art - large, extends beyond section (clipped by overflow-hidden) */}
+            <div
+              className={cn(
+                "absolute left-0 pointer-events-none",
+                "w-[380px] h-[580px] md:w-[480px] md:h-[680px] lg:w-[550px] lg:h-[750px]",
+                "-bottom-32 md:-bottom-48 lg:-bottom-56" // Push down so it gets clipped at bottom
+              )}
+              aria-hidden="true"
+            >
+              <Image
+                src="/images/hero-machine.png"
+                alt=""
+                fill
+                priority
+                sizes="(min-width: 1024px) 550px, (min-width: 768px) 480px, 380px"
+                className="select-none object-contain object-left-bottom"
+              />
+            </div>
+
+            {/* Text content - positioned to the right */}
+            <div className="ml-auto text-center md:text-right max-w-md">
+              <h1 className="font-display uppercase text-[36px] md:text-[48px] lg:text-[56px] leading-[0.92] tracking-wide text-outline-xl text-white">
+                <span className="text-white">WIN </span>
+                <span className="text-[#F59E0B]">REAL </span>
+                <span className="text-white">PRIZES ONLINE!</span>
+              </h1>
+              <div className="mt-6">
+                <CTAButton href="/games" size="lg">
+                  PLAY NOW
+                </CTAButton>
               </div>
             </div>
           </div>

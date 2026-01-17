@@ -2,6 +2,10 @@
  * Blockchain Game Deployment Service
  *
  * Deploys games to the Solana blockchain using the gachapon-game program.
+ * Uses the NEW program structure:
+ * 1. initialize_game - creates game without prizes
+ * 2. add_prize - adds each prize separately
+ *
  * Requires admin wallet to sign the transaction.
  */
 
@@ -12,8 +16,8 @@ import type { WalletContextState } from '@solana/wallet-adapter-react';
 // Program ID for gachapon-game
 const PROGRAM_ID = new PublicKey('4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG');
 
-// Default token mint (USDC on devnet, or your custom token)
-const DEFAULT_TOKEN_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+// Default token mint (pump.fun token)
+const DEFAULT_TOKEN_MINT = new PublicKey('Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump');
 
 // Treasury wallet (should be configured per environment)
 const TREASURY_PUBKEY = new PublicKey('EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo');
@@ -30,6 +34,7 @@ export interface PrizeConfigInput {
   tier: PrizeTier;
   probabilityBp: number;      // Probability in basis points (0-10000)
   costUsd: number;            // Cost/value of the prize in cents
+  weightGrams: number;        // Prize weight in grams
   supplyTotal: number;
   supplyRemaining: number;
 }
@@ -48,6 +53,7 @@ export interface DeployGameParams {
 export interface DeployGameResult {
   success: boolean;
   signature?: string;
+  prizeSignatures?: string[];
   gamePda?: string;
   error?: string;
 }
@@ -75,6 +81,17 @@ export function getConfigPda(): PublicKey {
 }
 
 /**
+ * Get the prize PDA address
+ */
+export function getPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('prize'), gamePda.toBuffer(), Buffer.from([prizeIndex])],
+    PROGRAM_ID
+  );
+  return pda;
+}
+
+/**
  * Convert tier string to Anchor enum format
  */
 function tierToAnchor(tier: PrizeTier): object {
@@ -94,6 +111,10 @@ function tierToAnchor(tier: PrizeTier): object {
 
 /**
  * Deploy a game to the Solana blockchain
+ *
+ * Uses the NEW program structure:
+ * 1. initialize_game - creates game without prizes
+ * 2. add_prize - adds each prize separately
  *
  * NOTE: This requires the connected wallet to be the program authority.
  * The authority must have initialized the program first using initialize_program.
@@ -130,21 +151,6 @@ export async function deployGame(
     const gamePda = getGamePda(params.gameId);
     const configPda = getConfigPda();
 
-    // Prepare prize pool for Anchor
-    const prizePool = params.prizes.map((prize) => ({
-      prizeId: new BN(prize.prizeId),
-      name: prize.name,
-      description: prize.description || '',
-      imageUrl: prize.imageUrl || '',
-      metadataUri: prize.metadataUri || '',
-      physicalSku: prize.physicalSku,
-      tier: tierToAnchor(prize.tier),
-      probabilityBp: prize.probabilityBp,
-      costUsd: new BN(prize.costUsd),
-      supplyTotal: prize.supplyTotal,
-      supplyRemaining: prize.supplyRemaining,
-    }));
-
     const tokenMint = params.tokenMint
       ? new PublicKey(params.tokenMint)
       : DEFAULT_TOKEN_MINT;
@@ -161,20 +167,19 @@ export async function deployGame(
       treasury: treasury.toString(),
       gamePda: gamePda.toString(),
       configPda: configPda.toString(),
-      prizeCount: prizePool.length,
+      prizeCount: params.prizes.length,
     });
 
-    // Call initialize_game instruction
-    // Order: game_id, name, description, image_url, cost_usd, token_mint, prize_pool
-    const signature = await (program.methods as any)
+    // Step 1: Call initialize_game instruction (WITHOUT prizes)
+    // New instruction signature: initialize_game(game_id, name, description, image_url, cost_usd, token_mint)
+    const initSignature = await (program.methods as any)
       .initializeGame(
         new BN(params.gameId),
         params.name,
         params.description || '',
         params.imageUrl || '',
         new BN(params.costUsdCents),
-        tokenMint,
-        prizePool
+        tokenMint
       )
       .accounts({
         authority: wallet.publicKey,
@@ -185,11 +190,51 @@ export async function deployGame(
       })
       .rpc();
 
-    console.log('Game deployed successfully:', signature);
+    console.log('Game initialized:', initSignature);
+
+    // Step 2: Add each prize separately
+    const prizeSignatures: string[] = [];
+    
+    for (let i = 0; i < params.prizes.length; i++) {
+      const prize = params.prizes[i];
+      const prizePda = getPrizePda(gamePda, i);
+      
+      console.log(`Adding prize ${i}: ${prize.name}`);
+      
+      // add_prize(prize_index, prize_id, name, description, image_url, metadata_uri, physical_sku, tier, probability_bp, cost_usd, weight_grams, supply_total)
+      const prizeSig = await (program.methods as any)
+        .addPrize(
+          i, // prize_index
+          new BN(prize.prizeId),
+          prize.name,
+          prize.description || '',
+          prize.imageUrl || '',
+          prize.metadataUri || '',
+          prize.physicalSku || '',
+          tierToAnchor(prize.tier),
+          prize.probabilityBp,
+          new BN(prize.costUsd),
+          prize.weightGrams,
+          prize.supplyTotal
+        )
+        .accounts({
+          authority: wallet.publicKey,
+          game: gamePda,
+          prize: prizePda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+      
+      console.log(`Prize ${i} added:`, prizeSig);
+      prizeSignatures.push(prizeSig);
+    }
+
+    console.log('Game deployed successfully with', params.prizes.length, 'prizes');
 
     return {
       success: true,
-      signature,
+      signature: initSignature,
+      prizeSignatures,
       gamePda: gamePda.toString(),
     };
   } catch (error: any) {
@@ -205,6 +250,27 @@ export async function deployGame(
       errorMessage = `Game ID ${params.gameId} already exists on-chain. Use a different game ID.`;
     } else if (errorMessage.includes('insufficient funds')) {
       errorMessage = 'Insufficient SOL to pay for transaction fees.';
+    } else if (errorMessage.includes('custom program error')) {
+      // Try to parse Anchor error
+      const match = errorMessage.match(/custom program error: (0x[0-9a-fA-F]+)/);
+      if (match) {
+        const code = parseInt(match[1], 16);
+        const errorNames: Record<number, string> = {
+          6000: 'Invalid probabilities - must sum to <= 10000',
+          6001: 'Game is inactive',
+          6002: 'All prizes are out of stock',
+          6003: 'Invalid VRF result',
+          6004: 'Unauthorized',
+          6005: 'Prize not found',
+          6006: 'Insufficient funds',
+          6007: 'Invalid token amount',
+          6008: 'Math overflow',
+          6009: 'String exceeds maximum length',
+          6010: 'Too many prizes (max 16)',
+          6011: 'Invalid prize index',
+        };
+        errorMessage = errorNames[code] || `Program error: ${code}`;
+      }
     }
 
     return {
@@ -250,11 +316,6 @@ export async function fetchIdl(): Promise<Idl | null> {
 
 /**
  * Config account structure (matches on-chain Config struct)
- * 
- * Layout:
- * - 8 bytes: Anchor discriminator
- * - 32 bytes: authority (Pubkey)
- * - 1 byte: bump
  */
 export interface ProgramConfig {
   authority: PublicKey;
@@ -263,9 +324,6 @@ export interface ProgramConfig {
 
 /**
  * Fetch the program authority from the Config PDA
- * 
- * Returns the wallet address that is authorized to create games,
- * or null if the program hasn't been initialized yet.
  */
 export async function getProgramAuthority(
   connection: Connection
@@ -299,10 +357,6 @@ export async function getProgramAuthority(
 
 /**
  * Check if a wallet is authorized to deploy games
- * 
- * @param connection - Solana connection
- * @param walletPubkey - The wallet to check
- * @returns Object with authorization status and authority address
  */
 export async function checkWalletAuthorization(
   connection: Connection,
@@ -354,4 +408,3 @@ export async function checkWalletAuthorization(
     };
   }
 }
-

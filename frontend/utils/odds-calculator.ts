@@ -21,6 +21,7 @@ export interface PrizeInput {
   metadataUri?: string;
   physicalSku: string;
   costUsd: number; // Cost of the prize in USD (e.g., 5.99)
+  weightGrams?: number; // Prize weight in grams
   supplyTotal: number;
 }
 

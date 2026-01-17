@@ -1,6 +1,7 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { BallCollider, RapierRigidBody, RigidBody } from "@react-three/rapier";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -22,7 +23,8 @@ type PrizeSphereProps = {
 
 export function PrizeSphere({ config, modelScale = 1.0 }: PrizeSphereProps) {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const { registerBall, unregisterBall, grabbedBallId } = useGrabContext();
+  const { registerBall, unregisterBall, grabbedBallId, gameOutcome } = useGrabContext();
+  const materialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
 
   // Load the GLB model
   const gltf = useGLTF(SPHERE_MODEL_URL);
@@ -81,27 +83,44 @@ export function PrizeSphere({ config, modelScale = 1.0 }: PrizeSphereProps) {
     return clone;
   }, [gltf.scene, config.radius, modelScale]);
 
-  // Update material when grabbed (glow effect only, no color tint)
+  // Collect material references for animation
   useEffect(() => {
-    const isGrabbed = grabbedBallId === config.id;
-
+    const mats: THREE.MeshStandardMaterial[] = [];
     clonedScene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const mat = mesh.material as THREE.MeshStandardMaterial;
-        if (mat) {
-          if (isGrabbed) {
-            mat.emissive = new THREE.Color("#ffffff");
-            mat.emissiveIntensity = 0.3;
-          } else {
-            mat.emissive = new THREE.Color("#000000");
-            mat.emissiveIntensity = 0;
-          }
-          mat.needsUpdate = true;
-        }
+        if (mat) mats.push(mat);
       }
     });
-  }, [grabbedBallId, config.id, clonedScene]);
+    materialsRef.current = mats;
+  }, [clonedScene]);
+
+  // Animate glow effect for grabbed balls (especially on WIN)
+  useFrame((state) => {
+    const isGrabbed = grabbedBallId === config.id;
+    const isWin = gameOutcome === "win";
+    
+    materialsRef.current.forEach((mat) => {
+      if (isGrabbed && isWin) {
+        // WIN: Pulsing rainbow glow for dopamine! 🌈
+        const time = state.clock.elapsedTime;
+        const hue = (time * 0.5) % 1; // Slow color cycle
+        const pulse = 0.5 + Math.sin(time * 4) * 0.3; // Pulsing intensity
+        
+        mat.emissive.setHSL(hue, 1, 0.5);
+        mat.emissiveIntensity = pulse;
+      } else if (isGrabbed) {
+        // Normal grab: subtle golden glow
+        mat.emissive.setHex(0xffd700);
+        mat.emissiveIntensity = 0.2;
+      } else {
+        // Not grabbed: no glow
+        mat.emissive.setHex(0x000000);
+        mat.emissiveIntensity = 0;
+      }
+    });
+  });
 
   useEffect(() => {
     registerBall(config.id, rigidBodyRef);

@@ -66,7 +66,7 @@ export class PlayService {
 
   /**
    * Handle GamePlayInitiated event
-   * Verifies payment amount against current token price before recording play
+   * Verifies payment amount against current token price using pump.fun API
    */
   async handleGamePlayInitiated(
     eventData: GamePlayInitiatedEventData,
@@ -80,14 +80,14 @@ export class PlayService {
     
     if (!gameData) {
       this.logger.error(`Cannot verify payment - game not found on chain: game_id=${gameIdStr}`);
-      // Still record the play but mark as unverified
+      // Still record the play as pending (will be updated by finalize events)
       await this.createPlayWithStatus(
         eventData.game_id,
         eventData.user,
         signature,
         eventData.token_amount,
         eventData.timestamp,
-        'unverified',
+        'pending',
       );
       return;
     }
@@ -133,13 +133,14 @@ export class PlayService {
       );
     } else {
       this.logger.warn(`❌ Insufficient payment: ${verification.message}`);
+      // Use 'failed' status (valid DB enum value) instead of 'rejected'
       await this.createPlayWithStatus(
         eventData.game_id,
         eventData.user,
         signature,
         eventData.token_amount,
         eventData.timestamp,
-        'rejected', // Payment was insufficient
+        'failed', // Payment was insufficient
       );
 
       // Broadcast rejection to frontend
@@ -154,6 +155,7 @@ export class PlayService {
   
   /**
    * Create a play record with a specific status
+   * Note: DB enum only supports 'pending', 'completed', 'failed'
    */
   private async createPlayWithStatus(
     gameId: string | BN,
@@ -161,7 +163,7 @@ export class PlayService {
     transactionSignature: string,
     tokenAmountPaid: string | BN,
     timestamp: number,
-    status: 'pending' | 'rejected' | 'unverified',
+    status: 'pending' | 'failed',
   ): Promise<void> {
     const gameIdStr = gameId.toString();
 
@@ -226,6 +228,13 @@ export class PlayService {
       eventData.nft_mint,
     );
 
+    // Increment totalPlays count on the game (matches on-chain finalize_play)
+    await this.databaseService.execute(
+      `UPDATE games SET "totalPlays" = COALESCE("totalPlays", 0) + 1, "updatedAt" = NOW() WHERE id = $1`,
+      [game.id],
+    );
+    this.logger.log(`Incremented totalPlays for game id=${game.id} (PrizeWon)`);
+
     this.logger.log(
       `Prize won: prize_id=${prizeIdStr}, nft_mint=${eventData.nft_mint}, user=${eventData.user}, signature=${signature}`,
     );
@@ -238,6 +247,11 @@ export class PlayService {
     eventData: PlayLostEventData,
     signature: string,
   ): Promise<void> {
+    const gameIdStr = eventData.game_id.toString();
+    
+    // Find game to increment totalPlays
+    const game = await this.gameService.findGameByGameId(gameIdStr);
+    
     // Find play by transaction signature
     const play = await this.databaseService.queryOne<{ id: number }>(
       'SELECT id FROM plays WHERE "transactionSignature" = $1',
@@ -246,15 +260,27 @@ export class PlayService {
 
     if (!play) {
       this.logger.warn(`Play not found: ${signature}`);
-      return;
+      // Even if play record doesn't exist, we should still increment totalPlays
+      // since the on-chain finalize_play did increment it
+    } else {
+      // Update play record to failed status
+      const randomValueBase64 = Buffer.from(eventData.random_value).toString('base64');
+      await this.databaseService.execute(
+        'UPDATE plays SET "status" = $1, "randomValue" = $2 WHERE id = $3',
+        ['failed', randomValueBase64, play.id],
+      );
     }
 
-    // Update play record to failed status
-    const randomValueBase64 = Buffer.from(eventData.random_value).toString('base64');
-    await this.databaseService.execute(
-      'UPDATE plays SET "status" = $1, "randomValue" = $2 WHERE id = $3',
-      ['failed', randomValueBase64, play.id],
-    );
+    // Increment totalPlays count on the game (matches on-chain finalize_play)
+    if (game) {
+      await this.databaseService.execute(
+        `UPDATE games SET "totalPlays" = COALESCE("totalPlays", 0) + 1, "updatedAt" = NOW() WHERE id = $1`,
+        [game.id],
+      );
+      this.logger.log(`Incremented totalPlays for game id=${game.id} (PlayLost)`);
+    } else {
+      this.logger.warn(`Game not found for PlayLost: game_id=${gameIdStr}`);
+    }
 
     this.logger.log(
       `Play lost: user=${eventData.user}, signature=${signature}`,

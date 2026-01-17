@@ -17,6 +17,7 @@ import type {
   ClawColliderConfig,
   DropBoxConfig,
   FrontWallConfig,
+  GameOutcome,
   GlassAreaConfig,
   SideWallsConfig,
 } from "../types";
@@ -27,13 +28,19 @@ import { PrizeSphere } from "./PrizeSphere";
 
 type PhysicsSceneProps = {
   modelUrl: string;
+  gameOutcome?: GameOutcome;
+  onDropStart?: () => void;
 };
 
 /**
  * Physics-enabled scene wrapper.
  * Contains Leva controls for adjusting physics parameters.
  */
-export function PhysicsScene({ modelUrl }: PhysicsSceneProps) {
+export function PhysicsScene({
+  modelUrl,
+  gameOutcome = null,
+  onDropStart,
+}: PhysicsSceneProps) {
   const [physicsKey, setPhysicsKey] = useState(0);
 
   // ====================================
@@ -486,12 +493,13 @@ export function PhysicsScene({ modelUrl }: PhysicsSceneProps) {
   );
 
   return (
-    <GrabProvider>
+    <GrabProvider gameOutcome={gameOutcome}>
       <Physics gravity={[0, -9.81, 0]} key={physicsKey}>
         <ClawMachineRig
           modelUrl={modelUrl}
           clawColliderConfig={clawColliderConfig}
           glassOpacity={glassOpacity}
+          onDropStart={onDropStart}
         />
         <GlassBoundaries
           area={glassArea}

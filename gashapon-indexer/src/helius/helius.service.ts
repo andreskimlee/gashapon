@@ -300,7 +300,16 @@ export class HeliusService implements OnModuleInit, OnModuleDestroy {
 
     // Check if transaction failed
     if (meta.err) {
-      this.logger.debug(`Transaction failed: ${JSON.stringify(meta.err)}`);
+      const signature = tx?.signatures?.[0] || 'unknown';
+      this.logger.warn(`❌ Transaction failed: ${signature}`);
+      this.logger.warn(`   Error: ${JSON.stringify(meta.err)}`);
+      // Log program logs for debugging
+      if (meta.logMessages && meta.logMessages.length > 0) {
+        this.logger.warn(`   Logs:`);
+        meta.logMessages.forEach((log, idx) => {
+          this.logger.warn(`     [${idx}] ${log}`);
+        });
+      }
       return;
     }
 
@@ -401,7 +410,15 @@ export class HeliusService implements OnModuleInit, OnModuleDestroy {
       }
 
       if (tx.meta.err) {
-        this.logger.debug(`Transaction failed: ${signature}`);
+        this.logger.warn(`Transaction failed: ${signature}`);
+        this.logger.warn(`Error details: ${JSON.stringify(tx.meta.err)}`);
+        // Also log the program logs for debugging
+        if (tx.meta.logMessages && tx.meta.logMessages.length > 0) {
+          this.logger.warn(`Transaction logs:`);
+          tx.meta.logMessages.forEach((log, idx) => {
+            this.logger.warn(`  [${idx}] ${log}`);
+          });
+        }
         return;
       }
 

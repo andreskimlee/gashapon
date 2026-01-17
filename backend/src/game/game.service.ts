@@ -23,6 +23,7 @@ export class GameService {
         : {};
     return this.gameRepository.find({
       where,
+      relations: ['prizes'],
       order: { createdAt: 'DESC' },
     });
   }

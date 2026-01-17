@@ -39,12 +39,6 @@ export default function Header() {
             Home
           </a>
           <a
-            href="/games"
-            className="text-pastel-text font-semibold hover:text-pastel-coral transition-colors"
-          >
-            Games
-          </a>
-          <a
             href="/collection"
             className="text-pastel-text font-semibold hover:text-pastel-coral transition-colors"
           >

@@ -8,18 +8,26 @@
  * - Right content column with prize preview squircle and CTA
  */
 
-'use client';
+"use client";
 
-import Link from 'next/link';
-import CTAButton from '@/components/ui/CTAButton';
-import { cn } from '@/utils/helpers';
+import Card from "@/components/ui/Card";
+import CTAButton from "@/components/ui/CTAButton";
+import { useTokenCost } from "@/hooks/useTokenCost";
+import { formatCompact } from "@/utils/format";
+import { cn } from "@/utils/helpers";
+import Link from "next/link";
 
 export type HomeGameCardModel = {
   id: number | string;
   name: string;
-  image: string; // placeholder for now
+  image: string; // URL or emoji fallback
+  prizeImage?: string; // URL or emoji fallback
   room: string;
-  cost: number;
+  cost: number; // Legacy: token amount (fallback)
+  costUsdCents?: number; // Cost in USD cents (e.g., 99 = $0.99)
+  currencyTokenMintAddress?: string; // Token mint for price lookup
+  isActive?: boolean;
+  totalPlays?: number;
 };
 
 export default function GameCard({
@@ -29,72 +37,123 @@ export default function GameCard({
   game: HomeGameCardModel;
   className?: string;
 }) {
-  const cardStyle: React.CSSProperties = {
-    border: '2px solid #111827',
-    borderRight: '4px solid #111827',
-    borderBottom: '5px solid #111827',
-    boxShadow: '6px 8px 0 #8ECCC1',
+  // Dynamic token cost calculation
+  const { tokenAmountFormatted, loading: priceLoading } = useTokenCost(
+    game.currencyTokenMintAddress,
+    game.costUsdCents
+  );
+
+  const isImageUrl = (value: string) =>
+    value.startsWith("http") || value.startsWith("/");
+
+  const renderImage = (image: string, size: "large" | "small" | "preview") => {
+    if (isImageUrl(image)) {
+      return (
+        <img
+          src={image}
+          alt={game.name}
+          className={cn(
+            "object-cover rounded-lg",
+            size === "large"
+              ? "w-full h-full"
+              : size === "preview"
+                ? "w-full h-full"
+                : "w-16 h-16"
+          )}
+        />
+      );
+    }
+    return (
+      <span
+        className={cn(
+          "select-none",
+          size === "large"
+            ? "text-6xl"
+            : size === "preview"
+              ? "text-4xl"
+              : "text-3xl"
+        )}
+      >
+        {image}
+      </span>
+    );
   };
+
+  const prizePreviewImage = game.prizeImage || game.image;
 
   return (
     <Link href={`/games/${game.id}`} className="block">
-      <div
-        className={cn(
-          'bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1',
-          className
-        )}
-        style={cardStyle}
+      <Card
+        variant="arcade"
+        shadowColor="mint"
+        hover
+        padding="none"
+        className={cn("cursor-pointer", className)}
       >
         <div className="flex">
-          {/* Left image panel (full height) */}
-          <div className="w-44 bg-[#CFEFEA] p-3">
-            <div className="h-full min-h-[210px] rounded-xl border-2 border-[#111827] bg-white/10 flex items-center justify-center">
-              {/* Placeholder image area */}
-              <div className="text-6xl select-none">{game.image}</div>
+          {/* Left image panel */}
+          <div className="w-[320px] shrink-0 bg-[#CFEFEA] m-4 rounded-2xl overflow-hidden">
+            <div className="h-full min-h-[360px] flex items-center justify-center">
+              {renderImage(game.image, "large")}
             </div>
           </div>
 
           {/* Right content */}
-          <div className="flex-1 p-4 flex flex-col">
-            <h3 className="font-display text-xl leading-none text-[#111827]">
-              {game.name.toUpperCase()}
-            </h3>
+          <div className="flex-1 p-5 flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-display text-2xl leading-tight text-[#111827]">
+                {game.name.toUpperCase()}
+              </h3>
+              {game.isActive === false && (
+                <span className="px-2 py-1 text-xs font-bold bg-red-100 text-red-600 rounded-full shrink-0">
+                  INACTIVE
+                </span>
+              )}
+            </div>
 
-            <div className="mt-2">
-              <div className="text-[10px] font-bold text-[#111827] uppercase tracking-wide">
+            <div className="mt-4">
+              <div className="text-sm font-bold text-[#111827] uppercase tracking-wide text-center">
                 PRIZE PREVIEW
               </div>
-              <div className="mt-2 w-20 h-20 rounded-2xl border-2 border-[#111827] bg-[#E9EEF2] flex items-center justify-center">
-                <span className="text-3xl select-none">{game.image}</span>
+              <div className="mt-2 w-full h-32 rounded-xl border-2 border-[#111827] bg-[#E9EEF2] flex items-center justify-center overflow-hidden">
+                {renderImage(prizePreviewImage, "preview")}
               </div>
             </div>
 
-            <div className="mt-4 text-sm text-[#111827] leading-tight">
+            <div className="mt-5 text-base text-[#111827] leading-tight">
               <div className="font-bold">
                 ROOM: <span className="font-extrabold">{game.room}</span>
               </div>
-              <div className="mt-1 font-bold flex items-center gap-2">
+              <div className="mt-2 font-bold flex items-center gap-2 flex-wrap">
                 <span>COST:</span>
-                <span className="px-2 py-0.5 rounded-md bg-[#FFE39A] border border-[#111827]/20 font-extrabold">
-                  {game.cost} COINS
+                <span className="px-3 py-1 rounded-md bg-[#FFE39A] border border-[#111827]/20 font-extrabold">
+                  {priceLoading
+                    ? "..."
+                    : tokenAmountFormatted
+                      ? `${tokenAmountFormatted} TOKENS`
+                      : `${formatCompact(game.cost)} TOKENS`}
                 </span>
               </div>
+              {typeof game.totalPlays === "number" && (
+                <div className="mt-2 text-sm text-pastel-textLight">
+                  {game.totalPlays.toLocaleString()} plays
+                </div>
+              )}
             </div>
 
-            <div className="mt-auto pt-4">
+            <div className="mt-auto pt-5">
               <CTAButton
-                size="sm"
+                size="md"
                 variant="pink"
-                className="w-full text-xs py-2"
+                className="w-full"
+                disabled={game.isActive === false}
               >
-                ENTER ROOM
+                {game.isActive === false ? "UNAVAILABLE" : "ENTER ROOM"}
               </CTAButton>
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }
-
-

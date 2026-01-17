@@ -5,11 +5,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import type { GrabContextType } from "../types";
+import type { GameOutcome, GrabContextType } from "../types";
 
 const GrabContext = createContext<GrabContextType | null>(null);
 
@@ -21,13 +22,21 @@ export function useGrabContext() {
 
 type GrabProviderProps = {
   children: React.ReactNode;
+  gameOutcome?: GameOutcome;
 };
 
-export function GrabProvider({ children }: GrabProviderProps) {
+export function GrabProvider({ children, gameOutcome: propOutcome = null }: GrabProviderProps) {
   const ballRefsMap = useRef<
     Map<string, React.RefObject<RapierRigidBody | null>>
   >(new Map());
   const [grabbedBallId, setGrabbedBallId] = useState<string | null>(null);
+  const [gameOutcome, setGameOutcome] = useState<GameOutcome>(propOutcome);
+
+  // Sync state when prop changes
+  useEffect(() => {
+    console.log("[GrabContext] gameOutcome prop changed to:", propOutcome);
+    setGameOutcome(propOutcome);
+  }, [propOutcome]);
 
   const registerBall = useCallback(
     (id: string, ref: React.RefObject<RapierRigidBody | null>) => {
@@ -49,8 +58,10 @@ export function GrabProvider({ children }: GrabProviderProps) {
       grabbedBallId,
       setGrabbedBallId,
       getBallRefs,
+      gameOutcome,
+      setGameOutcome,
     }),
-    [registerBall, unregisterBall, grabbedBallId, getBallRefs]
+    [registerBall, unregisterBall, grabbedBallId, getBallRefs, gameOutcome]
   );
 
   return <GrabContext.Provider value={value}>{children}</GrabContext.Provider>;

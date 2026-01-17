@@ -14,6 +14,14 @@ export type GamePhase =
   | "RELEASING"
   | "RESETTING";
 
+/**
+ * Game outcome determines claw behavior:
+ * - null: Dev mode - normal physics-based grab
+ * - "win": Magnetize nearest prize to claw for guaranteed capture
+ * - "lose": Weak grip that releases during rising phase
+ */
+export type GameOutcome = "win" | "lose" | null;
+
 export type KeyboardState = {
   ArrowUp: boolean;
   ArrowDown: boolean;
@@ -96,4 +104,6 @@ export type GrabContextType = {
   grabbedBallId: string | null;
   setGrabbedBallId: (id: string | null) => void;
   getBallRefs: () => Map<string, React.RefObject<RapierRigidBody | null>>;
+  gameOutcome: GameOutcome;
+  setGameOutcome: (outcome: GameOutcome) => void;
 };

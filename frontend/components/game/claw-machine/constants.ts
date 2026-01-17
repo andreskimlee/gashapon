@@ -36,6 +36,21 @@ export const JOYSTICK_MAX_ANGLE = 0.2;
 export const BUTTON_PRESS_DEPTH = 2;
 
 // ============================================
+// Game Outcome Behavior Configuration
+// ============================================
+
+// On LOSS: Grab ball with same grip as win, then claw opens during rising to drop it
+export const CLAW_CLOSE_ANGLE_LOSE = -0.35; // Same tight grip as win (grabs the ball)
+export const LOSE_DROP_PROGRESS = 0.25; // Start opening claw at 25% of rising
+export const LOSE_OPEN_DURATION = 0.15; // Claw opens over 15% of rising distance
+export const CLAW_RELEASE_ANGLE = 0.3; // How much the claw opens to release (wider than widen)
+
+// On WIN: Strong grip + magnetize prize to claw
+export const CLAW_CLOSE_ANGLE_WIN = -0.35; // Extra tight grip
+export const WIN_MAGNETIZE_SPEED = 3.0; // Speed at which prize moves toward claw
+export const WIN_GRAB_RANGE = 0.5; // Larger grab range for guaranteed catch
+
+// ============================================
 // Physics Configuration
 // ============================================
 

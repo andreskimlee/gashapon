@@ -12,6 +12,8 @@
     "test:devnet:query": "ts-node scripts/test-devnet.ts",
     "anchor:build": "export PATH=\\\"$HOME/.avm/bin:$PATH\\\" && anchor build && node scripts/copy-idl.js",
     "anchor:test": "export PATH=\\\"$HOME/.avm/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH\\\" && anchor test",
+    "anchor:deploy:devnet": "export PATH=\\\"$HOME/.avm/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH\\\" && anchor deploy --provider.cluster devnet --provider.wallet ./phantom-devnet-keypair.json",
+    "dev": "bash start-dev.sh",
     "fix:setup": "bash fix-anchor-solana.sh",
     "copy:idl": "node scripts/copy-idl.js",
     "build:devnet": "pnpm run anchor:build && pnpm run copy:idl"

@@ -18,6 +18,7 @@ export { useKeyboardControls } from "./useKeyboardControls";
 export type {
   ClawColliderConfig,
   DropBoxConfig,
+  GameOutcome,
   GamePhase,
   GlassAreaConfig,
   GrabContextType,
@@ -32,6 +33,8 @@ export {
   BUTTON_PRESS_DEPTH,
   CLAW_AXIS,
   CLAW_CLOSE_ANGLE,
+  CLAW_CLOSE_ANGLE_LOSE,
+  CLAW_CLOSE_ANGLE_WIN,
   CLAW_SPEED,
   CLAW_WIDEN_ANGLE,
   DEFAULT_DROP_BOX,
@@ -41,11 +44,14 @@ export {
   DROP_SPEED,
   GRAB_DURATION,
   JOYSTICK_MAX_ANGLE,
+  LOSE_DROP_PROGRESS,
   RETURN_SPEED,
   SPHERE_COLORS,
   TOOTH_GEOMETRY_CENTERS,
   TOOTH_TO_BONE,
   WIDEN_DURATION,
+  WIN_GRAB_RANGE,
+  WIN_MAGNETIZE_SPEED,
 } from "./constants";
 
 // Utils

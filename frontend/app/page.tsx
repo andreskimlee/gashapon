@@ -4,75 +4,19 @@
  * Pastel kawaii landing page with:
  * - Sky background with fluffy clouds
  * - 3D claw machine in hero section
- * - Game cards grid in pastel style
+ * - Game cards grid in pastel style (real data)
  */
 
 'use client';
 
-import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import CTAButton from '@/components/ui/CTAButton';
+import { useGames } from '@/hooks/api/useGames';
 import GameCard from '@/components/home/GameCard';
 import HeroSection from '@/components/home/HeroSection';
-
-// Dynamically import ClawMachine3D to avoid SSR issues with Three.js
-const ClawMachine3D = dynamic(
-  () => import('@/components/game/ClawMachine3D'),
-  { ssr: false, loading: () => <div className="w-full h-full bg-pastel-mintLight/50 rounded-2xl animate-pulse" /> }
-);
-
-const featuredGames = [
-  {
-    id: 1,
-    name: 'Plushie Paradise',
-    image: '🧸',
-    color: 'pink',
-    room: '#101',
-    cost: 100,
-  },
-  {
-    id: 2,
-    name: 'Tech Toys',
-    image: '🎮',
-    color: 'mint',
-    room: '#101',
-    cost: 100,
-  },
-  {
-    id: 3,
-    name: 'Anime Figures',
-    image: '✨',
-    color: 'lavender',
-    room: '#101',
-    cost: 100,
-  },
-  {
-    id: 4,
-    name: 'Wild Drains',
-    image: '🐉',
-    color: 'mint',
-    room: '#101',
-    cost: 100,
-  },
-  {
-    id: 5,
-    name: 'Teech Toys',
-    image: '🧸',
-    color: 'peach',
-    room: '#101',
-    cost: 100,
-  },
-  {
-    id: 6,
-    name: "Blo's & Whens",
-    image: '🎀',
-    color: 'pink',
-    room: '#101',
-    cost: 100,
-  },
-];
+import Loading from '@/components/ui/Loading';
 
 export default function Home() {
+  const { games, loading, error } = useGames();
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <HeroSection />
@@ -80,11 +24,46 @@ export default function Home() {
       {/* Games Grid Section */}
       <section className="relative py-12 px-4">
         <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {featuredGames.map((game) => (
-              <GameCard key={game.id} game={game} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loading size="lg" />
+              <p className="mt-4 text-pastel-text">Loading games...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-20">
+              <p className="text-pastel-coral text-xl mb-4">Failed to load games</p>
+              <p className="text-pastel-textLight text-sm">{error}</p>
+            </div>
+          ) : games.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-pastel-text text-xl mb-4">No games available</p>
+              <p className="text-pastel-textLight text-sm">
+                Check back later for new games!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
+              {games.map((game) => (
+                <GameCard
+                  key={game.id}
+                  game={{
+                    id: game.id,
+                    name: game.name,
+                    image: game.imageUrl || '🎮',
+                    prizeImage:
+                      game.prizes?.find((prize) => prize.imageUrl)?.imageUrl ||
+                      undefined,
+                    room: `#${game.id}`,
+                    cost: Number(game.costInTokens) || 0,
+                    costUsdCents: game.costInUsd ? Number(game.costInUsd) * 100 : undefined,
+                    currencyTokenMintAddress: game.currencyTokenMintAddress || undefined,
+                    isActive: game.isActive,
+                    totalPlays: game.totalPlays,
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

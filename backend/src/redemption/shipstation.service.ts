@@ -1,6 +1,6 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance } from 'axios';
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import axios, { AxiosInstance } from "axios";
 
 export interface ShipmentData {
   name: string;
@@ -12,10 +12,11 @@ export interface ShipmentData {
   sku: string;
   orderId: string;
   email?: string;
+  weightGrams?: number | null;
 }
 
 export interface Shipment {
-  id: number;
+  id: string;
   trackingNumber: string;
   carrier: string;
   estimatedDelivery: Date;
@@ -26,95 +27,126 @@ export interface Shipment {
 export class ShipStationService {
   private apiClient: AxiosInstance;
   private readonly apiKey: string;
-  private readonly apiSecret: string;
 
   constructor(private configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('SHIPSTATION_API_KEY') || '';
-    this.apiSecret = this.configService.get<string>('SHIPSTATION_API_SECRET') || '';
-    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    this.apiKey =
+      this.configService.get<string>("SHIPENGINE_API_KEY") ||
+      this.configService.get<string>("SHIPSTATION_API_KEY") ||
+      "";
+    const nodeEnv = this.configService.get<string>("NODE_ENV") || "development";
 
     // Only require credentials in production
-    if (nodeEnv === 'production' && (!this.apiKey || !this.apiSecret)) {
-      throw new Error('ShipStation API credentials must be configured in production');
+    if (nodeEnv === "production" && !this.apiKey) {
+      throw new Error("ShipStation API key must be configured in production");
     }
 
-    // Create axios instance with basic auth (or placeholder for dev)
-    const auth = (this.apiKey && this.apiSecret)
-      ? Buffer.from(`${this.apiKey}:${this.apiSecret}`).toString('base64')
-      : 'placeholder-auth';
-
     this.apiClient = axios.create({
-      baseURL: 'https://ssapi.shipstation.com',
+      baseURL: "https://api.shipengine.com",
       headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/json',
+        "API-Key": this.apiKey || "placeholder-auth",
+        "Content-Type": "application/json",
       },
       timeout: 30000,
     });
 
-    if (!this.apiKey || !this.apiSecret) {
-      console.warn('⚠️  ShipStation API credentials not configured - redemption will fail. Set SHIPSTATION_API_KEY and SHIPSTATION_API_SECRET to enable.');
+    if (!this.apiKey) {
+      console.warn(
+        "⚠️  ShipStation API key not configured - redemption will fail. Set SHIPENGINE_API_KEY to enable."
+      );
     }
   }
 
   /**
-   * Create a shipment order in ShipStation
+   * Create a shipping label via ShipStation API (ShipEngine)
    */
   async createShipment(data: ShipmentData): Promise<Shipment> {
     try {
-      // First, get the product/sku details to get weight/dimensions
-      const product = await this.getProductBySku(data.sku);
+      const shipFrom = this.getShipFromAddress();
+      const { carrierId, serviceCode } = this.getCarrierConfig();
+      const packageConfig = this.getPackageConfig();
 
-      // Create order in ShipStation
-      const orderPayload = {
-        orderNumber: data.orderId,
-        orderDate: new Date().toISOString(),
-        orderStatus: 'awaiting_shipment',
-        customerUsername: data.email || '',
-        customerEmail: data.email || '',
-        shipTo: {
-          name: data.name,
-          street1: data.address,
-          city: data.city,
-          state: data.state,
-          postalCode: data.zip,
-          country: data.country,
-        },
-        items: [
-          {
-            sku: data.sku,
-            name: product?.name || `Gachapon Prize - ${data.sku}`,
-            quantity: 1,
-            unitPrice: 0, // Prize, not sold
-            weight: {
-              value: product?.weight || 0.5,
-              units: 'pounds',
-            },
+      if (!shipFrom) {
+        throw new InternalServerErrorException(
+          "Ship-from address is not configured for ShipStation API"
+        );
+      }
+
+      const weightValue =
+        data.weightGrams && data.weightGrams > 0
+          ? this.convertWeightFromGrams(
+              data.weightGrams,
+              packageConfig.weightUnit
+            )
+          : packageConfig.weight;
+
+      const labelPayload = {
+        shipment: {
+          carrier_id: carrierId,
+          service_code: serviceCode,
+          ship_to: {
+            name: data.name,
+            address_line1: data.address,
+            city_locality: data.city,
+            state_province: data.state,
+            postal_code: data.zip,
+            country_code: data.country,
           },
-        ],
-        advancedOptions: {
-          customField1: `NFT Redemption - ${data.orderId}`,
+          ship_from: {
+            name: shipFrom.name,
+            address_line1: shipFrom.street1,
+            address_line2: shipFrom.street2 || undefined,
+            city_locality: shipFrom.city,
+            state_province: shipFrom.state,
+            postal_code: shipFrom.postalCode,
+            country_code: shipFrom.country,
+          },
+          packages: [
+            {
+              weight: {
+                value: Number(weightValue.toFixed(3)),
+                unit: packageConfig.weightUnit,
+              },
+              dimensions: {
+                length: packageConfig.length,
+                width: packageConfig.width,
+                height: packageConfig.height,
+                unit: packageConfig.dimensionUnit,
+              },
+            },
+          ],
+          advanced_options: {
+            custom_field1: `NFT Redemption - ${data.orderId}`,
+          },
         },
+        validate_address: "no_validation",
+        label_download_type: "url",
+        label_format: "pdf",
+        label_layout: "4x6",
       };
 
-      const orderResponse = await this.apiClient.post('/orders/createorder', orderPayload);
-
-      const orderId = orderResponse.data.orderId;
-
-      // Create label (this will generate tracking number)
-      const labelResponse = await this.createLabel(orderId);
+      const labelResponse = await this.apiClient.post(
+        "/v1/labels",
+        labelPayload
+      );
+      const label = labelResponse.data;
+      const carrierCode = label.carrier_code || label.carrier_id || "unknown";
+      const trackingNumber = label.tracking_number || "";
+      const shipDate = label.ship_date ? new Date(label.ship_date) : new Date();
 
       return {
-        id: orderId,
-        trackingNumber: labelResponse.trackingNumber,
-        carrier: labelResponse.carrierCode,
-        estimatedDelivery: new Date(labelResponse.shipDate),
-        status: 'processing',
+        id: label.label_id,
+        trackingNumber,
+        carrier: carrierCode,
+        estimatedDelivery: shipDate,
+        status: "processing",
       };
     } catch (error) {
-      console.error('ShipStation API error:', error.response?.data || error.message);
+      console.error(
+        "ShipStation API error:",
+        error.response?.data || error.message
+      );
       throw new InternalServerErrorException(
-        `Failed to create shipment: ${error.response?.data?.message || error.message}`,
+        `Failed to create shipment: ${error.response?.data?.message || error.message}`
       );
     }
   }
@@ -122,53 +154,118 @@ export class ShipStationService {
   /**
    * Get shipment status
    */
-  async getShipmentStatus(shipmentId: number): Promise<Shipment> {
-    try {
-      const response = await this.apiClient.get(`/orders/${shipmentId}`);
-      const order = response.data;
-
-      return {
-        id: order.orderId,
-        trackingNumber: order.trackingNumber || '',
-        carrier: order.carrierCode || '',
-        estimatedDelivery: order.shipDate ? new Date(order.shipDate) : new Date(),
-        status: order.orderStatus || 'unknown',
-      };
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to get shipment status: ${error.response?.data?.message || error.message}`,
-      );
-    }
+  async getShipmentStatus(_shipmentId: string): Promise<Shipment> {
+    throw new InternalServerErrorException(
+      "Shipment status lookup is not implemented for ShipStation API"
+    );
   }
 
-  /**
-   * Create shipping label for an order
-   */
-  private async createLabel(orderId: number): Promise<any> {
-    try {
-      const response = await this.apiClient.post('/orders/createlabelfororder', {
-        orderId,
-      });
-      return response.data;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to create label: ${error.response?.data?.message || error.message}`,
-      );
-    }
-  }
+  private getShipFromAddress(): {
+    name: string;
+    street1: string;
+    street2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  } | null {
+    const name = this.configService.get<string>("SHIPSTATION_SHIP_FROM_NAME");
+    const street1 = this.configService.get<string>(
+      "SHIPSTATION_SHIP_FROM_STREET1"
+    );
+    const street2 = this.configService.get<string>(
+      "SHIPSTATION_SHIP_FROM_STREET2"
+    );
+    const city = this.configService.get<string>("SHIPSTATION_SHIP_FROM_CITY");
+    const state = this.configService.get<string>("SHIPSTATION_SHIP_FROM_STATE");
+    const postalCode = this.configService.get<string>(
+      "SHIPSTATION_SHIP_FROM_POSTAL_CODE"
+    );
+    const country = this.configService.get<string>(
+      "SHIPSTATION_SHIP_FROM_COUNTRY"
+    );
 
-  /**
-   * Get product by SKU (for weight/dimensions)
-   */
-  private async getProductBySku(sku: string): Promise<any> {
-    try {
-      const response = await this.apiClient.get('/products', {
-        params: { sku },
-      });
-      return response.data.products?.[0] || null;
-    } catch (error) {
-      // If product doesn't exist, return null (we'll use defaults)
+    if (!name || !street1 || !city || !state || !postalCode || !country) {
       return null;
+    }
+
+    return {
+      name,
+      street1,
+      ...(street2 ? { street2 } : {}),
+      city,
+      state,
+      postalCode,
+      country,
+    };
+  }
+
+  private getCarrierConfig(): { carrierId: string; serviceCode: string } {
+    const carrierId = this.configService.get<string>("SHIPENGINE_CARRIER_ID");
+    const serviceCode = this.configService.get<string>(
+      "SHIPENGINE_SERVICE_CODE"
+    );
+
+    if (!carrierId || !serviceCode) {
+      throw new InternalServerErrorException(
+        "Carrier configuration missing. Set SHIPENGINE_CARRIER_ID and SHIPENGINE_SERVICE_CODE."
+      );
+    }
+
+    return { carrierId, serviceCode };
+  }
+
+  private getPackageConfig(): {
+    weight: number;
+    weightUnit: "pound" | "ounce" | "kilogram" | "gram";
+    length: number;
+    width: number;
+    height: number;
+    dimensionUnit: "inch" | "centimeter";
+  } {
+    const weight = Number(
+      this.configService.get<string>("SHIPENGINE_PACKAGE_WEIGHT") || "0.5"
+    );
+    const length = Number(
+      this.configService.get<string>("SHIPENGINE_PACKAGE_LENGTH") || "6"
+    );
+    const width = Number(
+      this.configService.get<string>("SHIPENGINE_PACKAGE_WIDTH") || "6"
+    );
+    const height = Number(
+      this.configService.get<string>("SHIPENGINE_PACKAGE_HEIGHT") || "4"
+    );
+    const weightUnit = (this.configService.get<string>(
+      "SHIPENGINE_PACKAGE_WEIGHT_UNIT"
+    ) || "pound") as "pound" | "ounce" | "kilogram" | "gram";
+    const dimensionUnit = (this.configService.get<string>(
+      "SHIPENGINE_PACKAGE_DIMENSION_UNIT"
+    ) || "inch") as "inch" | "centimeter";
+
+    return {
+      weight,
+      weightUnit,
+      length,
+      width,
+      height,
+      dimensionUnit,
+    };
+  }
+
+  private convertWeightFromGrams(
+    grams: number,
+    unit: "pound" | "ounce" | "kilogram" | "gram"
+  ): number {
+    switch (unit) {
+      case "kilogram":
+        return grams / 1000;
+      case "gram":
+        return grams;
+      case "ounce":
+        return grams / 28.349523125;
+      case "pound":
+      default:
+        return grams / 453.59237;
     }
   }
 
@@ -177,8 +274,7 @@ export class ShipStationService {
    */
   verifyWebhookSignature(payload: any, signature: string): boolean {
     // TODO: Implement ShipStation webhook signature verification
-    // ShipStation uses HMAC-SHA256 with the API secret
+    // ShipStation API uses HMAC verification for webhooks
     return true; // Placeholder
   }
 }
-

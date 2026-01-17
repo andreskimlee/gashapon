@@ -26,6 +26,10 @@ export class PrizeEntity {
   @Column({ type: 'bigint' })
   prizeId: number;
 
+  @Column({ type: 'smallint', default: 0 })
+  @Index()
+  prizeIndex: number;
+
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
@@ -47,6 +51,9 @@ export class PrizeEntity {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   costInUsd: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  weightGrams: number | null;
 
   @Column({ type: 'int' })
   supplyTotal: number;

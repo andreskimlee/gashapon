@@ -132,6 +132,7 @@ export class RedemptionService {
         zip: shippingData.zip,
         country: shippingData.country,
         sku: nft.prize.physicalSku,
+        weightGrams: nft.prize.weightGrams,
         orderId: `GACHA-${request.nftMint.slice(0, 8).toUpperCase()}`,
         email: shippingData.email,
       });

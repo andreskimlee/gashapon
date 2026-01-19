@@ -47,6 +47,18 @@ export class RedemptionEntity {
   @Column({ type: 'varchar', length: 50, nullable: true })
   carrier: string | null;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  carrierCode: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  labelPdfUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  labelPngUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  trackingUrl: string | null;
+
   @Column({
     type: 'enum',
     enum: RedemptionStatus,

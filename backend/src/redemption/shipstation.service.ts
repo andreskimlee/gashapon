@@ -9,6 +9,7 @@ export interface ShipmentData {
   state: string;
   zip: string;
   country: string;
+  phone: string;
   sku: string;
   orderId: string;
   email?: string;
@@ -19,8 +20,13 @@ export interface Shipment {
   id: string;
   trackingNumber: string;
   carrier: string;
+  carrierCode: string;
   estimatedDelivery: Date;
   status: string;
+  labelPdfUrl?: string;
+  labelPngUrl?: string;
+  labelZplUrl?: string;
+  trackingUrl?: string;
 }
 
 @Injectable()
@@ -85,6 +91,7 @@ export class ShipStationService {
           service_code: serviceCode,
           ship_to: {
             name: data.name,
+            phone: data.phone,
             address_line1: data.address,
             city_locality: data.city,
             state_province: data.state,
@@ -93,6 +100,7 @@ export class ShipStationService {
           },
           ship_from: {
             name: shipFrom.name,
+            phone: shipFrom.phone,
             address_line1: shipFrom.street1,
             address_line2: shipFrom.street2 || undefined,
             city_locality: shipFrom.city,
@@ -133,12 +141,33 @@ export class ShipStationService {
       const trackingNumber = label.tracking_number || "";
       const shipDate = label.ship_date ? new Date(label.ship_date) : new Date();
 
+      // Extract label download URLs
+      const labelDownload = label.label_download || {};
+      const labelPdfUrl = labelDownload.pdf || label.label_download_url;
+      const labelPngUrl = labelDownload.png;
+      const labelZplUrl = labelDownload.zpl;
+
+      // Generate tracking URL based on carrier
+      const trackingUrl = this.getTrackingUrl(carrierCode, trackingNumber);
+
+      console.log("📦 Label created:", {
+        labelId: label.label_id,
+        trackingNumber,
+        carrier: carrierCode,
+        labelPdfUrl: labelPdfUrl ? "✓" : "missing",
+      });
+
       return {
         id: label.label_id,
         trackingNumber,
         carrier: carrierCode,
+        carrierCode,
         estimatedDelivery: shipDate,
         status: "processing",
+        labelPdfUrl,
+        labelPngUrl,
+        labelZplUrl,
+        trackingUrl,
       };
     } catch (error) {
       console.error(
@@ -162,6 +191,7 @@ export class ShipStationService {
 
   private getShipFromAddress(): {
     name: string;
+    phone: string;
     street1: string;
     street2?: string;
     city: string;
@@ -170,6 +200,7 @@ export class ShipStationService {
     country: string;
   } | null {
     const name = this.configService.get<string>("SHIPSTATION_SHIP_FROM_NAME");
+    const phone = this.configService.get<string>("SHIPSTATION_SHIP_FROM_PHONE");
     const street1 = this.configService.get<string>(
       "SHIPSTATION_SHIP_FROM_STREET1"
     );
@@ -185,12 +216,30 @@ export class ShipStationService {
       "SHIPSTATION_SHIP_FROM_COUNTRY"
     );
 
-    if (!name || !street1 || !city || !state || !postalCode || !country) {
+    if (
+      !name ||
+      !phone ||
+      !street1 ||
+      !city ||
+      !state ||
+      !postalCode ||
+      !country
+    ) {
+      console.error("❌ Missing ship-from address config:", {
+        SHIPSTATION_SHIP_FROM_NAME: name ? "✓" : "MISSING",
+        SHIPSTATION_SHIP_FROM_PHONE: phone ? "✓" : "MISSING",
+        SHIPSTATION_SHIP_FROM_STREET1: street1 ? "✓" : "MISSING",
+        SHIPSTATION_SHIP_FROM_CITY: city ? "✓" : "MISSING",
+        SHIPSTATION_SHIP_FROM_STATE: state ? "✓" : "MISSING",
+        SHIPSTATION_SHIP_FROM_POSTAL_CODE: postalCode ? "✓" : "MISSING",
+        SHIPSTATION_SHIP_FROM_COUNTRY: country ? "✓" : "MISSING",
+      });
       return null;
     }
 
     return {
       name,
+      phone,
       street1,
       ...(street2 ? { street2 } : {}),
       city,
@@ -267,6 +316,41 @@ export class ShipStationService {
       default:
         return grams / 453.59237;
     }
+  }
+
+  /**
+   * Generate tracking URL for a carrier
+   */
+  private getTrackingUrl(
+    carrierCode: string,
+    trackingNumber: string
+  ): string | undefined {
+    if (!trackingNumber) return undefined;
+
+    const carrier = carrierCode.toLowerCase();
+
+    // UPS
+    if (carrier.includes("ups")) {
+      return `https://www.ups.com/track?tracknum=${trackingNumber}`;
+    }
+
+    // USPS
+    if (carrier.includes("usps") || carrier.includes("stamps")) {
+      return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`;
+    }
+
+    // FedEx
+    if (carrier.includes("fedex")) {
+      return `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
+    }
+
+    // DHL
+    if (carrier.includes("dhl")) {
+      return `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNumber}`;
+    }
+
+    // Default: return a generic tracking search
+    return `https://www.google.com/search?q=${trackingNumber}+tracking`;
   }
 
   /**

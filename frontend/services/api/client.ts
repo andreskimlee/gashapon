@@ -20,12 +20,15 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    // Extract headers separately to merge properly
+    const { headers: optionHeaders, ...restOptions } = options;
+    
     const config: RequestInit = {
+      ...restOptions,
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(optionHeaders as Record<string, string>),
       },
-      ...options,
     };
 
     try {

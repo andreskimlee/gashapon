@@ -51,26 +51,15 @@ export interface TokenPrice {
   timestamp: number;
 }
 
-// Cache prices for 10 seconds client-side
-const priceCache: Map<string, { price: TokenPrice; expiresAt: number }> =
-  new Map();
-const CACHE_TTL_MS = 10_000;
-
 /**
  * Fetch token price from pump.fun API
+ * 
+ * Note: Caching is handled by React Query at the hook level.
+ * This function is a pure fetch without internal caching.
  */
 export async function getTokenPrice(
   tokenMint: string
 ): Promise<TokenPrice | null> {
-  // Check cache first
-  const cached = priceCache.get(tokenMint);
-  if (cached && cached.expiresAt > Date.now()) {
-    console.log(
-      `[PriceService] Using cached price for ${tokenMint}: $${cached.price.priceUsd}`
-    );
-    return cached.price;
-  }
-
   try {
     const apiUrl = `${PUMP_FUN_API_URL}/${tokenMint}`;
     console.log(
@@ -116,12 +105,6 @@ export async function getTokenPrice(
       source: "pump.fun",
       timestamp: Date.now(),
     };
-
-    // Cache the price
-    priceCache.set(tokenMint, {
-      price,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    });
 
     return price;
   } catch (error) {
@@ -180,9 +163,3 @@ export async function calculateTokenAmount(
   };
 }
 
-/**
- * Clear the price cache (useful for testing or forcing refresh)
- */
-export function clearPriceCache(): void {
-  priceCache.clear();
-}

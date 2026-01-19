@@ -233,14 +233,20 @@ export default function AdminPage() {
     
     setInventoryStats(result);
     
-    // Update game data with calculated play cost
-    setGameData(prev => ({ ...prev, playCostUsd: result.playCostUsd }));
+    // Update both game data and odds config together to avoid cascading updates
+    setGameData(prev => {
+      if (prev.playCostUsd !== result.playCostUsd) {
+        return { ...prev, playCostUsd: result.playCostUsd };
+      }
+      return prev;
+    });
+    setOddsConfig(prev => {
+      if (prev.playCostUsd !== result.playCostUsd) {
+        return { ...prev, playCostUsd: result.playCostUsd };
+      }
+      return prev;
+    });
   }, [prizes, oddsConfig.targetProfitMargin, oddsConfig.priceSensitivity, oddsConfig.minimumWinRate, oddsConfig.maximumWinRate]);
-
-  // Update odds config when play cost changes (manual or auto)
-  useEffect(() => {
-    setOddsConfig(prev => ({ ...prev, playCostUsd: gameData.playCostUsd }));
-  }, [gameData.playCostUsd]);
 
   // Add new prize
   const addPrize = useCallback(() => {
@@ -389,20 +395,24 @@ export default function AdminPage() {
       }
 
       // Build prize configs for on-chain deployment
-      const prizeConfigs: PrizeConfigInput[] = calculationResult.prizes.map((prize, idx) => ({
-        prizeId: idx + 1,
-        name: prize.name.trim(),
-        description: prize.description?.trim() || '',
-        imageUrl: prize.imageUrl?.trim() || '',
-        metadataUri: prize.metadataUri?.trim() || '',
-        physicalSku: prize.physicalSku || generateSku(gameData.name, prize.name, idx),
-        tier: prize.tier,
-        probabilityBp: prize.probabilityBasisPoints,
-        costUsd: Math.round(prize.costUsd * 100), // Convert to cents
-        weightGrams: prize.weightGrams ?? 0,
-        supplyTotal: prize.supplyTotal,
-        supplyRemaining: prize.supplyTotal, // Start with full supply
-      }));
+      const prizeConfigs: PrizeConfigInput[] = calculationResult.prizes.map((prize, idx) => {
+        const config = {
+          prizeId: idx + 1,
+          name: prize.name.trim(),
+          description: prize.description?.trim() || '',
+          imageUrl: prize.imageUrl?.trim() || '',
+          metadataUri: prize.metadataUri?.trim() || '',
+          physicalSku: prize.physicalSku || generateSku(gameData.name, prize.name, idx),
+          tier: prize.tier,
+          probabilityBp: prize.probabilityBasisPoints,
+          costUsd: Math.round(prize.costUsd * 100), // Convert to cents
+          weightGrams: prize.weightGrams ?? 0,
+          supplyTotal: prize.supplyTotal,
+          supplyRemaining: prize.supplyTotal, // Start with full supply
+        };
+        console.log(`Prize config ${idx}:`, { weightGrams: config.weightGrams, supplyTotal: config.supplyTotal });
+        return config;
+      });
 
       // Deploy on-chain
       const result = await deployGame(
@@ -576,8 +586,8 @@ export default function AdminPage() {
 
   // Admin panel
   return (
-    <div className="min-h-screen py-8 px-4">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen py-8 px-4" style={{ transform: 'translateZ(0)' }}>
+      <div className="max-w-6xl mx-auto space-y-8 [&_.card]:transform [&_.card]:will-change-auto">
         {/* Header */}
         <div className="card bg-white/95 backdrop-blur-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -586,6 +596,15 @@ export default function AdminPage() {
               <p className="text-pastel-textLight mt-1">Create and manage gashapon games</p>
             </div>
             <div className="flex items-center gap-3">
+              <a
+                href="/admin/orders"
+                className="px-4 py-2 bg-pastel-mint text-pastel-text rounded-xl font-medium hover:bg-pastel-mint/80 transition flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Orders
+              </a>
               <WalletMultiButton />
             </div>
           </div>
@@ -973,11 +992,11 @@ export default function AdminPage() {
                     <input
                       type="number"
                       min="1"
-                      max="50"
+                      max="95"
                       value={Math.round(oddsConfig.minimumWinRate * 100)}
                       onChange={(e) => setOddsConfig(prev => ({ 
                         ...prev, 
-                        minimumWinRate: parseInt(e.target.value) / 100 
+                        minimumWinRate: Math.min(parseInt(e.target.value) || 1, 95) / 100 
                       }))}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white text-pastel-text"
                     />
@@ -987,18 +1006,18 @@ export default function AdminPage() {
                     <input
                       type="number"
                       min="5"
-                      max="50"
+                      max="95"
                       value={Math.round(oddsConfig.maximumWinRate * 100)}
                       onChange={(e) => setOddsConfig(prev => ({ 
                         ...prev, 
-                        maximumWinRate: parseInt(e.target.value) / 100 
+                        maximumWinRate: Math.min(parseInt(e.target.value) || 5, 95) / 100 
                       }))}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white text-pastel-text"
                     />
                   </div>
                 </div>
                 <p className="text-xs text-pastel-textLight mt-2">
-                  🎯 Claw machine style: Low win rate (5-25%) = accessible play cost
+                  🎯 Set your target win rate (1-95%). Higher win rates need higher play costs to maintain profit.
                 </p>
               </div>
             </div>

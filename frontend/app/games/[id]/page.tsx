@@ -23,6 +23,10 @@ import { PublicKey } from "@solana/web3.js";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+// Time (ms) to wait after claw drops before showing win/lose screen
+// Adjust this to sync with claw machine animation duration
+const RESULT_SCREEN_DELAY_MS = 8000;
+
 export default function GameDetailPage() {
   const router = useRouter();
   const params = useParams<{ id?: string }>();
@@ -56,7 +60,7 @@ export default function GameDetailPage() {
   } | null>(null);
   const dropStartedRef = useRef(false);
   const resultTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const { publicKey, connected, sendTransaction } = useWallet();
+  const { publicKey, connected, sendTransaction, signMessage } = useWallet();
   const { connection } = useConnection();
 
   // Dynamic token cost calculation from pump.fun price
@@ -204,7 +208,7 @@ export default function GameDetailPage() {
             setPlaying(false);
             setShowResultScreen(true);
             resultTimerRef.current = null;
-          }, 11000);
+          }, RESULT_SCREEN_DELAY_MS);
         }
       } catch (confirmError) {
         console.error("Error confirming transaction:", confirmError);
@@ -232,7 +236,7 @@ export default function GameDetailPage() {
             setPlaying(false);
             setShowResultScreen(true);
             resultTimerRef.current = null;
-          }, 11000);
+          }, RESULT_SCREEN_DELAY_MS);
         }
       }
     } catch (e: unknown) {
@@ -309,7 +313,7 @@ export default function GameDetailPage() {
           setPlaying(false);
           setShowResultScreen(true);
           resultTimerRef.current = null;
-        }, 11000);
+        }, RESULT_SCREEN_DELAY_MS);
       }
     } else if (payload.status === "failed") {
       setPlayResult((prev) => ({
@@ -321,26 +325,39 @@ export default function GameDetailPage() {
     }
   });
 
+  // Fetch game data (reusable for initial load and refresh)
+  const fetchGameData = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      setError(null);
+      const data = await gamesApi.getGame(gameId);
+      setGame(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load game");
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await gamesApi.getGame(gameId);
-        setGame(data);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load game");
-      } finally {
-        setLoading(false);
-      }
-    };
     if (!Number.isFinite(gameId)) {
       setError("Invalid game id");
       setLoading(false);
     } else {
-      load();
+      fetchGameData();
     }
   }, [gameId]);
+
+  // Refetch game data when result screen shows (to update prize supply)
+  useEffect(() => {
+    if (showResultScreen && playResult?.status === "win") {
+      // Small delay to allow indexer to process the transaction
+      const refetchTimer = setTimeout(() => {
+        fetchGameData(false); // Don't show loading spinner
+      }, 2000);
+      return () => clearTimeout(refetchTimer);
+    }
+  }, [showResultScreen, playResult?.status]);
 
   if (loading) {
     return (
@@ -377,6 +394,7 @@ export default function GameDetailPage() {
           {/* 3D Claw Machine with Intro Screen */}
           <div className="rounded-3xl overflow-hidden shadow-card">
             <ClawMachine3D
+              key={`claw-${connected}`}
               gameOutcome={clawOutcome}
               onPlay={handlePlayOnChain}
               isPlaying={playing}
@@ -398,6 +416,7 @@ export default function GameDetailPage() {
               prizeImageUrl={wonPrizeImageUrl}
               prizeMint={wonNftMint}
               userWallet={publicKey?.toBase58()}
+              signMessage={signMessage}
               onPlayAgain={handlePlayAgain}
               onViewCollection={() => router.push("/collection")}
               onDropStart={() => {
@@ -408,7 +427,7 @@ export default function GameDetailPage() {
                     setPlaying(false);
                     setShowResultScreen(true);
                     resultTimerRef.current = null;
-                  }, 11000);
+                  }, RESULT_SCREEN_DELAY_MS);
                 }
               }}
             />

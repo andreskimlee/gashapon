@@ -14,7 +14,7 @@ import WalletBalance from "../wallet/WalletBalance";
 
 export default function Header() {
   return (
-    <header className="relative bg-pastel-mint">
+    <header className="relative z-50 bg-pastel-mint border-b-4 border-[#111827]">
       <div className="container mx-auto px-4 py-4 flex items-center">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 mr-auto shrink-0">

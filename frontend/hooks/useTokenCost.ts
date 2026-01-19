@@ -1,13 +1,13 @@
 /**
  * Hook to calculate dynamic token cost from USD price
  *
- * Fetches the current token price from pump.fun and calculates
- * how many tokens are needed for a given USD cost.
+ * Uses React Query for caching - all components using the same tokenMint
+ * share the cached price, eliminating redundant API calls.
  */
 
-import { calculateTokenAmount } from "@/services/price/pump-fun";
+import { useTokenPrice } from "@/hooks/useTokenPrice";
 import { formatTokenAmountCompact } from "@/utils/format";
-import { useCallback, useEffect, useState } from "react";
+import { useMemo } from "react";
 
 interface TokenCostResult {
   tokenAmount: bigint | null;
@@ -16,6 +16,35 @@ interface TokenCostResult {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+}
+
+// Default slippage tolerance (2%)
+const DEFAULT_SLIPPAGE = 0.02;
+// Default token decimals for pump.fun tokens
+const DEFAULT_DECIMALS = 6;
+
+/**
+ * Calculate token amount from USD cost and price
+ */
+function calculateTokenAmount(
+  costUsdCents: number,
+  priceUsd: number,
+  decimals: number = DEFAULT_DECIMALS,
+  slippageTolerance: number = DEFAULT_SLIPPAGE
+): bigint {
+  // Convert cents to dollars
+  const costUsd = costUsdCents / 100;
+
+  // Calculate raw token amount
+  const rawTokens = costUsd / priceUsd;
+
+  // Add slippage buffer
+  const tokensWithSlippage = rawTokens * (1 + slippageTolerance);
+
+  // Convert to base units
+  const baseUnits = Math.ceil(tokensWithSlippage * Math.pow(10, decimals));
+
+  return BigInt(baseUnits);
 }
 
 /**
@@ -28,63 +57,45 @@ export function useTokenCost(
   tokenMint: string | undefined | null,
   costUsdCents: number | undefined
 ): TokenCostResult {
-  const [tokenAmount, setTokenAmount] = useState<bigint | null>(null);
-  const [priceUsd, setPriceUsd] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Use React Query for price fetching (shared cache across components)
+  const {
+    data: tokenPrice,
+    isLoading,
+    error,
+    refetch,
+  } = useTokenPrice(tokenMint, {
+    enabled: !!tokenMint && !!costUsdCents,
+  });
 
-  const fetchCost = useCallback(async () => {
-    if (!tokenMint || !costUsdCents) {
-      setTokenAmount(null);
-      setPriceUsd(null);
-      return;
+  // Calculate token amount from cached price
+  const { tokenAmount, priceUsd } = useMemo(() => {
+    if (!tokenPrice?.priceUsd || !costUsdCents) {
+      return { tokenAmount: null, priceUsd: null };
     }
 
-    setLoading(true);
-    setError(null);
+    const amount = calculateTokenAmount(costUsdCents, tokenPrice.priceUsd);
 
-    try {
-      // Calculate token amount using pump.fun price
-      const result = await calculateTokenAmount(
-        costUsdCents,
-        tokenMint,
-        6,
-        0.02
-      );
-      if (!result) {
-        throw new Error("Could not fetch token price");
-      }
+    return {
+      tokenAmount: amount,
+      priceUsd: tokenPrice.priceUsd,
+    };
+  }, [tokenPrice?.priceUsd, costUsdCents]);
 
-      setTokenAmount(result.tokenAmount);
-      setPriceUsd(result.priceUsd);
-    } catch (err) {
-      console.error("[useTokenCost] Error:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to calculate token cost"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [tokenMint, costUsdCents]);
-
-  useEffect(() => {
-    fetchCost();
-
-    // Refresh every 30 seconds to keep price updated
-    const interval = setInterval(fetchCost, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCost]);
-
-  // Format token amount for display in compact form (e.g., "854K")
-  const tokenAmountFormatted =
-    tokenAmount !== null ? formatTokenAmountCompact(tokenAmount, 6) : null;
+  // Format token amount for display
+  const tokenAmountFormatted = useMemo(
+    () =>
+      tokenAmount !== null
+        ? formatTokenAmountCompact(tokenAmount, DEFAULT_DECIMALS)
+        : null,
+    [tokenAmount]
+  );
 
   return {
     tokenAmount,
     tokenAmountFormatted,
     priceUsd,
-    loading,
-    error,
-    refetch: fetchCost,
+    loading: isLoading,
+    error: error ? (error as Error).message : null,
+    refetch,
   };
 }

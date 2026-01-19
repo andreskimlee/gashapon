@@ -23,6 +23,8 @@ export interface RedemptionRequest {
   nftMint: string;
   userWallet: string;
   signature: string;
+  message: string;
+  timestamp: number;
   encryptedShippingData: string;
 }
 
@@ -30,6 +32,7 @@ export interface RedemptionResult {
   success: boolean;
   redemptionId?: string;
   trackingNumber?: string;
+  trackingUrl?: string;
   carrier?: string;
   estimatedDelivery?: string;
   error?: string;

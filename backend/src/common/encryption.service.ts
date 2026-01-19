@@ -9,13 +9,21 @@ export interface ShippingData {
   state: string;
   zip: string;
   country: string;
+  phone: string;
   email?: string;
 }
 
+/**
+ * Encryption service using AES-256-GCM
+ * 
+ * Both the Next.js frontend API route and this backend service
+ * use the same ENCRYPTION_KEY to encrypt/decrypt shipping data.
+ * 
+ * Encrypted data format: base64(iv):base64(tag):base64(ciphertext)
+ */
 @Injectable()
 export class EncryptionService {
   private readonly algorithm = 'aes-256-gcm';
-  private readonly keyLength = 32; // 256 bits
   private readonly ivLength = 16; // 128 bits
   private readonly tagLength = 16; // 128 bits
 
@@ -28,7 +36,7 @@ export class EncryptionService {
    */
   async decryptShippingData(encryptedData: string): Promise<ShippingData> {
     try {
-      // Parse the encrypted data format: base64(iv:tag:encrypted)
+      // Parse the encrypted data format: base64(iv):base64(tag):base64(ciphertext)
       const parts = encryptedData.split(':');
       if (parts.length !== 3) {
         throw new Error('Invalid encrypted data format');
@@ -38,7 +46,7 @@ export class EncryptionService {
       const tag = Buffer.from(parts[1], 'base64');
       const encrypted = Buffer.from(parts[2], 'base64');
 
-      // Get encryption key from environment (should be rotated regularly)
+      // Get encryption key from environment
       const encryptionKey = this.getEncryptionKey();
 
       const decipher = crypto.createDecipheriv(this.algorithm, encryptionKey, iv);
@@ -54,17 +62,23 @@ export class EncryptionService {
 
       return shippingData;
     } catch (error) {
-      throw new BadRequestException(`Failed to decrypt shipping data: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to decrypt shipping data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
    * Validate shipping data structure
    */
-  private validateShippingData(data: any): void {
-    const requiredFields = ['name', 'address', 'city', 'state', 'zip', 'country'];
+  private validateShippingData(data: unknown): void {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid shipping data');
+    }
+
+    const requiredFields = ['name', 'address', 'city', 'state', 'zip', 'country', 'phone'];
     for (const field of requiredFields) {
-      if (!data[field] || typeof data[field] !== 'string') {
+      if (!(field in data) || typeof (data as Record<string, unknown>)[field] !== 'string') {
         throw new Error(`Missing or invalid field: ${field}`);
       }
     }
@@ -72,7 +86,6 @@ export class EncryptionService {
 
   /**
    * Get encryption key from environment
-   * In production, this should use AWS KMS or similar
    */
   private getEncryptionKey(): Buffer {
     const key = this.configService.get<string>('ENCRYPTION_KEY');
@@ -81,20 +94,18 @@ export class EncryptionService {
     }
 
     // Key should be base64 encoded 32-byte key
-    try {
-      return Buffer.from(key, 'base64');
-    } catch (error) {
-      throw new Error('Invalid encryption key format');
+    const keyBuffer = Buffer.from(key, 'base64');
+    if (keyBuffer.length !== 32) {
+      throw new Error('Encryption key must be 32 bytes');
     }
+    return keyBuffer;
   }
 
   /**
-   * Generate a new encryption key (for key rotation)
-   * This should be run periodically and the key stored securely
+   * Generate a new encryption key
+   * Run: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    */
   static generateEncryptionKey(): string {
-    const key = crypto.randomBytes(this.prototype.keyLength);
-    return key.toString('base64');
+    return crypto.randomBytes(32).toString('base64');
   }
 }
-

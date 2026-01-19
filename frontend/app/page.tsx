@@ -5,9 +5,12 @@
  * - Sky background with fluffy clouds
  * - 3D claw machine in hero section
  * - Game cards grid in pastel style (real data)
+ * - Staggered entrance animations
  */
 
 'use client';
+
+import { motion } from "framer-motion";
 
 import { useGames } from '@/hooks/api/useGames';
 import GameCard from '@/components/home/GameCard';
@@ -42,27 +45,43 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-              {games.map((game) => (
-                <GameCard
+            <motion.div 
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              {games.map((game, index) => (
+                <motion.div
                   key={game.id}
-                  game={{
-                    id: game.id,
-                    name: game.name,
-                    image: game.imageUrl || '🎮',
-                    prizeImage:
-                      game.prizes?.find((prize) => prize.imageUrl)?.imageUrl ||
-                      undefined,
-                    room: `#${game.id}`,
-                    cost: Number(game.costInTokens) || 0,
-                    costUsdCents: game.costInUsd ? Number(game.costInUsd) * 100 : undefined,
-                    currencyTokenMintAddress: game.currencyTokenMintAddress || undefined,
-                    isActive: game.isActive,
-                    totalPlays: game.totalPlays,
+                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{
+                    delay: index * 0.1,
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 20,
                   }}
-                />
+                >
+                  <GameCard
+                    game={{
+                      id: game.id,
+                      name: game.name,
+                      image: game.imageUrl || '🎮',
+                      prizeImage:
+                        game.prizes?.find((prize) => prize.imageUrl)?.imageUrl ||
+                        undefined,
+                      room: `#${game.id}`,
+                      cost: Number(game.costInTokens) || 0,
+                      costUsdCents: game.costInUsd ? Number(game.costInUsd) * 100 : undefined,
+                      currencyTokenMintAddress: game.currencyTokenMintAddress || undefined,
+                      isActive: game.isActive,
+                      totalPlays: game.totalPlays,
+                    }}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </section>

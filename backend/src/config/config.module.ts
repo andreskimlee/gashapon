@@ -42,7 +42,7 @@ import * as Joi from "joi";
         SHIPSTATION_API_KEY: Joi.string().optional(),
         SHIPSTATION_API_SECRET: Joi.string().optional(),
 
-        // Encryption (Optional in dev)
+        // Encryption - shared AES key for shipping data (base64-encoded 32 bytes)
         ENCRYPTION_KEY: Joi.string().optional(),
 
         // Redis (Optional)

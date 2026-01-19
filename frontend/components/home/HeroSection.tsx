@@ -17,7 +17,7 @@ export default function HeroSection({ className }: { className?: string }) {
     <section
       className={cn(
         "relative w-full overflow-hidden",
-        "border-y-4 border-[#111827]",
+        "border-b-4 border-[#111827]",
         "bg-[#BFEFFF]",
         // Fixed hero height - increased to fit larger machine
         "h-[500px] md:h-[480px] lg:h-[520px]",

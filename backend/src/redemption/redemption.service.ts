@@ -6,6 +6,8 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { PublicKey } from "@solana/web3.js";
+import * as bs58 from "bs58";
+import * as nacl from "tweetnacl";
 import { Repository } from "typeorm";
 import { MetaplexService } from "../blockchain/metaplex.service";
 import { SolanaService } from "../blockchain/solana.service";
@@ -19,6 +21,8 @@ export interface RedemptionRequest {
   nftMint: string;
   userWallet: string;
   signature: string;
+  message: string;
+  timestamp: number;
   encryptedShippingData: string;
 }
 
@@ -29,6 +33,7 @@ export interface ShippingData {
   state: string;
   zip: string;
   country: string;
+  phone: string;
   email?: string; // Optional for notifications
 }
 
@@ -36,6 +41,7 @@ export interface RedemptionResult {
   success: boolean;
   redemptionId: number;
   trackingNumber?: string;
+  trackingUrl?: string;
   carrier?: string;
   estimatedDelivery?: Date;
   burnTransaction?: string;
@@ -88,14 +94,16 @@ export class RedemptionService {
       throw new BadRequestException("NFT is not owned by this wallet");
     }
 
-    // Verify signature (wallet signature verification)
+    // Verify signature (wallet signature verification with replay protection)
     const isValidSignature = await this.verifyRedemptionSignature(
       request.userWallet,
       request.nftMint,
-      request.signature
+      request.signature,
+      request.message,
+      request.timestamp
     );
     if (!isValidSignature) {
-      throw new BadRequestException("Invalid redemption signature");
+      throw new BadRequestException("Invalid redemption signature or expired request");
     }
 
     // 2. Decrypt shipping data (in-memory only, never persisted)
@@ -131,6 +139,7 @@ export class RedemptionService {
         state: shippingData.state,
         zip: shippingData.zip,
         country: shippingData.country,
+        phone: shippingData.phone,
         sku: nft.prize.physicalSku,
         weightGrams: nft.prize.weightGrams,
         orderId: `GACHA-${request.nftMint.slice(0, 8).toUpperCase()}`,
@@ -162,6 +171,10 @@ export class RedemptionService {
       shipmentId: shipment.id.toString(),
       trackingNumber: shipment.trackingNumber,
       carrier: shipment.carrier,
+      carrierCode: shipment.carrierCode,
+      labelPdfUrl: shipment.labelPdfUrl,
+      labelPngUrl: shipment.labelPngUrl,
+      trackingUrl: shipment.trackingUrl,
       status: RedemptionStatus.PROCESSING,
       estimatedDelivery: shipment.estimatedDelivery,
       dataDeletionScheduledAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
@@ -183,6 +196,7 @@ export class RedemptionService {
       success: true,
       redemptionId: savedRedemption.id,
       trackingNumber: shipment.trackingNumber,
+      trackingUrl: shipment.trackingUrl,
       carrier: shipment.carrier,
       estimatedDelivery: shipment.estimatedDelivery,
       burnTransaction,
@@ -234,6 +248,16 @@ export class RedemptionService {
   async getUserRedemptions(wallet: string): Promise<RedemptionEntity[]> {
     return this.redemptionRepository.find({
       where: { userWallet: wallet },
+      relations: ["prize"],
+      order: { redeemedAt: "DESC" },
+    });
+  }
+
+  /**
+   * Get all redemptions (admin)
+   */
+  async getAllRedemptions(): Promise<RedemptionEntity[]> {
+    return this.redemptionRepository.find({
       relations: ["prize"],
       order: { redeemedAt: "DESC" },
     });
@@ -316,17 +340,66 @@ export class RedemptionService {
   }
 
   /**
-   * Verify redemption signature
+   * Verify redemption signature using ed25519
+   * Implements:
+   * 1. Replay protection (5-minute timestamp expiry)
+   * 2. Message format validation
+   * 3. Cryptographic signature verification using tweetnacl
    */
   private async verifyRedemptionSignature(
     wallet: string,
     nftMint: string,
-    signature: string
+    signatureBase58: string,
+    message: string,
+    timestamp: number
   ): Promise<boolean> {
-    // TODO: Implement wallet signature verification
-    // This should verify that the signature was created by the wallet
-    // signing a message containing the nftMint and redemption intent
-    return true; // Placeholder
+    // 1. Replay protection: Check timestamp is within 5 minutes
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const now = Date.now();
+    if (now - timestamp > FIVE_MINUTES_MS) {
+      console.warn(`Replay attack detected: timestamp ${timestamp} is too old (now: ${now})`);
+      return false;
+    }
+
+    // Also reject timestamps from the future (clock skew tolerance: 30 seconds)
+    if (timestamp > now + 30000) {
+      console.warn(`Future timestamp detected: ${timestamp} (now: ${now})`);
+      return false;
+    }
+
+    // 2. Verify message format matches expected structure
+    const expectedMessage = `Gashapon Prize Redemption\n\nNFT: ${nftMint}\nWallet: ${wallet}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
+    
+    if (message !== expectedMessage) {
+      console.warn("Message format mismatch");
+      console.warn("Expected:", expectedMessage);
+      console.warn("Received:", message);
+      return false;
+    }
+
+    // 3. Verify ed25519 signature using tweetnacl
+    try {
+      // Decode base58 signature
+      const signature = bs58.decode(signatureBase58);
+      
+      // Decode base58 public key (wallet address)
+      const publicKey = bs58.decode(wallet);
+      
+      // Encode message as bytes
+      const messageBytes = new TextEncoder().encode(message);
+      
+      // Verify the signature
+      const isValid = nacl.sign.detached.verify(messageBytes, signature, publicKey);
+      
+      if (!isValid) {
+        console.warn(`Invalid signature for wallet ${wallet}`);
+      }
+      
+      return isValid;
+    } catch (error) {
+      console.error("Signature verification error:", error);
+      return false;
+    }
   }
 
   /**

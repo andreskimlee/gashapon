@@ -1,267 +1,351 @@
-/**
- * Collection Page
- *
- * Displays user's NFT collection (requires wallet connection).
- * Shows unredeemed and redeemed NFTs with actions to redeem or list.
- */
-
 "use client";
 
-import ArcadeCard from "@/components/ui/ArcadeCard";
-import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import { redemptionApi } from "@/services/api/redemption";
-import { usersApi } from "@/services/api/users";
-import type { NFT, RedemptionRequest } from "@/types/api/nfts";
-import { encryptShippingData, type ShippingData } from "@/utils/encryption";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Wallet, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import HolographicCard from "@/components/collection/HolographicCard";
+import RedeemModal from "@/components/collection/RedeemModal";
+import CTAButton from "@/components/ui/CTAButton";
+import { toast } from "@/components/ui/Toast";
+import { usersApi } from "@/services/api/users";
+import type { NFT } from "@/types/api/nfts";
+import { useWallet } from "@solana/wallet-adapter-react";
+
+// Empty state component
+function EmptyState() {
+  return (
+    <motion.div
+      className="text-center py-16"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+    >
+      <motion.div
+        className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-pastel-lavender/50 to-pastel-pink/50 flex items-center justify-center"
+        animate={{
+          scale: [1, 1.05, 1],
+          rotate: [0, 5, -5, 0],
+        }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <span className="text-6xl">🎰</span>
+      </motion.div>
+      <h3 className="font-display text-2xl text-pastel-coral mb-3">
+        No Prizes Yet!
+      </h3>
+      <p className="text-pastel-textLight max-w-md mx-auto mb-6">
+        Your collection is waiting to be filled with amazing prizes.
+        Play the Gashapon machines to win exclusive collectibles!
+      </p>
+      <Link href="/">
+        <CTAButton variant="orange" size="lg">
+          PLAY NOW <ArrowRight className="w-5 h-5 ml-2 inline" />
+        </CTAButton>
+      </Link>
+    </motion.div>
+  );
+}
+
+// Connect wallet prompt
+function ConnectWalletPrompt() {
+  return (
+    <motion.div
+      className="text-center py-20"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+    >
+      <motion.div
+        className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-pastel-coral to-pastel-pink flex items-center justify-center shadow-lg"
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Wallet className="w-10 h-10 text-white" />
+      </motion.div>
+      <h2 className="font-display text-3xl text-pastel-coral mb-4 text-outline-xl">
+        CONNECT YOUR WALLET
+      </h2>
+      <p className="text-pastel-textLight max-w-md mx-auto">
+        Connect your Solana wallet to view your prize collection and redeem for physical delivery.
+      </p>
+    </motion.div>
+  );
+}
+
+// NFT Card content
+function NFTCardContent({ nft, onRedeem }: { nft: NFT; onRedeem: () => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Image */}
+      <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-[#E9EEF2] border-2 border-[#111827]">
+        {nft.imageUrl ? (
+          <img
+            src={nft.imageUrl}
+            alt={nft.name || "Prize"}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-5xl">🎁</span>
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <h3 className="font-display text-lg text-[#111827] mb-1 line-clamp-1">
+        {nft.name?.toUpperCase() || `PRIZE #${nft.prizeId}`}
+      </h3>
+      
+      {/* Tier badge */}
+      {nft.tier && (
+        <div className="mb-2">
+          <span className={`
+            inline-block px-2 py-0.5 rounded text-xs font-bold uppercase
+            ${nft.tier === 'legendary' ? 'bg-amber-100 text-amber-700 border border-amber-300' : ''}
+            ${nft.tier === 'rare' ? 'bg-purple-100 text-purple-700 border border-purple-300' : ''}
+            ${nft.tier === 'uncommon' ? 'bg-teal-100 text-teal-700 border border-teal-300' : ''}
+            ${nft.tier === 'common' ? 'bg-gray-100 text-gray-600 border border-gray-300' : ''}
+          `}>
+            {nft.tier}
+          </span>
+        </div>
+      )}
+      
+      <p className="text-xs text-pastel-textLight mb-3 font-mono truncate">
+        {nft.mintAddress.slice(0, 8)}...{nft.mintAddress.slice(-6)}
+      </p>
+
+      {/* Action */}
+      {!nft.isRedeemed ? (
+        <CTAButton
+          variant="pink"
+          size="sm"
+          className="mt-auto w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRedeem();
+          }}
+        >
+          REDEEM
+        </CTAButton>
+      ) : (
+        <div className="mt-auto">
+          <div className="px-3 py-2 rounded-lg bg-pastel-mint/30 border border-pastel-mint text-center">
+            <span className="text-xs font-bold text-emerald-600">✓ REDEEMED</span>
+          </div>
+          {nft.redeemedAt && (
+            <p className="mt-1 text-xs text-pastel-textLight text-center">
+              {new Date(nft.redeemedAt).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CollectionPage() {
-  const { publicKey, connected } = useWallet();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const { publicKey, connected, signMessage } = useWallet();
+  const [loading, setLoading] = useState(false);
   const [nfts, setNfts] = useState<NFT[]>([]);
-  const [redeemingMint, setRedeemingMint] = useState<string | null>(null);
-  const [shipping, setShipping] = useState<ShippingData>({
-    name: "",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-    country: "US",
-    email: "",
-  });
-  const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
+  const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "unredeemed" | "redeemed">("all");
+
+  const walletAddress = publicKey?.toBase58();
 
   const unredeemed = useMemo(() => nfts.filter((n) => !n.isRedeemed), [nfts]);
   const redeemed = useMemo(() => nfts.filter((n) => n.isRedeemed), [nfts]);
 
-  const fetchCollection = async () => {
-    const walletAddress = publicKey?.toBase58();
-    if (!walletAddress) {
-      setError("Connect your wallet to view collection");
-      return;
+  const filteredNFTs = useMemo(() => {
+    switch (activeTab) {
+      case "unredeemed":
+        return unredeemed;
+      case "redeemed":
+        return redeemed;
+      default:
+        return nfts;
     }
+  }, [activeTab, nfts, unredeemed, redeemed]);
+
+  const fetchCollection = async () => {
+    if (!walletAddress) return;
     try {
       setLoading(true);
-      setError(null);
-      const data = await usersApi.getCollection(walletAddress);
-      setNfts(data);
+      // Fetch both unredeemed and redeemed NFTs (backend defaults to unredeemed only)
+      const [unredeemedData, redeemedData] = await Promise.all([
+        usersApi.getCollection(walletAddress, { isRedeemed: false }),
+        usersApi.getCollection(walletAddress, { isRedeemed: true }),
+      ]);
+      // Combine and sort by mintedAt (newest first)
+      const allNfts = [...unredeemedData, ...redeemedData].sort(
+        (a, b) => new Date(b.mintedAt).getTime() - new Date(a.mintedAt).getTime()
+      );
+      setNfts(allNfts);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load collection");
+      toast.error(e instanceof Error ? e.message : "Failed to load collection");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (connected && publicKey) {
+    if (connected && walletAddress) {
       fetchCollection();
     } else {
       setNfts([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, publicKey]);
-
-  const startRedeem = (mintAddress: string) => {
-    setRedeemMessage(null);
-    setRedeemingMint(mintAddress);
-  };
-
-  const cancelRedeem = () => {
-    setRedeemingMint(null);
-    setRedeemMessage(null);
-  };
-
-  const submitRedeem = async () => {
-    const walletAddress = publicKey?.toBase58();
-    if (!redeemingMint || !walletAddress) return;
-    setRedeemMessage("Submitting redemption...");
-    try {
-      // For testing, signature verification on backend is a placeholder: send any string
-      const signature = `redeem-${Date.now()}`;
-      const encryptedShippingData = await encryptShippingData({
-        name: shipping.name,
-        address: shipping.address,
-        city: shipping.city,
-        state: shipping.state,
-        zip: shipping.zip,
-        country: shipping.country,
-        email: shipping.email || undefined,
-      });
-
-      const payload: RedemptionRequest = {
-        nftMint: redeemingMint,
-        userWallet: walletAddress,
-        signature,
-        encryptedShippingData,
-      };
-
-      const res = await redemptionApi.redeemNft(payload);
-      if (res.success) {
-        setRedeemMessage(`Redeemed! Tracking ${res.trackingNumber || "TBD"}`);
-        // Refresh collection
-        await fetchCollection();
-      } else {
-        setRedeemMessage(res.error || "Redemption failed");
-      }
-    } catch (e) {
-      setRedeemMessage(e instanceof Error ? e.message : "Redemption failed");
-    }
-  };
+  }, [connected, walletAddress]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">My Collection</h1>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background - matches home page cloud tile */}
+      <div className="absolute inset-0 -z-10 pointer-events-none bg-cloud-tile" />
 
-      {!connected && (
-        <div className="mb-6">
-          <p className="text-white/80">
-            Connect your wallet to view your collection.
+      <div className="container mx-auto px-4 py-8">
+        {/* Hero Section */}
+        <motion.div
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <motion.div
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border-2 border-[#111827] mb-6"
+            style={{ boxShadow: '3px 4px 0 #8ECCC1' }}
+            animate={{ y: [0, -5, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Sparkles className="w-4 h-4 text-pastel-coral" />
+            <span className="text-sm font-bold text-[#111827]">YOUR PRIZE VAULT</span>
+            <Sparkles className="w-4 h-4 text-pastel-coral" />
+          </motion.div>
+
+          <h1 className="font-display text-5xl md:text-6xl text-pastel-coral text-outline-xl mb-4">
+            MY COLLECTION
+          </h1>
+          <p className="text-pastel-text max-w-lg mx-auto">
+            Your exclusive Gashapon prizes. Each one is a unique NFT that can be redeemed for physical delivery.
           </p>
-        </div>
-      )}
+        </motion.div>
 
-      {error && <p className="text-red-400 mb-4">{error}</p>}
-
-      {/* Redeem form (inline simple panel) */}
-      {redeemingMint && (
-        <div className="mb-8 p-4 rounded-xl border border-white/10 bg-white/5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xl font-semibold text-white">Redeem NFT</h3>
-            <Button variant="outline" size="sm" onClick={cancelRedeem}>
-              Close
-            </Button>
-          </div>
-          <p className="text-white/70 text-sm mb-4">Mint: {redeemingMint}</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
-              placeholder="Full Name"
-              value={shipping.name}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, name: e.target.value }))
-              }
-            />
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
-              placeholder="Email (optional)"
-              value={shipping.email}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, email: e.target.value }))
-              }
-            />
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40 md:col-span-2"
-              placeholder="Address"
-              value={shipping.address}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, address: e.target.value }))
-              }
-            />
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
-              placeholder="City"
-              value={shipping.city}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, city: e.target.value }))
-              }
-            />
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
-              placeholder="State"
-              value={shipping.state}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, state: e.target.value }))
-              }
-            />
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
-              placeholder="ZIP"
-              value={shipping.zip}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, zip: e.target.value }))
-              }
-            />
-            <input
-              className="rounded-md px-3 py-2 bg-white/5 border border-white/10 text-white placeholder-white/40"
-              placeholder="Country"
-              value={shipping.country}
-              onChange={(e) =>
-                setShipping((s) => ({ ...s, country: e.target.value }))
-              }
-            />
-          </div>
-          <div className="mt-4 flex gap-2">
-            <Button onClick={submitRedeem}>Submit Redemption</Button>
-            {redeemMessage && (
-              <span className="text-white/80">{redeemMessage}</span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Unredeemed */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Unredeemed</h2>
-        {unredeemed.length === 0 ? (
-          <p className="text-white/60">No unredeemed NFTs found.</p>
+        {!connected ? (
+          <ConnectWalletPrompt />
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {unredeemed.map((nft) => (
-              <ArcadeCard key={nft.id} className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-semibold">
-                    {nft.name || `Prize #${nft.prizeId}`}
-                  </h3>
-                  {nft.tier && <Badge variant="common">{nft.tier}</Badge>}
-                </div>
-                <p className="text-xs text-white/60 mb-4 break-all">
-                  {nft.mintAddress}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => startRedeem(nft.mintAddress)}
+          <>
+            {/* Filter Tabs */}
+            {nfts.length > 0 && (
+              <motion.div
+                className="flex justify-center gap-3 mb-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                {(["all", "unredeemed", "redeemed"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`
+                      px-5 py-2 rounded-full font-bold text-sm transition-all duration-200
+                      border-2 border-[#111827]
+                      ${
+                        activeTab === tab
+                          ? "bg-pastel-coral text-white"
+                          : "bg-white text-[#111827] hover:bg-pastel-pinkLight"
+                      }
+                    `}
+                    style={{
+                      boxShadow: activeTab === tab ? '3px 4px 0 #111827' : '2px 3px 0 #111827'
+                    }}
                   >
-                    Redeem
-                  </Button>
-                </div>
-              </ArcadeCard>
-            ))}
-          </div>
-        )}
-      </section>
+                    {tab === "all" ? "ALL" : tab === "unredeemed" ? "UNREDEEMED" : "REDEEMED"}
+                    <span className="ml-1 opacity-70">
+                      ({tab === "all" ? nfts.length : tab === "unredeemed" ? unredeemed.length : redeemed.length})
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
 
-      {/* Redeemed */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Redeemed</h2>
-        {redeemed.length === 0 ? (
-          <p className="text-white/60">No redeemed NFTs.</p>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {redeemed.map((nft) => (
-              <ArcadeCard key={nft.id} className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-semibold">
-                    {nft.name || `Prize #${nft.prizeId}`}
-                  </h3>
-                  <Badge variant="success">Redeemed</Badge>
-                </div>
-                <p className="text-xs text-white/60 break-all">
-                  {nft.mintAddress}
+            {/* Loading State */}
+            {loading && (
+              <div className="flex items-center justify-center py-20">
+                <motion.div
+                  className="w-12 h-12 rounded-full border-4 border-pastel-coral/30 border-t-pastel-coral"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loading && nfts.length === 0 && <EmptyState />}
+
+            {/* NFT Grid */}
+            {!loading && filteredNFTs.length > 0 && (
+              <motion.div
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <AnimatePresence mode="popLayout">
+                  {filteredNFTs.map((nft, index) => (
+                    <motion.div
+                      key={nft.mintAddress}
+                      layout
+                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                      transition={{
+                        delay: index * 0.05,
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
+                    >
+                      <HolographicCard
+                        tier={nft.tier || "common"}
+                        isRedeemed={nft.isRedeemed}
+                      >
+                        <NFTCardContent
+                          nft={nft}
+                          onRedeem={() => setSelectedNFT(nft)}
+                        />
+                      </HolographicCard>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
+
+            {/* Filtered empty state */}
+            {!loading && nfts.length > 0 && filteredNFTs.length === 0 && (
+              <motion.div
+                className="text-center py-12"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <p className="text-pastel-textLight">
+                  No {activeTab === "unredeemed" ? "unredeemed" : "redeemed"} prizes found.
                 </p>
-                {nft.redeemedAt && (
-                  <p className="text-xs text-white/40 mt-2">
-                    Redeemed at: {new Date(nft.redeemedAt).toLocaleString()}
-                  </p>
-                )}
-              </ArcadeCard>
-            ))}
-          </div>
+              </motion.div>
+            )}
+          </>
         )}
-      </section>
+      </div>
+
+      {/* Redeem Modal */}
+      <RedeemModal
+        nft={selectedNFT}
+        walletAddress={walletAddress || ""}
+        signMessage={signMessage}
+        onClose={() => setSelectedNFT(null)}
+        onSuccess={() => {
+          fetchCollection();
+          setSelectedNFT(null);
+        }}
+      />
     </div>
   );
 }

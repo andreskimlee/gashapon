@@ -1,15 +1,15 @@
 import { BN } from '@coral-xyz/anchor';
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
+import { PriceService } from '../../price/price.service';
+import { SupabaseService } from '../../supabase/supabase.service';
 import {
   GamePlayInitiatedEventData,
-  PrizeWonEventData,
   PlayLostEventData,
+  PrizeWonEventData,
 } from '../events/event-parser.service';
 import { GameService } from './game.service';
 import { PrizeService } from './prize.service';
-import { SupabaseService } from '../../supabase/supabase.service';
-import { PriceService } from '../../price/price.service';
 
 @Injectable()
 export class PlayService {
@@ -22,7 +22,6 @@ export class PlayService {
     private supabaseService: SupabaseService,
     private priceService: PriceService,
   ) {}
-
 
   /**
    * Update play record with prize information and NFT mint
@@ -74,12 +73,16 @@ export class PlayService {
   ): Promise<void> {
     const gameIdStr = eventData.game_id.toString();
     const tokenAmount = BigInt(eventData.token_amount.toString());
-    
+
     // Fetch game data from chain to get costUsd and tokenMint
-    const gameData = await this.gameService.fetchGameFromChain(Number(gameIdStr));
-    
+    const gameData = await this.gameService.fetchGameFromChain(
+      Number(gameIdStr),
+    );
+
     if (!gameData) {
-      this.logger.error(`Cannot verify payment - game not found on chain: game_id=${gameIdStr}`);
+      this.logger.error(
+        `Cannot verify payment - game not found on chain: game_id=${gameIdStr}`,
+      );
       // Still record the play as pending (will be updated by finalize events)
       await this.createPlayWithStatus(
         eventData.game_id,
@@ -91,16 +94,16 @@ export class PlayService {
       );
       return;
     }
-    
+
     // Verify payment using pump.fun price oracle
     const costUsdCents = Number(gameData.costUsd);
     const tokenMint = gameData.tokenMint.toString();
-    
+
     this.logger.log(
       `Verifying payment: game_id=${gameIdStr}, cost=$${(costUsdCents / 100).toFixed(2)}, ` +
-      `token_amount=${tokenAmount}, token_mint=${tokenMint.slice(0, 8)}...`
+        `token_amount=${tokenAmount}, token_mint=${tokenMint.slice(0, 8)}...`,
     );
-    
+
     const verification = await this.priceService.verifyPayment(
       tokenAmount,
       costUsdCents,
@@ -152,7 +155,7 @@ export class PlayService {
       });
     }
   }
-  
+
   /**
    * Create a play record with a specific status
    * Note: DB enum only supports 'pending', 'completed', 'failed'
@@ -228,6 +231,13 @@ export class PlayService {
       eventData.nft_mint,
     );
 
+    // Decrement prize supply (matches on-chain supply decrement)
+    await this.databaseService.execute(
+      `UPDATE prizes SET "supplyRemaining" = GREATEST(0, "supplyRemaining" - 1), "updatedAt" = NOW() WHERE id = $1`,
+      [prize.id],
+    );
+    this.logger.log(`Decremented supplyRemaining for prize id=${prize.id}`);
+
     // Increment totalPlays count on the game (matches on-chain finalize_play)
     await this.databaseService.execute(
       `UPDATE games SET "totalPlays" = COALESCE("totalPlays", 0) + 1, "updatedAt" = NOW() WHERE id = $1`,
@@ -248,10 +258,10 @@ export class PlayService {
     signature: string,
   ): Promise<void> {
     const gameIdStr = eventData.game_id.toString();
-    
+
     // Find game to increment totalPlays
     const game = await this.gameService.findGameByGameId(gameIdStr);
-    
+
     // Find play by transaction signature
     const play = await this.databaseService.queryOne<{ id: number }>(
       'SELECT id FROM plays WHERE "transactionSignature" = $1',
@@ -264,7 +274,9 @@ export class PlayService {
       // since the on-chain finalize_play did increment it
     } else {
       // Update play record to failed status
-      const randomValueBase64 = Buffer.from(eventData.random_value).toString('base64');
+      const randomValueBase64 = Buffer.from(eventData.random_value).toString(
+        'base64',
+      );
       await this.databaseService.execute(
         'UPDATE plays SET "status" = $1, "randomValue" = $2 WHERE id = $3',
         ['failed', randomValueBase64, play.id],
@@ -277,7 +289,9 @@ export class PlayService {
         `UPDATE games SET "totalPlays" = COALESCE("totalPlays", 0) + 1, "updatedAt" = NOW() WHERE id = $1`,
         [game.id],
       );
-      this.logger.log(`Incremented totalPlays for game id=${game.id} (PlayLost)`);
+      this.logger.log(
+        `Incremented totalPlays for game id=${game.id} (PlayLost)`,
+      );
     } else {
       this.logger.warn(`Game not found for PlayLost: game_id=${gameIdStr}`);
     }
@@ -325,7 +339,9 @@ export class PlayService {
       await client.removeChannel(channel);
       this.logger.debug(`Broadcasted finalize on ${channelName}`);
     } catch (err) {
-      this.logger.warn(`Failed to broadcast finalize: ${transactionSignature} - ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to broadcast finalize: ${transactionSignature} - ${(err as Error).message}`,
+      );
     }
   }
 }

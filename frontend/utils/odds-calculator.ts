@@ -60,7 +60,7 @@ export const DEFAULT_CONFIG: OddsCalculatorConfig = {
   targetProfitMargin: 0.8, // 80% profit margin
   priceSensitivity: 1.2, // Moderate difference between cheap/expensive prizes
   minimumWinRate: 0.01, // 1% minimum (very rare wins possible)
-  maximumWinRate: 0.3, // 30% maximum (still feels like a game)
+  maximumWinRate: 0.5, // 50% maximum (can be overridden by user up to 95%)
 };
 
 /**
@@ -213,9 +213,9 @@ export function calculateOdds(
   const rawTotalProb = rawProbabilities.reduce((sum, p) => sum + p, 0);
   let scaledTotalProb = rawTotalProb * scaleFactor;
 
-  // Win rate bounds for good UX
-  const MIN_WIN_RATE = 0.03; // 3% minimum - players need to see wins
-  const MAX_WIN_RATE = 0.25; // 25% maximum - still feels like a game
+  // Win rate bounds from config (allow user customization)
+  const MIN_WIN_RATE = config.minimumWinRate;
+  const MAX_WIN_RATE = config.maximumWinRate;
 
   // Only boost win rate if we have profit headroom
   // Check: would boosting to MIN_WIN_RATE exceed our payout budget?
@@ -224,8 +224,10 @@ export function calculateOdds(
     const boostedEV = rawExpectedValue * boostFactor;
 
     // Only apply boost if we'd still have positive profit
-    if (boostedEV <= playCostUsd * 0.85) {
-      // Allow up to 85% payout
+    // Use dynamic threshold based on target profit margin
+    const maxAllowedPayout =
+      playCostUsd * (1 - Math.max(0.15, targetProfitMargin - 0.65));
+    if (boostedEV <= maxAllowedPayout) {
       scaleFactor = boostFactor;
       scaledTotalProb = MIN_WIN_RATE;
     }
@@ -553,11 +555,12 @@ export function calculateOptimalPlayCost(
     playCostUsd = Math.min(requiredCost, maxCost);
   }
 
-  // If win rate is too HIGH (>25%), we're leaving money on table
+  // If win rate is too HIGH, we're leaving money on table
   // Lower the cost to increase plays needed
-  const MAX_WIN_RATE = 0.25; // 25% cap - feels like easy mode above this
-  if (winRate > MAX_WIN_RATE) {
-    const requiredPlays = totalSupply / MAX_WIN_RATE;
+  // Use config max win rate instead of hard-coded value
+  const configMaxWinRate = config.maximumWinRate ?? 0.25;
+  if (winRate > configMaxWinRate) {
+    const requiredPlays = totalSupply / configMaxWinRate;
     const requiredCost = requiredRevenue / requiredPlays;
     playCostUsd = Math.max(requiredCost, minCost);
   }

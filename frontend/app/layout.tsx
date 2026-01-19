@@ -3,6 +3,7 @@ import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import Header from "@/components/layout/Header";
 import SolanaWalletProvider from "@/components/wallet/SolanaWalletProvider";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 export const metadata: Metadata = {
   title: "Gachapon - Play Games, Win NFTs, Redeem Prizes",
@@ -20,10 +21,12 @@ export default function RootLayout({
         {/* Pastel sky background with clouds */}
         <div className="fixed inset-0 bg-cloud-tile -z-10" />
         
-        <SolanaWalletProvider>
-          <Header />
-          <main className="relative z-10">{children}</main>
-        </SolanaWalletProvider>
+        <QueryProvider>
+          <SolanaWalletProvider>
+            <Header />
+            <main className="relative">{children}</main>
+          </SolanaWalletProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -9,44 +9,50 @@
  * Requires admin wallet to sign the transaction.
  */
 
-import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
-import { AnchorProvider, Program, BN, Idl } from '@coral-xyz/anchor';
-import type { WalletContextState } from '@solana/wallet-adapter-react';
+import { AnchorProvider, BN, Idl, Program } from "@coral-xyz/anchor";
+import type { WalletContextState } from "@solana/wallet-adapter-react";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 
 // Program ID for gachapon-game
-const PROGRAM_ID = new PublicKey('4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG');
+const PROGRAM_ID = new PublicKey(
+  "4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG"
+);
 
 // Default token mint (pump.fun token)
-const DEFAULT_TOKEN_MINT = new PublicKey('Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump');
+const DEFAULT_TOKEN_MINT = new PublicKey(
+  "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump"
+);
 
 // Treasury wallet (should be configured per environment)
-const TREASURY_PUBKEY = new PublicKey('EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo');
+const TREASURY_PUBKEY = new PublicKey(
+  "EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo"
+);
 
-export type PrizeTier = 'common' | 'uncommon' | 'rare' | 'legendary';
+export type PrizeTier = "common" | "uncommon" | "rare" | "legendary";
 
 export interface PrizeConfigInput {
   prizeId: number;
   name: string;
-  description: string;        // Prize description
-  imageUrl: string;           // Prize image URL
+  description: string; // Prize description
+  imageUrl: string; // Prize image URL
   metadataUri: string;
   physicalSku: string;
   tier: PrizeTier;
-  probabilityBp: number;      // Probability in basis points (0-10000)
-  costUsd: number;            // Cost/value of the prize in cents
-  weightGrams: number;        // Prize weight in grams
+  probabilityBp: number; // Probability in basis points (0-10000)
+  costUsd: number; // Cost/value of the prize in cents
+  weightGrams: number; // Prize weight in grams
   supplyTotal: number;
   supplyRemaining: number;
 }
 
 export interface DeployGameParams {
   gameId: number;
-  name: string;               // Game name
-  description: string;        // Game description
-  imageUrl: string;           // Game image URL
-  costUsdCents: number;       // Cost per play in USD cents (e.g., 500 = $5.00)
-  tokenMint?: string;         // Optional custom token mint
-  treasury?: string;          // Optional custom treasury
+  name: string; // Game name
+  description: string; // Game description
+  imageUrl: string; // Game image URL
+  costUsdCents: number; // Cost per play in USD cents (e.g., 500 = $5.00)
+  tokenMint?: string; // Optional custom token mint
+  treasury?: string; // Optional custom treasury
   prizes: PrizeConfigInput[];
 }
 
@@ -63,7 +69,7 @@ export interface DeployGameResult {
  */
 export function getGamePda(gameId: number): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from('game'), new BN(gameId).toArrayLike(Buffer, 'le', 8)],
+    [Buffer.from("game"), new BN(gameId).toArrayLike(Buffer, "le", 8)],
     PROGRAM_ID
   );
   return pda;
@@ -74,7 +80,7 @@ export function getGamePda(gameId: number): PublicKey {
  */
 export function getConfigPda(): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from('config')],
+    [Buffer.from("config")],
     PROGRAM_ID
   );
   return pda;
@@ -85,7 +91,7 @@ export function getConfigPda(): PublicKey {
  */
 export function getPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from('prize'), gamePda.toBuffer(), Buffer.from([prizeIndex])],
+    [Buffer.from("prize"), gamePda.toBuffer(), Buffer.from([prizeIndex])],
     PROGRAM_ID
   );
   return pda;
@@ -96,13 +102,13 @@ export function getPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey {
  */
 function tierToAnchor(tier: PrizeTier): object {
   switch (tier) {
-    case 'common':
+    case "common":
       return { common: {} };
-    case 'uncommon':
+    case "uncommon":
       return { uncommon: {} };
-    case 'rare':
+    case "rare":
       return { rare: {} };
-    case 'legendary':
+    case "legendary":
       return { legendary: {} };
     default:
       return { common: {} };
@@ -128,7 +134,7 @@ export async function deployGame(
   if (!wallet.publicKey || !wallet.signTransaction) {
     return {
       success: false,
-      error: 'Wallet not connected or does not support signing',
+      error: "Wallet not connected or does not support signing",
     };
   }
 
@@ -141,7 +147,7 @@ export async function deployGame(
         signTransaction: wallet.signTransaction,
         signAllTransactions: wallet.signAllTransactions!,
       },
-      { commitment: 'confirmed' }
+      { commitment: "confirmed" }
     );
 
     // Create program instance
@@ -159,7 +165,7 @@ export async function deployGame(
       ? new PublicKey(params.treasury)
       : TREASURY_PUBKEY;
 
-    console.log('Deploying game with params:', {
+    console.log("Deploying game with params:", {
       gameId: params.gameId,
       name: params.name,
       costUsdCents: params.costUsdCents,
@@ -176,8 +182,8 @@ export async function deployGame(
       .initializeGame(
         new BN(params.gameId),
         params.name,
-        params.description || '',
-        params.imageUrl || '',
+        params.description || "",
+        params.imageUrl || "",
         new BN(params.costUsdCents),
         tokenMint
       )
@@ -190,32 +196,37 @@ export async function deployGame(
       })
       .rpc();
 
-    console.log('Game initialized:', initSignature);
+    console.log("Game initialized:", initSignature);
 
     // Step 2: Add each prize separately
     const prizeSignatures: string[] = [];
-    
+
     for (let i = 0; i < params.prizes.length; i++) {
       const prize = params.prizes[i];
       const prizePda = getPrizePda(gamePda, i);
-      
-      console.log(`Adding prize ${i}: ${prize.name}`);
-      
+
+      console.log(`Adding prize ${i}: ${prize.name}`, {
+        weightGrams: prize.weightGrams,
+        supplyTotal: prize.supplyTotal,
+        probabilityBp: prize.probabilityBp,
+        costUsd: prize.costUsd,
+      });
+
       // add_prize(prize_index, prize_id, name, description, image_url, metadata_uri, physical_sku, tier, probability_bp, cost_usd, weight_grams, supply_total)
       const prizeSig = await (program.methods as any)
         .addPrize(
-          i, // prize_index
-          new BN(prize.prizeId),
-          prize.name,
-          prize.description || '',
-          prize.imageUrl || '',
-          prize.metadataUri || '',
-          prize.physicalSku || '',
-          tierToAnchor(prize.tier),
-          prize.probabilityBp,
-          new BN(prize.costUsd),
-          prize.weightGrams,
-          prize.supplyTotal
+          i, // prize_index (u8)
+          new BN(prize.prizeId), // prize_id (u64)
+          prize.name, // name (string)
+          prize.description || "", // description (string)
+          prize.imageUrl || "", // image_url (string)
+          prize.metadataUri || "", // metadata_uri (string)
+          prize.physicalSku || "", // physical_sku (string)
+          tierToAnchor(prize.tier), // tier (PrizeTier enum)
+          prize.probabilityBp, // probability_bp (u16)
+          new BN(prize.costUsd), // cost_usd (u64)
+          prize.weightGrams ?? 0, // weight_grams (u32)
+          prize.supplyTotal // supply_total (u32)
         )
         .accounts({
           authority: wallet.publicKey,
@@ -224,12 +235,16 @@ export async function deployGame(
           systemProgram: SystemProgram.programId,
         })
         .rpc();
-      
+
       console.log(`Prize ${i} added:`, prizeSig);
       prizeSignatures.push(prizeSig);
     }
 
-    console.log('Game deployed successfully with', params.prizes.length, 'prizes');
+    console.log(
+      "Game deployed successfully with",
+      params.prizes.length,
+      "prizes"
+    );
 
     return {
       success: true,
@@ -238,36 +253,38 @@ export async function deployGame(
       gamePda: gamePda.toString(),
     };
   } catch (error: any) {
-    console.error('Error deploying game:', error);
+    console.error("Error deploying game:", error);
 
     // Parse common errors
-    let errorMessage = error.message || 'Unknown error';
+    let errorMessage = error.message || "Unknown error";
 
-    if (errorMessage.includes('Unauthorized')) {
+    if (errorMessage.includes("Unauthorized")) {
       errorMessage =
-        'Unauthorized: Your wallet is not the program authority. Only the admin wallet can deploy games.';
-    } else if (errorMessage.includes('already in use')) {
+        "Unauthorized: Your wallet is not the program authority. Only the admin wallet can deploy games.";
+    } else if (errorMessage.includes("already in use")) {
       errorMessage = `Game ID ${params.gameId} already exists on-chain. Use a different game ID.`;
-    } else if (errorMessage.includes('insufficient funds')) {
-      errorMessage = 'Insufficient SOL to pay for transaction fees.';
-    } else if (errorMessage.includes('custom program error')) {
+    } else if (errorMessage.includes("insufficient funds")) {
+      errorMessage = "Insufficient SOL to pay for transaction fees.";
+    } else if (errorMessage.includes("custom program error")) {
       // Try to parse Anchor error
-      const match = errorMessage.match(/custom program error: (0x[0-9a-fA-F]+)/);
+      const match = errorMessage.match(
+        /custom program error: (0x[0-9a-fA-F]+)/
+      );
       if (match) {
         const code = parseInt(match[1], 16);
         const errorNames: Record<number, string> = {
-          6000: 'Invalid probabilities - must sum to <= 10000',
-          6001: 'Game is inactive',
-          6002: 'All prizes are out of stock',
-          6003: 'Invalid VRF result',
-          6004: 'Unauthorized',
-          6005: 'Prize not found',
-          6006: 'Insufficient funds',
-          6007: 'Invalid token amount',
-          6008: 'Math overflow',
-          6009: 'String exceeds maximum length',
-          6010: 'Too many prizes (max 16)',
-          6011: 'Invalid prize index',
+          6000: "Invalid probabilities - must sum to <= 10000",
+          6001: "Game is inactive",
+          6002: "All prizes are out of stock",
+          6003: "Invalid VRF result",
+          6004: "Unauthorized",
+          6005: "Prize not found",
+          6006: "Insufficient funds",
+          6007: "Invalid token amount",
+          6008: "Math overflow",
+          6009: "String exceeds maximum length",
+          6010: "Too many prizes (max 16)",
+          6011: "Invalid prize index",
         };
         errorMessage = errorNames[code] || `Program error: ${code}`;
       }
@@ -302,14 +319,14 @@ export async function checkGameExists(
 export async function fetchIdl(): Promise<Idl | null> {
   try {
     // In production, you might want to fetch from a CDN or your API
-    const response = await fetch('/idl/gachapon_game.json');
+    const response = await fetch("/idl/gachapon_game.json");
     if (!response.ok) {
-      console.error('Failed to fetch IDL:', response.statusText);
+      console.error("Failed to fetch IDL:", response.statusText);
       return null;
     }
     return response.json();
   } catch (error) {
-    console.error('Error fetching IDL:', error);
+    console.error("Error fetching IDL:", error);
     return null;
   }
 }
@@ -331,26 +348,27 @@ export async function getProgramAuthority(
   try {
     const configPda = getConfigPda();
     const accountInfo = await connection.getAccountInfo(configPda);
-    
+
     if (!accountInfo) {
-      console.log('Config account not found - program may not be initialized');
+      console.log("Config account not found - program may not be initialized");
       return null;
     }
 
     // Parse the Config account data
     // Skip 8-byte discriminator, then read 32-byte authority pubkey
     const data = accountInfo.data;
-    if (data.length < 41) { // 8 + 32 + 1
-      console.error('Config account data too short');
+    if (data.length < 41) {
+      // 8 + 32 + 1
+      console.error("Config account data too short");
       return null;
     }
 
     const authorityBytes = data.slice(8, 40);
     const authority = new PublicKey(authorityBytes);
-    
+
     return authority;
   } catch (error) {
-    console.error('Error fetching program authority:', error);
+    console.error("Error fetching program authority:", error);
     return null;
   }
 }
@@ -372,39 +390,39 @@ export async function checkWalletAuthorization(
       isAuthorized: false,
       authorityAddress: null,
       walletAddress: null,
-      message: 'No wallet connected',
+      message: "No wallet connected",
     };
   }
 
   try {
     const authority = await getProgramAuthority(connection);
-    
+
     if (!authority) {
       return {
         isAuthorized: false,
         authorityAddress: null,
         walletAddress: walletPubkey.toString(),
-        message: 'Program not initialized. Run initialize_program first.',
+        message: "Program not initialized. Run initialize_program first.",
       };
     }
 
     const isAuthorized = authority.equals(walletPubkey);
-    
+
     return {
       isAuthorized,
       authorityAddress: authority.toString(),
       walletAddress: walletPubkey.toString(),
       message: isAuthorized
-        ? '✓ You are the program authority'
+        ? "✓ You are the program authority"
         : `✗ Not authorized. Authority is: ${authority.toString().slice(0, 8)}...${authority.toString().slice(-4)}`,
     };
   } catch (error) {
-    console.error('Error checking authorization:', error);
+    console.error("Error checking authorization:", error);
     return {
       isAuthorized: false,
       authorityAddress: null,
       walletAddress: walletPubkey.toString(),
-      message: 'Error checking authorization',
+      message: "Error checking authorization",
     };
   }
 }

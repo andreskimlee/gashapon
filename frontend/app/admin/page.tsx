@@ -40,6 +40,7 @@ import {
   checkWalletAuthorization,
   PrizeConfigInput,
 } from '@/services/blockchain/deploy-game';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 
 interface GameFormData {
   name: string;
@@ -182,16 +183,21 @@ export default function AdminPage() {
     async function findNextGameId() {
       if (!mounted) return;
       
-      // Check game IDs 1-100 to find the first available one
-      for (let id = 1; id <= 100; id++) {
+      setDeployResult({ success: false, message: 'Finding next available game ID...' });
+      
+      // Check game IDs 1-500 to find the first available one
+      for (let id = 1; id <= 500; id++) {
         const exists = await checkGameExists(connection, id);
         if (!exists) {
           setNextGameId(id);
+          setDeployResult(null);
+          console.log(`Next available game ID: ${id}`);
           return;
         }
       }
-      // If all 1-100 exist, start at 101
-      setNextGameId(101);
+      // If all 1-500 exist, start at 501
+      setNextGameId(501);
+      setDeployResult(null);
     }
     findNextGameId();
   }, [mounted, connection]);
@@ -259,6 +265,9 @@ export default function AdminPage() {
       physicalSku: '',
       costUsd: 1.00,
       weightGrams: 0,
+      lengthInches: 0,
+      widthInches: 0,
+      heightInches: 0,
       supplyTotal: 100,
     };
     setPrizes(prev => [...prev, newPrize]);
@@ -376,18 +385,24 @@ export default function AdminPage() {
     setDeployResult(null);
 
     try {
-      // Check if game already exists on-chain
-      const exists = await checkGameExists(connection, nextGameId);
+      // Check if game already exists on-chain - auto-increment if needed
+      let gameIdToUse = nextGameId;
+      const exists = await checkGameExists(connection, gameIdToUse);
       if (exists) {
         setDeployResult({
           success: false,
-          message: `Game ID ${nextGameId} already exists on-chain. Finding next available ID...`,
+          message: `Game ID ${gameIdToUse} already exists on-chain. Finding next available ID...`,
         });
         // Find next available
-        for (let id = nextGameId + 1; id <= nextGameId + 100; id++) {
+        for (let id = gameIdToUse + 1; id <= gameIdToUse + 100; id++) {
           const ex = await checkGameExists(connection, id);
           if (!ex) {
+            gameIdToUse = id;
             setNextGameId(id);
+            setDeployResult({
+              success: false,
+              message: `Found available Game ID: ${id}. Click Deploy again to continue.`,
+            });
             break;
           }
         }
@@ -395,31 +410,46 @@ export default function AdminPage() {
       }
 
       // Build prize configs for on-chain deployment
+      // Auto-generate metadataUri to point to our backend API for Metaplex compatibility
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const prizeConfigs: PrizeConfigInput[] = calculationResult.prizes.map((prize, idx) => {
+        const prizeId = idx + 1;
+        // Use backend API endpoint for metadata - this serves Metaplex-compatible JSON
+        // that includes the Cloudinary image URL
+        const metadataUri = prize.metadataUri?.trim() || `${backendUrl}/metadata/game/${gameIdToUse}/prize/${prizeId}`;
+        
         const config = {
-          prizeId: idx + 1,
+          prizeId,
           name: prize.name.trim(),
           description: prize.description?.trim() || '',
           imageUrl: prize.imageUrl?.trim() || '',
-          metadataUri: prize.metadataUri?.trim() || '',
+          metadataUri,
           physicalSku: prize.physicalSku || generateSku(gameData.name, prize.name, idx),
           tier: prize.tier,
           probabilityBp: prize.probabilityBasisPoints,
           costUsd: Math.round(prize.costUsd * 100), // Convert to cents
           weightGrams: prize.weightGrams ?? 0,
+          lengthInches: prize.lengthInches ?? 0,
+          widthInches: prize.widthInches ?? 0,
+          heightInches: prize.heightInches ?? 0,
           supplyTotal: prize.supplyTotal,
           supplyRemaining: prize.supplyTotal, // Start with full supply
         };
-        console.log(`Prize config ${idx}:`, { weightGrams: config.weightGrams, supplyTotal: config.supplyTotal });
+        console.log(`Prize config ${idx}:`, { 
+          weightGrams: config.weightGrams, 
+          dimensions: `${config.lengthInches}x${config.widthInches}x${config.heightInches} in`,
+          supplyTotal: config.supplyTotal,
+          metadataUri: config.metadataUri,
+        });
         return config;
       });
 
-      // Deploy on-chain
+      // Deploy on-chain with progress updates
       const result = await deployGame(
         connection,
         wallet,
         {
-          gameId: nextGameId,
+          gameId: gameIdToUse,
           name: gameData.name.trim(),
           description: gameData.description.trim(),
           imageUrl: gameData.imageUrl.trim(),
@@ -428,7 +458,10 @@ export default function AdminPage() {
           treasury: gameData.treasury.trim() || undefined,
           prizes: prizeConfigs,
         },
-        idl
+        idl,
+        (progress) => {
+          setDeployResult({ success: false, message: progress });
+        }
       );
 
       if (!result.success) {
@@ -441,7 +474,7 @@ export default function AdminPage() {
 
       // Add to deployed games list
       const newGame: DeployedGame = {
-        gameId: nextGameId,
+        gameId: gameIdToUse,
         name: gameData.name.trim(),
         onChainAddress: result.gamePda!,
         signature: result.signature!,
@@ -451,7 +484,7 @@ export default function AdminPage() {
 
       setDeployResult({
         success: true,
-        message: `🎮 Game "${gameData.name}" deployed on-chain! Game ID: ${nextGameId}. The indexer will pick it up and add it to the database.`,
+        message: `🎮 Game "${gameData.name}" deployed on-chain! Game ID: ${gameIdToUse}. The indexer will pick it up and add it to the database.`,
       });
 
       // Reset form and increment game ID
@@ -464,7 +497,7 @@ export default function AdminPage() {
         treasury: DEFAULT_TREASURY,
       });
       setPrizes([]);
-      setNextGameId(prev => prev + 1);
+      setNextGameId(gameIdToUse + 1);
 
     } catch (error) {
       console.error('Error deploying game:', error);
@@ -765,13 +798,11 @@ export default function AdminPage() {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-pastel-text mb-1">Image URL</label>
-                  <input
-                    type="url"
+                  <label className="block text-sm font-medium text-pastel-text mb-1">Game Image</label>
+                  <ImageUpload
                     value={gameData.imageUrl}
-                    onChange={(e) => setGameData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                    placeholder="https://example.com/game-image.png"
-                    className="w-full px-4 py-2 rounded-xl border-2 border-pastel-pink/30 focus:border-pastel-coral focus:outline-none transition-colors bg-white text-pastel-text"
+                    onChange={(url) => setGameData(prev => ({ ...prev, imageUrl: url }))}
+                    type="game"
                   />
                 </div>
               </div>
@@ -899,14 +930,63 @@ export default function AdminPage() {
                           </div>
                           
                           <div className="md:col-span-2">
-                            <label className="block text-xs font-medium text-pastel-textLight mb-1">Image URL</label>
-                            <input
-                              type="url"
+                            <label className="block text-xs font-medium text-pastel-textLight mb-1">Image</label>
+                            <ImageUpload
                               value={prize.imageUrl || ''}
-                              onChange={(e) => updatePrize(prize.id, { imageUrl: e.target.value })}
-                              placeholder="https://..."
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-pastel-coral focus:outline-none text-sm bg-white text-pastel-text"
+                              onChange={(url) => updatePrize(prize.id, { imageUrl: url })}
+                              type="prize"
                             />
+                          </div>
+                          
+                          {/* Package Dimensions for Shipping */}
+                          <div className="md:col-span-4">
+                            <label className="block text-xs font-medium text-pastel-textLight mb-1">
+                              Package Dimensions (inches) - for UPS shipping
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={prize.lengthInches ?? 0}
+                                  onChange={(e) =>
+                                    updatePrize(prize.id, { lengthInches: parseFloat(e.target.value) || 0 })
+                                  }
+                                  placeholder="Length"
+                                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-pastel-coral focus:outline-none text-sm bg-white text-pastel-text"
+                                />
+                                <span className="text-xs text-pastel-textLight">Length</span>
+                              </div>
+                              <div>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={prize.widthInches ?? 0}
+                                  onChange={(e) =>
+                                    updatePrize(prize.id, { widthInches: parseFloat(e.target.value) || 0 })
+                                  }
+                                  placeholder="Width"
+                                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-pastel-coral focus:outline-none text-sm bg-white text-pastel-text"
+                                />
+                                <span className="text-xs text-pastel-textLight">Width</span>
+                              </div>
+                              <div>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={prize.heightInches ?? 0}
+                                  onChange={(e) =>
+                                    updatePrize(prize.id, { heightInches: parseFloat(e.target.value) || 0 })
+                                  }
+                                  placeholder="Height"
+                                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-pastel-coral focus:outline-none text-sm bg-white text-pastel-text"
+                                />
+                                <span className="text-xs text-pastel-textLight">Height</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
 

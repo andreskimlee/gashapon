@@ -32,7 +32,7 @@ export class IndexerService implements OnModuleInit {
     // Events include game_id to identify which specific game instance
     this.gameProgramId =
       this.configService.get<string>('GACHAPON_GAME_PROGRAM_ID') ||
-      '4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG';
+      'EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6';
     this.marketplaceProgramId =
       this.configService.get<string>('GACHAPON_MARKETPLACE_PROGRAM_ID') ||
       '4zHkHBrSyBsi2L5J1ikZ5kQwNcGMcE2x3wKrG3FY7UqC';
@@ -141,6 +141,14 @@ export class IndexerService implements OnModuleInit {
 
       case 'PlayLost':
         await this.handlePlayLost(event);
+        break;
+
+      case 'PlayResolved':
+        await this.handlePlayResolved(event);
+        break;
+
+      case 'PrizeClaimed':
+        await this.handlePrizeClaimed(event);
         break;
 
       case 'GameStatusUpdated':
@@ -266,6 +274,28 @@ export class IndexerService implements OnModuleInit {
     const data =
       event.data as import('./events/event-parser.service').PlayLostEventData;
     await this.playService.handlePlayLost(data, event.signature);
+  }
+
+  /**
+   * Handle PlayResolved event - new secure event from finalize_play
+   */
+  private async handlePlayResolved(event: ParsedEvent): Promise<void> {
+    if (event.name !== 'PlayResolved') return;
+
+    const data =
+      event.data as import('./events/event-parser.service').PlayResolvedEventData;
+    await this.playService.handlePlayResolved(data, event.signature);
+  }
+
+  /**
+   * Handle PrizeClaimed event - user claimed their prize and minted NFT
+   */
+  private async handlePrizeClaimed(event: ParsedEvent): Promise<void> {
+    if (event.name !== 'PrizeClaimed') return;
+
+    const data =
+      event.data as import('./events/event-parser.service').PrizeClaimedEventData;
+    await this.playService.handlePrizeClaimed(data, event.signature);
   }
 
   /**

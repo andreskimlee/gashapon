@@ -70,7 +70,7 @@ export class HeliusService implements OnModuleInit, OnModuleDestroy {
     this.network = this.configService.get<string>('SOLANA_NETWORK') || 'devnet';
     this.gameProgramId =
       this.configService.get<string>('GACHAPON_GAME_PROGRAM_ID') ||
-      '4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG';
+      'EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6';
     this.marketplaceProgramId =
       this.configService.get<string>('GACHAPON_MARKETPLACE_PROGRAM_ID') ||
       '4zHkHBrSyBsi2L5J1ikZ5kQwNcGMcE2x3wKrG3FY7UqC';

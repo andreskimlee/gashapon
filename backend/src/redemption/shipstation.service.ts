@@ -1,6 +1,12 @@
-import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import { Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance } from "axios";
+import {
+  selectUPSBox,
+  gramsToLbs,
+  validateUPSDimensions,
+  BoxSelectionResult,
+} from "./ups-packaging";
 
 export interface ShipmentData {
   name: string;
@@ -14,6 +20,10 @@ export interface ShipmentData {
   orderId: string;
   email?: string;
   weightGrams?: number | null;
+  // Package dimensions (in inches)
+  lengthInches?: number | null;
+  widthInches?: number | null;
+  heightInches?: number | null;
 }
 
 export interface Shipment {
@@ -31,6 +41,7 @@ export interface Shipment {
 
 @Injectable()
 export class ShipStationService {
+  private readonly logger = new Logger(ShipStationService.name);
   private apiClient: AxiosInstance;
   private readonly apiKey: string;
 
@@ -56,14 +67,15 @@ export class ShipStationService {
     });
 
     if (!this.apiKey) {
-      console.warn(
-        "⚠️  ShipStation API key not configured - redemption will fail. Set SHIPENGINE_API_KEY to enable."
+      this.logger.warn(
+        "ShipStation API key not configured - redemption will fail. Set SHIPENGINE_API_KEY to enable."
       );
     }
   }
 
   /**
    * Create a shipping label via ShipStation API (ShipEngine)
+   * Uses UPS standard box selection when dimensions are provided
    */
   async createShipment(data: ShipmentData): Promise<Shipment> {
     try {
@@ -77,13 +89,71 @@ export class ShipStationService {
         );
       }
 
-      const weightValue =
+      // Calculate weight in pounds
+      const weightLbs =
         data.weightGrams && data.weightGrams > 0
-          ? this.convertWeightFromGrams(
-              data.weightGrams,
-              packageConfig.weightUnit
-            )
+          ? gramsToLbs(data.weightGrams)
           : packageConfig.weight;
+
+      // Determine package dimensions
+      let length = packageConfig.length;
+      let width = packageConfig.width;
+      let height = packageConfig.height;
+      let boxSelection: BoxSelectionResult | null = null;
+
+      // Use prize dimensions if provided for UPS box selection
+      if (data.lengthInches && data.widthInches && data.heightInches) {
+        // Validate dimensions against UPS limits
+        const validationErrors = validateUPSDimensions(
+          data.lengthInches,
+          data.widthInches,
+          data.heightInches,
+          weightLbs
+        );
+
+        if (validationErrors.length > 0) {
+          throw new InternalServerErrorException(
+            `Package exceeds UPS limits: ${validationErrors.join("; ")}`
+          );
+        }
+
+        // Select optimal UPS box
+        boxSelection = selectUPSBox(
+          data.lengthInches,
+          data.widthInches,
+          data.heightInches,
+          weightLbs
+        );
+
+        // Use box dimensions if standard box, otherwise use prize dimensions
+        if (!boxSelection.isCustom) {
+          length = boxSelection.box.length;
+          width = boxSelection.box.width;
+          height = boxSelection.box.height;
+        } else {
+          length = data.lengthInches;
+          width = data.widthInches;
+          height = data.heightInches;
+        }
+
+        this.logger.log(`📦 UPS Box Selection:`, {
+          box: boxSelection.box.name,
+          isCustom: boxSelection.isCustom,
+          actualWeight: `${boxSelection.actualWeight.toFixed(2)} lbs`,
+          dimWeight: `${boxSelection.dimWeight.toFixed(2)} lbs`,
+          billableWeight: `${boxSelection.billableWeight.toFixed(2)} lbs`,
+          requiresAdditionalHandling: boxSelection.requiresAdditionalHandling,
+        });
+      }
+
+      // Convert weight to configured unit
+      const weightValue =
+        packageConfig.weightUnit === "pound"
+          ? weightLbs
+          : this.convertWeightFromGrams(
+              data.weightGrams || packageConfig.weight * 453.59237,
+              packageConfig.weightUnit
+            );
 
       const labelPayload = {
         shipment: {
@@ -115,9 +185,9 @@ export class ShipStationService {
                 unit: packageConfig.weightUnit,
               },
               dimensions: {
-                length: packageConfig.length,
-                width: packageConfig.width,
-                height: packageConfig.height,
+                length: Number(length.toFixed(2)),
+                width: Number(width.toFixed(2)),
+                height: Number(height.toFixed(2)),
                 unit: packageConfig.dimensionUnit,
               },
             },
@@ -150,10 +220,11 @@ export class ShipStationService {
       // Generate tracking URL based on carrier
       const trackingUrl = this.getTrackingUrl(carrierCode, trackingNumber);
 
-      console.log("📦 Label created:", {
+      this.logger.log(`📦 Label created:`, {
         labelId: label.label_id,
         trackingNumber,
         carrier: carrierCode,
+        boxUsed: boxSelection?.box.name || "Default",
         labelPdfUrl: labelPdfUrl ? "✓" : "missing",
       });
 
@@ -170,7 +241,7 @@ export class ShipStationService {
         trackingUrl,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         "ShipStation API error:",
         error.response?.data || error.message
       );

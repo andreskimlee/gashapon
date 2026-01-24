@@ -8,8 +8,10 @@ export type EventName =
   | 'GameCreated'
   | 'PrizeAdded'
   | 'GamePlayInitiated'
-  | 'PrizeWon'
-  | 'PlayLost'
+  | 'PrizeWon'       // Legacy - for backwards compatibility
+  | 'PlayLost'       // Legacy - for backwards compatibility
+  | 'PlayResolved'   // New event from finalize_play
+  | 'PrizeClaimed'   // New event from claim_prize
   | 'GameStatusUpdated'
   | 'SupplyReplenished'
   | 'TreasuryWithdrawn'
@@ -44,6 +46,7 @@ export interface GamePlayInitiatedEventData {
   user: string;
   game_id: BN;
   token_amount: BN;
+  session: string;
   timestamp: number;
 }
 
@@ -62,6 +65,29 @@ export interface PlayLostEventData {
   user: string;
   game_id: BN;
   random_value: number[];
+  timestamp: number;
+}
+
+export interface PlayResolvedEventData {
+  user: string;
+  game_id: BN;
+  session: string;
+  prize_id: BN | null;
+  prize_index: number | null;
+  tier: 'common' | 'uncommon' | 'rare' | 'legendary' | null;
+  is_win: boolean;
+  random_value: number[];
+  timestamp: number;
+}
+
+export interface PrizeClaimedEventData {
+  user: string;
+  game_id: BN;
+  session: string;
+  prize_id: BN;
+  prize_index: number;
+  tier: 'common' | 'uncommon' | 'rare' | 'legendary';
+  nft_mint: string;
   timestamp: number;
 }
 
@@ -92,6 +118,8 @@ export type EventData =
   | GamePlayInitiatedEventData
   | PrizeWonEventData
   | PlayLostEventData
+  | PlayResolvedEventData
+  | PrizeClaimedEventData
   | GameStatusUpdatedEventData
   | SupplyReplenishedEventData
   | TreasuryWithdrawnEventData;
@@ -232,6 +260,12 @@ export class EventParserService {
       case 'PlayLost':
         return this.parsePlayLost(data);
 
+      case 'PlayResolved':
+        return this.parsePlayResolved(data);
+
+      case 'PrizeClaimed':
+        return this.parsePrizeClaimed(data);
+
       case 'GameStatusUpdated':
         return this.parseGameStatusUpdated(data);
 
@@ -267,11 +301,13 @@ export class EventParserService {
   }
 
   private parseGamePlayInitiated(data: Uint8Array): GamePlayInitiatedEventData {
+    // GamePlayInitiated: user (32), game_id (8), token_amount (8), session (32), timestamp (8)
     return {
       user: new PublicKey(data.slice(0, 32)).toBase58(),
       game_id: this.readU64(data, 32),
       token_amount: this.readU64(data, 40),
-      timestamp: this.readI64(data, 48),
+      session: new PublicKey(data.slice(48, 80)).toBase58(),
+      timestamp: this.readI64(data, 80),
     };
   }
 
@@ -345,6 +381,92 @@ export class EventParserService {
       amount: this.readU64(data, 8),
       destination: new PublicKey(data.slice(16, 48)).toBase58(),
       timestamp: this.readI64(data, 48),
+    };
+  }
+
+  private parsePlayResolved(data: Uint8Array): PlayResolvedEventData {
+    // PlayResolved structure:
+    // user (32), game_id (8), session (32), prize_id Option<u64> (1+8), 
+    // prize_index Option<u8> (1+1), tier Option<PrizeTier> (1+1), 
+    // is_win (1), random_value (32), timestamp (8)
+    const user = new PublicKey(data.slice(0, 32)).toBase58();
+    const gameId = this.readU64(data, 32);
+    const session = new PublicKey(data.slice(40, 72)).toBase58();
+    
+    let offset = 72;
+    
+    // prize_id Option<u64>
+    const hasPrizeId = data[offset] === 1;
+    offset += 1;
+    const prizeId = hasPrizeId ? this.readU64(data, offset) : null;
+    offset += 8;
+    
+    // prize_index Option<u8>
+    const hasPrizeIndex = data[offset] === 1;
+    offset += 1;
+    const prizeIndex = hasPrizeIndex ? data[offset] : null;
+    offset += 1;
+    
+    // tier Option<PrizeTier>
+    const hasTier = data[offset] === 1;
+    offset += 1;
+    const tierMap: Array<'common' | 'uncommon' | 'rare' | 'legendary'> = [
+      'common', 'uncommon', 'rare', 'legendary'
+    ];
+    const tier = hasTier ? tierMap[data[offset]] || null : null;
+    offset += 1;
+    
+    // is_win (1)
+    const isWin = data[offset] === 1;
+    offset += 1;
+    
+    // random_value (32)
+    const randomValue = Array.from(data.slice(offset, offset + 32));
+    offset += 32;
+    
+    // timestamp (8)
+    const timestamp = this.readI64(data, offset);
+    
+    return {
+      user,
+      game_id: gameId,
+      session,
+      prize_id: prizeId,
+      prize_index: prizeIndex,
+      tier,
+      is_win: isWin,
+      random_value: randomValue,
+      timestamp,
+    };
+  }
+
+  private parsePrizeClaimed(data: Uint8Array): PrizeClaimedEventData {
+    // PrizeClaimed structure:
+    // user (32), game_id (8), session (32), prize_id (8), prize_index (1),
+    // tier (1), nft_mint (32), timestamp (8)
+    const user = new PublicKey(data.slice(0, 32)).toBase58();
+    const gameId = this.readU64(data, 32);
+    const session = new PublicKey(data.slice(40, 72)).toBase58();
+    const prizeId = this.readU64(data, 72);
+    const prizeIndex = data[80];
+    
+    const tierMap: Array<'common' | 'uncommon' | 'rare' | 'legendary'> = [
+      'common', 'uncommon', 'rare', 'legendary'
+    ];
+    const tier = tierMap[data[81]] || 'common';
+    
+    const nftMint = new PublicKey(data.slice(82, 114)).toBase58();
+    const timestamp = this.readI64(data, 114);
+    
+    return {
+      user,
+      game_id: gameId,
+      session,
+      prize_id: prizeId,
+      prize_index: prizeIndex,
+      tier,
+      nft_mint: nftMint,
+      timestamp,
     };
   }
 

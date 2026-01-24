@@ -13,10 +13,10 @@ import { AnchorProvider, BN, Idl, Program } from "@coral-xyz/anchor";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 
-// Program ID for gachapon-game
-const PROGRAM_ID = new PublicKey(
-  "4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG"
-);
+import { GAME_PROGRAM_ID } from "@/utils/constants";
+
+// Program ID for gachapon-game (from environment)
+const PROGRAM_ID = new PublicKey(GAME_PROGRAM_ID);
 
 // Default token mint (pump.fun token)
 const DEFAULT_TOKEN_MINT = new PublicKey(
@@ -41,6 +41,9 @@ export interface PrizeConfigInput {
   probabilityBp: number; // Probability in basis points (0-10000)
   costUsd: number; // Cost/value of the prize in cents
   weightGrams: number; // Prize weight in grams
+  lengthInches?: number; // Package length in inches
+  widthInches?: number; // Package width in inches
+  heightInches?: number; // Package height in inches
   supplyTotal: number;
   supplyRemaining: number;
 }
@@ -129,8 +132,14 @@ export async function deployGame(
   connection: Connection,
   wallet: WalletContextState,
   params: DeployGameParams,
-  idl: Idl
+  idl: Idl,
+  onProgress?: (message: string) => void
 ): Promise<DeployGameResult> {
+  const log = (msg: string) => {
+    console.log(`[Deploy] ${msg}`);
+    onProgress?.(msg);
+  };
+
   if (!wallet.publicKey || !wallet.signTransaction) {
     return {
       success: false,
@@ -139,7 +148,9 @@ export async function deployGame(
   }
 
   try {
-    // Create Anchor provider
+    log("Creating Anchor provider...");
+    
+    // Create Anchor provider with longer timeout for devnet
     const provider = new AnchorProvider(
       connection,
       {
@@ -147,9 +158,15 @@ export async function deployGame(
         signTransaction: wallet.signTransaction,
         signAllTransactions: wallet.signAllTransactions!,
       },
-      { commitment: "confirmed" }
+      { 
+        commitment: "confirmed", 
+        skipPreflight: true,
+        preflightCommitment: "confirmed",
+      }
     );
 
+    log("Creating program instance...");
+    
     // Create program instance
     const program = new Program(idl, provider);
 
@@ -165,38 +182,98 @@ export async function deployGame(
       ? new PublicKey(params.treasury)
       : TREASURY_PUBKEY;
 
-    console.log("Deploying game with params:", {
-      gameId: params.gameId,
-      name: params.name,
-      costUsdCents: params.costUsdCents,
-      tokenMint: tokenMint.toString(),
-      treasury: treasury.toString(),
-      gamePda: gamePda.toString(),
-      configPda: configPda.toString(),
-      prizeCount: params.prizes.length,
-    });
+    log(`Deploying game ID ${params.gameId}: ${params.name}`);
+    log(`Game PDA: ${gamePda.toString()}`);
+    log(`Config PDA: ${configPda.toString()}`);
+    log(`Token mint: ${tokenMint.toString()}`);
+    log(`Treasury: ${treasury.toString()}`);
+    log(`Authority (your wallet): ${wallet.publicKey.toString()}`);
+    log(`Prizes: ${params.prizes.length}`);
+
+    // Verify authority before proceeding
+    log("Verifying program authority...");
+    try {
+      const configAccount = await connection.getAccountInfo(configPda);
+      if (!configAccount) {
+        return { success: false, error: "Program config not initialized. Run initialize_config first." };
+      }
+      // Authority is at offset 8 (after discriminator), 32 bytes
+      const onChainAuthority = new PublicKey(configAccount.data.slice(8, 40));
+      log(`On-chain authority: ${onChainAuthority.toString()}`);
+      
+      if (!onChainAuthority.equals(wallet.publicKey)) {
+        return { 
+          success: false, 
+          error: `Wrong wallet! Your wallet: ${wallet.publicKey.toString().slice(0, 8)}... Required: ${onChainAuthority.toString().slice(0, 8)}...` 
+        };
+      }
+      log("Authority verified ✓");
+    } catch (err) {
+      log(`Warning: Could not verify authority: ${err}`);
+    }
+
+    // Double-check game doesn't exist
+    log("Checking if game already exists...");
+    const existingGame = await connection.getAccountInfo(gamePda);
+    if (existingGame) {
+      return { success: false, error: `Game ID ${params.gameId} already exists on-chain. Use a different ID.` };
+    }
+    log("Game ID available ✓");
 
     // Step 1: Call initialize_game instruction (WITHOUT prizes)
-    // New instruction signature: initialize_game(game_id, name, description, image_url, cost_usd, token_mint)
-    const initSignature = await (program.methods as any)
-      .initializeGame(
-        new BN(params.gameId),
-        params.name,
-        params.description || "",
-        params.imageUrl || "",
-        new BN(params.costUsdCents),
-        tokenMint
-      )
-      .accounts({
-        authority: wallet.publicKey,
-        config: configPda,
-        game: gamePda,
-        treasury: treasury,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
+    log("Step 1/2: Initializing game (please approve in wallet)...");
+    
+    let initSignature: string;
+    try {
+      // Use Promise.race to add timeout
+      const rpcPromise = (program.methods as any)
+        .initializeGame(
+          new BN(params.gameId),
+          params.name,
+          params.description || "",
+          params.imageUrl || "",
+          new BN(params.costUsdCents),
+          tokenMint
+        )
+        .accounts({
+          authority: wallet.publicKey,
+          config: configPda,
+          game: gamePda,
+          treasury: treasury,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc({ skipPreflight: true, commitment: "confirmed" });
+      
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error("Transaction timed out after 60 seconds. Check Solana Explorer for status.")), 60000)
+      );
+      
+      initSignature = await Promise.race([rpcPromise, timeoutPromise]);
+      
+      log("Transaction confirmed!");
+    } catch (err: any) {
+      console.error("Initialize game error:", err);
+      const errMsg = err?.message || String(err);
+      if (errMsg.includes("User rejected") || errMsg.includes("cancelled")) {
+        return { success: false, error: "Transaction cancelled by user" };
+      }
+      if (errMsg.includes("timed out")) {
+        return { success: false, error: errMsg };
+      }
+      // Check for specific on-chain errors
+      if (errMsg.includes("already in use") || errMsg.includes("Account already exists")) {
+        return { success: false, error: `Game ID ${params.gameId} already exists. Try the next ID.` };
+      }
+      if (errMsg.includes("Unauthorized") || errMsg.includes("ConstraintHasOne")) {
+        return { success: false, error: "Unauthorized: Your wallet is not the program authority." };
+      }
+      if (errMsg.includes("0x1") || errMsg.includes("insufficient")) {
+        return { success: false, error: "Insufficient SOL for transaction fees. Fund your wallet with devnet SOL." };
+      }
+      return { success: false, error: `Initialize game failed: ${errMsg}` };
+    }
 
-    console.log("Game initialized:", initSignature);
+    log(`Game initialized! Signature: ${initSignature.slice(0, 20)}...`);
 
     // Step 2: Add each prize separately
     const prizeSignatures: string[] = [];
@@ -205,16 +282,18 @@ export async function deployGame(
       const prize = params.prizes[i];
       const prizePda = getPrizePda(gamePda, i);
 
-      console.log(`Adding prize ${i}: ${prize.name}`, {
-        weightGrams: prize.weightGrams,
-        supplyTotal: prize.supplyTotal,
-        probabilityBp: prize.probabilityBp,
-        costUsd: prize.costUsd,
-      });
+      // Convert inches to hundredths (650 = 6.50 inches)
+      const lengthHundredths = prize.lengthInches ? Math.round(prize.lengthInches * 100) : 0;
+      const widthHundredths = prize.widthInches ? Math.round(prize.widthInches * 100) : 0;
+      const heightHundredths = prize.heightInches ? Math.round(prize.heightInches * 100) : 0;
 
-      // add_prize(prize_index, prize_id, name, description, image_url, metadata_uri, physical_sku, tier, probability_bp, cost_usd, weight_grams, supply_total)
-      const prizeSig = await (program.methods as any)
-        .addPrize(
+      log(`Step 2/2: Adding prize ${i + 1}/${params.prizes.length}: ${prize.name}`);
+
+      // add_prize(prize_index, prize_id, name, description, image_url, metadata_uri, physical_sku, tier, probability_bp, cost_usd, weight_grams, length_hundredths, width_hundredths, height_hundredths, supply_total)
+      let prizeSig: string;
+      try {
+        prizeSig = await (program.methods as any)
+          .addPrize(
           i, // prize_index (u8)
           new BN(prize.prizeId), // prize_id (u64)
           prize.name, // name (string)
@@ -226,6 +305,9 @@ export async function deployGame(
           prize.probabilityBp, // probability_bp (u16)
           new BN(prize.costUsd), // cost_usd (u64)
           prize.weightGrams ?? 0, // weight_grams (u32)
+          lengthHundredths, // length_hundredths (u16)
+          widthHundredths, // width_hundredths (u16)
+          heightHundredths, // height_hundredths (u16)
           prize.supplyTotal // supply_total (u32)
         )
         .accounts({
@@ -235,16 +317,20 @@ export async function deployGame(
           systemProgram: SystemProgram.programId,
         })
         .rpc();
+      } catch (err: any) {
+        console.error(`Add prize ${i} error:`, err);
+        const errMsg = err?.message || String(err);
+        if (errMsg.includes("User rejected") || errMsg.includes("cancelled")) {
+          return { success: false, error: "Transaction cancelled by user" };
+        }
+        return { success: false, error: `Add prize ${i} failed: ${errMsg}` };
+      }
 
-      console.log(`Prize ${i} added:`, prizeSig);
+      log(`Prize ${i + 1} added: ${prizeSig.slice(0, 20)}...`);
       prizeSignatures.push(prizeSig);
     }
 
-    console.log(
-      "Game deployed successfully with",
-      params.prizes.length,
-      "prizes"
-    );
+    log(`✅ Game deployed successfully with ${params.prizes.length} prizes!`);
 
     return {
       success: true,

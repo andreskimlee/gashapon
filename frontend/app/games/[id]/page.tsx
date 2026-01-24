@@ -14,14 +14,18 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Loading from "@/components/ui/Loading";
-import { usePlayRealtime } from "@/hooks/api/usePlayRealtime";
+import PrizeDetailModal, { type Prize as PrizeModalData } from "@/components/ui/PrizeDetailModal";
+import { toast } from "@/components/ui/Toast";
+import { usePlayEvents } from "@/hooks/api/usePaymentVerification";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { gamesApi } from "@/services/api/games";
 import type { Game } from "@/types/game/game";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { claimPrize } from "@/services/blockchain/play";
 
 // Time (ms) to wait after claw drops before showing win/lose screen
 // Adjust this to sync with claw machine animation duration
@@ -58,10 +62,142 @@ export default function GameDetailPage() {
     playSignature?: string;
     message?: string;
   } | null>(null);
+  // Store pending outcome until payment is verified
+  const [pendingOutcome, setPendingOutcome] = useState<{
+    isWin: boolean;
+    prizeIndex: number | null;
+    mint: Keypair;
+    signature: string;
+  } | null>(null);
+  // Store session PDA for claiming prize
+  const [winSessionPda, setWinSessionPda] = useState<string | null>(null);
+  // Track if we're currently claiming the prize
+  const [claiming, setClaiming] = useState(false);
   const dropStartedRef = useRef(false);
   const resultTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { publicKey, connected, sendTransaction, signMessage } = useWallet();
   const { connection } = useConnection();
+  
+  // Prize detail modal state
+  const [selectedPrize, setSelectedPrize] = useState<PrizeModalData | null>(null);
+
+  // Handle payment verification events from indexer
+  const handlePaymentVerified = useCallback(() => {
+    if (!pendingOutcome) return;
+    
+    // Clear the fallback timeout since we got a response
+    if (verificationTimeoutRef.current) {
+      clearTimeout(verificationTimeoutRef.current);
+      verificationTimeoutRef.current = null;
+    }
+    
+    console.log("✅ Payment verified by indexer! Starting animation...");
+    toast.success("Payment verified! Let's play!");
+    
+    // NOW start the animation with the known outcome
+    setClawOutcome(pendingOutcome.isWin ? "win" : "lose");
+    setAnimationStarted(true);
+    
+    // Set prize info if won
+    if (
+      pendingOutcome.isWin &&
+      pendingOutcome.prizeIndex !== null &&
+      game?.prizes?.[pendingOutcome.prizeIndex]
+    ) {
+      const prize = game.prizes[pendingOutcome.prizeIndex];
+      setWonPrizeName(prize.name);
+      setWonPrizeImageUrl(prize.imageUrl || undefined);
+      setWonNftMint(pendingOutcome.mint.publicKey.toBase58());
+    }
+  }, [pendingOutcome, game?.prizes]);
+
+  const handlePaymentRejected = useCallback((payload: { message: string }) => {
+    // Clear the fallback timeout
+    if (verificationTimeoutRef.current) {
+      clearTimeout(verificationTimeoutRef.current);
+      verificationTimeoutRef.current = null;
+    }
+    
+    console.error("❌ Payment rejected by indexer:", payload.message);
+    toast.error(`Payment rejected: ${payload.message}`);
+    setError("Payment was insufficient. Your tokens were transferred but you cannot play.");
+    setPlaying(false);
+    setPlayResult(null);
+    setPendingOutcome(null);
+  }, []);
+
+  const handleFinalized = useCallback((payload: {
+    status: "completed" | "failed";
+    prizeId: number | null;
+    nftMint: string | null;
+  }) => {
+    if (!pendingOutcome) return;
+    
+    const isWin = payload.status === "completed" && payload.prizeId !== null;
+    const result = {
+      status: (isWin ? "win" : "lose") as "win" | "lose",
+      playSignature: pendingOutcome.signature,
+      message: isWin ? "You won! 🎉" : "Better luck next time!",
+    };
+    
+    setPendingResult(result);
+    if (payload.nftMint) {
+      setWonNftMint(payload.nftMint);
+    }
+    
+    if (dropStartedRef.current && !resultTimerRef.current) {
+      resultTimerRef.current = setTimeout(() => {
+        setPlayResult(result);
+        setPlaying(false);
+        setShowResultScreen(true);
+        resultTimerRef.current = null;
+      }, RESULT_SCREEN_DELAY_MS);
+    }
+  }, [pendingOutcome]);
+
+  // Subscribe to play events when we have a pending signature
+  usePlayEvents(
+    pendingOutcome?.signature,
+    {
+      onPaymentVerified: handlePaymentVerified,
+      onPaymentRejected: handlePaymentRejected,
+      onFinalized: handleFinalized,
+    },
+    { timeoutMs: 60_000 }
+  );
+
+  // Fallback timeout: if indexer doesn't respond within 15 seconds, proceed optimistically
+  useEffect(() => {
+    if (!pendingOutcome || animationStarted) return;
+
+    verificationTimeoutRef.current = setTimeout(() => {
+      console.warn("⚠️ Payment verification timeout - proceeding optimistically");
+      toast.warning("Verification taking longer than expected. Proceeding...");
+      
+      // Start animation with known outcome
+      setClawOutcome(pendingOutcome.isWin ? "win" : "lose");
+      setAnimationStarted(true);
+      
+      if (
+        pendingOutcome.isWin &&
+        pendingOutcome.prizeIndex !== null &&
+        game?.prizes?.[pendingOutcome.prizeIndex]
+      ) {
+        const prize = game.prizes[pendingOutcome.prizeIndex];
+        setWonPrizeName(prize.name);
+        setWonPrizeImageUrl(prize.imageUrl || undefined);
+        setWonNftMint(pendingOutcome.mint.publicKey.toBase58());
+      }
+    }, 15_000); // 15 second timeout
+
+    return () => {
+      if (verificationTimeoutRef.current) {
+        clearTimeout(verificationTimeoutRef.current);
+        verificationTimeoutRef.current = null;
+      }
+    };
+  }, [pendingOutcome, animationStarted, game?.prizes]);
 
   // Dynamic token cost calculation from pump.fun price
   const costUsdCents = game?.costInUsd
@@ -108,136 +244,111 @@ export default function GameDetailPage() {
     setPlayResult({ status: "pending", message: "Preparing transaction..." });
 
     try {
-      // Build full play + finalize transaction
-      // This handles token transfer + NFT minting in one transaction
-      const { playAndFinalizeOnChain } = await import(
-        "@/services/blockchain/play"
-      );
+      // Step 1: Create play session and transfer tokens
+      const { playOnChain } = await import("@/services/blockchain/play");
 
       setPlayResult({ status: "pending", message: "Fetching token price..." });
 
-      // Use costInUsd (cents) for dynamic price calculation via pump.fun API
-      // Falls back to costInTokens if costInUsd is not available
-      const costUsdCents = game.costInUsd ? Number(game.costInUsd) : undefined;
+      // Use costInUsd (dollars) converted to cents for dynamic price calculation
+      const playCostUsdCents = game.costInUsd ? Number(game.costInUsd) * 100 : undefined;
 
-      if (costUsdCents === undefined) {
+      if (playCostUsdCents === undefined) {
         setError("Game pricing is not configured");
         setPlaying(false);
         return;
       }
 
-      const { tx, mint, isWin, prizeIndex, tokenAmountPaid } =
-        await playAndFinalizeOnChain({
-          walletPublicKey: publicKey as PublicKey,
-          gamePda: onChainAddress,
-          costUsdCents,
-        });
+      const { tx, sessionPda, sessionSeed, tokenAmountPaid } = await playOnChain({
+        walletPublicKey: publicKey as PublicKey,
+        gamePda: onChainAddress,
+        costUsdCents: playCostUsdCents,
+      });
 
-      console.log(
-        `Token amount calculated: ${tokenAmountPaid} tokens for $${((costUsdCents || 0) / 100).toFixed(2)}`
-      );
+      console.log(`Token amount: ${tokenAmountPaid} tokens for $${(playCostUsdCents / 100).toFixed(2)}`);
+      console.log(`Session PDA: ${sessionPda.toString()}`);
 
       setPlayResult({
         status: "pending",
         message: "Please approve the transaction in your wallet...",
       });
 
-      // Send the transaction (mint keypair already signed)
+      // Send the play transaction
       const signature = await sendTransaction(tx, connection, {
-        skipPreflight: true, // Skip preflight to avoid simulation issues with partially signed tx
+        skipPreflight: true,
       });
 
-      // AFTER wallet approves, set the claw outcome and start animation
-      setClawOutcome(isWin ? "win" : "lose");
-      setAnimationStarted(true);
-      console.log("Wallet approved! Claw outcome set:", isWin ? "win" : "lose");
+      console.log("Play transaction sent:", signature);
 
       setPlayResult({
         status: "pending",
         playSignature: signature,
-        message: `Transaction sent! ${isWin ? "You won! 🎉" : "Better luck next time!"} Confirming...`,
+        message: "Transaction sent! Waiting for confirmation...",
       });
 
       // Wait for confirmation
-      try {
-        const confirmation = await connection.confirmTransaction(
-          signature,
-          "confirmed"
-        );
-        if (confirmation.value.err) {
-          console.error("Transaction failed on-chain:", confirmation.value.err);
-          setError(
-            `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
-          );
-          setPlayResult({
-            status: "pending",
-            playSignature: signature,
-            message: "Transaction failed on-chain. Check explorer for details.",
-          });
-          setPlaying(false);
-          return;
-        }
+      const confirmation = await connection.confirmTransaction(signature, "confirmed");
+      if (confirmation.value.err) {
+        console.error("Transaction failed:", confirmation.value.err);
+        setError(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+        setPlaying(false);
+        return;
+      }
 
-        // Transaction confirmed! Set the result based on actual outcome
-        // Get prize name if won
-        if (
-          isWin &&
-          prizeIndex !== undefined &&
-          prizeIndex !== null &&
-          game.prizes?.[prizeIndex]
-        ) {
-          const prize = game.prizes[prizeIndex];
-          setWonPrizeName(prize.name);
-          setWonPrizeImageUrl(prize.imageUrl || undefined);
-          setWonNftMint(mint.publicKey.toBase58());
-        }
+      console.log("Play transaction confirmed! Calling backend to finalize...");
+      setPlayResult({
+        status: "pending",
+        playSignature: signature,
+        message: "Payment confirmed! Determining outcome...",
+      });
 
-        // Brief delay to show the claw animation, then show result screen
-        // Animation takes ~12-15 seconds total, plus 2 seconds after ball drops
-        const result = {
-          status: (isWin ? "win" : "lose") as "win" | "lose",
-          playSignature: signature,
-          message: isWin
-            ? `You won prize #${(prizeIndex ?? 0) + 1}! 🎉 NFT minted: ${mint.publicKey.toBase58().slice(0, 8)}...`
-            : "Better luck next time!",
-        };
-        setPendingResult(result);
-        if (dropStartedRef.current && !resultTimerRef.current) {
-          resultTimerRef.current = setTimeout(() => {
-            setPlayResult(result);
-            setPlaying(false);
-            setShowResultScreen(true);
-            resultTimerRef.current = null;
-          }, RESULT_SCREEN_DELAY_MS);
-        }
-      } catch (confirmError) {
-        console.error("Error confirming transaction:", confirmError);
-        // Still set the expected result - tx may have succeeded
-        if (
-          isWin &&
-          prizeIndex !== undefined &&
-          prizeIndex !== null &&
-          game.prizes?.[prizeIndex]
-        ) {
-          const prize = game.prizes[prizeIndex];
-          setWonPrizeName(prize.name);
-          setWonPrizeImageUrl(prize.imageUrl || undefined);
-          setWonNftMint(mint.publicKey.toBase58());
-        }
-        const result = {
-          status: (isWin ? "win" : "lose") as "win" | "lose",
-          playSignature: signature,
-          message: isWin ? "You won! 🎉" : "Better luck next time!",
-        };
-        setPendingResult(result);
-        if (dropStartedRef.current && !resultTimerRef.current) {
-          resultTimerRef.current = setTimeout(() => {
-            setPlayResult(result);
-            setPlaying(false);
-            setShowResultScreen(true);
-            resultTimerRef.current = null;
-          }, RESULT_SCREEN_DELAY_MS);
-        }
+      // Step 2: Call backend to finalize play (generates randomness)
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const finalizeResponse = await fetch(`${backendUrl}/games/${game.id}/play/finalize`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-wallet-address": publicKey.toString(),
+        },
+        body: JSON.stringify({
+          sessionPda: sessionPda.toString(),
+          gamePda: onChainAddress,
+        }),
+      });
+
+      if (!finalizeResponse.ok) {
+        const errorData = await finalizeResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Backend finalize failed: ${finalizeResponse.status}`);
+      }
+
+      const finalizeResult = await finalizeResponse.json();
+      console.log("Finalize result:", finalizeResult);
+
+      const isWin = finalizeResult.prizeIndex !== null && finalizeResult.prizeIndex !== undefined;
+      const prizeIndex = finalizeResult.prizeIndex;
+
+      // Store pending outcome for animation
+      setPendingOutcome({
+        isWin,
+        prizeIndex,
+        mint: Keypair.generate(), // Placeholder - will be set after claim
+        signature,
+      });
+
+      // Set pending result so the result screen shows after animation
+      setPendingResult({
+        status: isWin ? "win" : "lose",
+        playSignature: signature,
+        message: isWin ? "You won! 🎉" : "Better luck next time!",
+      });
+
+      // Start animation with the known outcome
+      setClawOutcome(isWin ? "win" : "lose");
+      setAnimationStarted(true);
+
+      if (isWin && prizeIndex !== null && game?.prizes?.[prizeIndex]) {
+        const prize = game.prizes[prizeIndex];
+        setWonPrizeName(prize.name);
+        setWonPrizeImageUrl(prize.imageUrl || undefined);
       }
     } catch (e: unknown) {
       console.error("Play error:", e);
@@ -281,49 +392,23 @@ export default function GameDetailPage() {
     setPlayResult(null);
     setWonPrizeName(undefined);
     setWonNftMint(undefined);
+    setWonPrizeImageUrl(undefined);
     dropStartedRef.current = false;
     setPendingResult(null);
+    setPendingOutcome(null);
     if (resultTimerRef.current) {
       clearTimeout(resultTimerRef.current);
       resultTimerRef.current = null;
+    }
+    if (verificationTimeoutRef.current) {
+      clearTimeout(verificationTimeoutRef.current);
+      verificationTimeoutRef.current = null;
     }
     // Small delay to reset the intro screen
     setTimeout(() => {
       // The intro screen will show again
     }, 100);
   };
-
-  // Subscribe for realtime result when we have a play signature
-  usePlayRealtime(playResult?.playSignature, (payload) => {
-    if (!payload) return;
-    if (payload.status === "completed") {
-      const didWin = payload.prizeId !== null;
-      const result = {
-        status: (didWin ? "win" : "lose") as "win" | "lose",
-        playSignature: payload.transactionSignature,
-        message: didWin ? "You won! 🎉" : "Better luck next time!",
-      };
-      setPendingResult(result);
-      if (payload.nftMint) {
-        setWonNftMint(payload.nftMint);
-      }
-      if (dropStartedRef.current && !resultTimerRef.current) {
-        resultTimerRef.current = setTimeout(() => {
-          setPlayResult(result);
-          setPlaying(false);
-          setShowResultScreen(true);
-          resultTimerRef.current = null;
-        }, RESULT_SCREEN_DELAY_MS);
-      }
-    } else if (payload.status === "failed") {
-      setPlayResult((prev) => ({
-        status: "pending",
-        playSignature: payload.transactionSignature,
-        message: "Play failed. Please try again.",
-      }));
-      setPlaying(false);
-    }
-  });
 
   // Fetch game data (reusable for initial load and refresh)
   const fetchGameData = async (showLoading = true) => {
@@ -404,7 +489,7 @@ export default function GameDetailPage() {
                 priceLoading
                   ? "Loading..."
                   : tokenAmountFormatted
-                    ? `${tokenAmountFormatted} TOKENS`
+                    ? tokenAmountFormatted
                     : "Price unavailable"
               }
               gameName={game.name}
@@ -464,15 +549,25 @@ export default function GameDetailPage() {
                       shadowColor="mint"
                       borderColor="mint"
                       padding="sm"
-                      className="bg-pastel-sky/10"
+                      className="bg-pastel-sky/10 cursor-pointer hover:scale-[1.02] transition-transform"
+                      onClick={() => setSelectedPrize({
+                        prizeId: p.prizeId,
+                        name: p.name,
+                        description: p.description,
+                        imageUrl: p.imageUrl,
+                        tier: p.tier,
+                        probabilityBasisPoints: p.probabilityBasisPoints,
+                        supplyRemaining: p.supplyRemaining,
+                        supplyTotal: p.supplyTotal,
+                      })}
                     >
                       <div className="flex gap-3 items-start">
-                        <div className="h-20 w-20 rounded-xl border-2 border-pastel-pink/40 bg-pastel-pinkLight/50 flex items-center justify-center overflow-hidden">
+                        <div className="h-20 w-20 rounded-xl border-2 border-pastel-pink/40 bg-pastel-pinkLight/50 flex items-center justify-center overflow-hidden flex-shrink-0">
                           {p.imageUrl ? (
                             <img
                               src={p.imageUrl}
                               alt={p.name}
-                              className="h-full w-full object-contain p-2"
+                              className="h-full w-full object-cover"
                             />
                           ) : (
                             <span className="text-3xl">⭐</span>
@@ -486,9 +581,6 @@ export default function GameDetailPage() {
                             <Badge variant={p.tier as any} size="sm">
                               {p.tier}
                             </Badge>
-                          </div>
-                          <div className="text-pastel-textLight text-xs mt-1">
-                            Odds: {(p.probabilityBasisPoints / 100).toFixed(2)}%
                           </div>
                           <div className="mt-2">
                             <div className="flex items-center justify-between text-[11px] text-pastel-textLight">
@@ -520,6 +612,12 @@ export default function GameDetailPage() {
               ) : (
                 <p className="text-pastel-textLight">No prizes found.</p>
               )}
+              
+              {/* Prize Detail Modal */}
+              <PrizeDetailModal 
+                prize={selectedPrize} 
+                onClose={() => setSelectedPrize(null)} 
+              />
             </div>
           </ArcadeCard>
         </div>

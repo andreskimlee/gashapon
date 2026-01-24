@@ -9,7 +9,7 @@ import {
 } from '../events/event-parser.service';
 
 // Program ID for the gachapon game
-const PROGRAM_ID = new PublicKey('4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG');
+const PROGRAM_ID = new PublicKey('EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6');
 
 // Max prizes constant (must match on-chain)
 const MAX_PRIZES = 16;
@@ -34,6 +34,9 @@ interface OnChainPrize {
   probabilityBp: number;
   costUsd: bigint;
   weightGrams: number;
+  lengthHundredths: number;  // Length in hundredths of an inch (650 = 6.50")
+  widthHundredths: number;   // Width in hundredths of an inch
+  heightHundredths: number;  // Height in hundredths of an inch
   supplyTotal: number;
   supplyRemaining: number;
 }
@@ -237,7 +240,9 @@ export class GameService {
       // [40]     - prize_index (1)
       // [41..49] - prize_id (8)
       // Then strings: name, description, image_url, metadata_uri, physical_sku
-      // Then: tier (1), probability_bp (2), cost_usd (8), supply_total (4), supply_remaining (4), bump (1)
+      // Then: tier (1), probability_bp (2), cost_usd (8), weight_grams (4)
+      // Then: length_hundredths (2), width_hundredths (2), height_hundredths (2)
+      // Then: supply_total (4), supply_remaining (4), bump (1)
 
       let offset = 8; // Skip discriminator
 
@@ -293,6 +298,18 @@ export class GameService {
       const weightGrams = data.readUInt32LE(offset);
       offset += 4;
 
+      // length_hundredths (u16) - in hundredths of an inch
+      const lengthHundredths = data.readUInt16LE(offset);
+      offset += 2;
+
+      // width_hundredths (u16) - in hundredths of an inch
+      const widthHundredths = data.readUInt16LE(offset);
+      offset += 2;
+
+      // height_hundredths (u16) - in hundredths of an inch
+      const heightHundredths = data.readUInt16LE(offset);
+      offset += 2;
+
       // supply_total (u32)
       const supplyTotal = data.readUInt32LE(offset);
       offset += 4;
@@ -313,6 +330,9 @@ export class GameService {
         probabilityBp,
         costUsd,
         weightGrams,
+        lengthHundredths,
+        widthHundredths,
+        heightHundredths,
         supplyTotal,
         supplyRemaining,
       };
@@ -408,8 +428,8 @@ export class GameService {
         }
 
         await this.databaseService.execute(
-          `INSERT INTO prizes ("gameId", "prizeId", "prizeIndex", "name", "description", "imageUrl", "metadataUri", "physicalSku", "tier", "probabilityBasisPoints", "costInUsd", "weightGrams", "supplyTotal", "supplyRemaining", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+          `INSERT INTO prizes ("gameId", "prizeId", "prizeIndex", "name", "description", "imageUrl", "metadataUri", "physicalSku", "tier", "probabilityBasisPoints", "costInUsd", "weightGrams", "lengthInches", "widthInches", "heightInches", "supplyTotal", "supplyRemaining", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
            ON CONFLICT ("gameId", "prizeId") DO UPDATE SET 
              "name" = EXCLUDED."name",
              "description" = EXCLUDED."description",
@@ -419,6 +439,9 @@ export class GameService {
              "probabilityBasisPoints" = EXCLUDED."probabilityBasisPoints",
              "costInUsd" = EXCLUDED."costInUsd",
              "weightGrams" = EXCLUDED."weightGrams",
+             "lengthInches" = EXCLUDED."lengthInches",
+             "widthInches" = EXCLUDED."widthInches",
+             "heightInches" = EXCLUDED."heightInches",
              "supplyTotal" = EXCLUDED."supplyTotal",
              "supplyRemaining" = EXCLUDED."supplyRemaining",
              "updatedAt" = NOW()`,
@@ -435,6 +458,9 @@ export class GameService {
             prize.probabilityBp,
             Number(prize.costUsd) / 100, // Convert cents to USD
             prize.weightGrams,
+            prize.lengthHundredths ? prize.lengthHundredths / 100 : null, // Convert hundredths to inches
+            prize.widthHundredths ? prize.widthHundredths / 100 : null,
+            prize.heightHundredths ? prize.heightHundredths / 100 : null,
             prize.supplyTotal,
             prize.supplyRemaining,
           ],

@@ -3,15 +3,18 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Wallet, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 
 import HolographicCard from "@/components/collection/HolographicCard";
 import RedeemModal from "@/components/collection/RedeemModal";
 import CTAButton from "@/components/ui/CTAButton";
 import { toast } from "@/components/ui/Toast";
-import { usersApi } from "@/services/api/users";
+import { useCollection, useInvalidateCollection } from "@/hooks/api/useCollection";
 import type { NFT } from "@/types/api/nfts";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { claimPrize } from "@/services/blockchain/play";
+import { gamesApi } from "@/services/api/games";
 
 // Empty state component
 function EmptyState() {
@@ -74,11 +77,13 @@ function ConnectWalletPrompt() {
 }
 
 // NFT Card content
-function NFTCardContent({ nft, onRedeem }: { nft: NFT; onRedeem: () => void }) {
+function NFTCardContent({ nft, onRedeem, onClaim, isClaiming }: { nft: NFT; onRedeem: () => void; onClaim?: () => void; isClaiming?: boolean }) {
+  const isPending = nft.isPending === true;
+  
   return (
     <div className="flex flex-col h-full">
       {/* Image */}
-      <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-[#E9EEF2] border-2 border-[#111827]">
+      <div className="aspect-square rounded-xl overflow-hidden mb-3 bg-[#E9EEF2] border-2 border-[#111827] relative">
         {nft.imageUrl ? (
           <img
             src={nft.imageUrl}
@@ -88,6 +93,12 @@ function NFTCardContent({ nft, onRedeem }: { nft: NFT; onRedeem: () => void }) {
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-5xl">🎁</span>
+          </div>
+        )}
+        {/* Pending badge */}
+        {isPending && (
+          <div className="absolute top-2 right-2 px-2 py-1 bg-amber-400 text-amber-900 text-xs font-bold rounded-full animate-pulse">
+            NEW
           </div>
         )}
       </div>
@@ -112,12 +123,26 @@ function NFTCardContent({ nft, onRedeem }: { nft: NFT; onRedeem: () => void }) {
         </div>
       )}
       
+      {/* Mint address - show "Pending claim" for unclaimed */}
       <p className="text-xs text-pastel-textLight mb-3 font-mono truncate">
-        {nft.mintAddress.slice(0, 8)}...{nft.mintAddress.slice(-6)}
+        {isPending ? "Pending on-chain claim" : `${nft.mintAddress.slice(0, 8)}...${nft.mintAddress.slice(-6)}`}
       </p>
 
       {/* Action */}
-      {!nft.isRedeemed ? (
+      {isPending ? (
+        <CTAButton
+          variant="orange"
+          size="sm"
+          className="mt-auto w-full"
+          disabled={isClaiming}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClaim?.();
+          }}
+        >
+          {isClaiming ? "CLAIMING..." : "CLAIM NFT"}
+        </CTAButton>
+      ) : !nft.isRedeemed ? (
         <CTAButton
           variant="pink"
           size="sm"
@@ -146,13 +171,19 @@ function NFTCardContent({ nft, onRedeem }: { nft: NFT; onRedeem: () => void }) {
 }
 
 export default function CollectionPage() {
-  const { publicKey, connected, signMessage } = useWallet();
-  const [loading, setLoading] = useState(false);
-  const [nfts, setNfts] = useState<NFT[]>([]);
+  const { publicKey, connected, signMessage, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "unredeemed" | "redeemed">("all");
+  const [claimingNft, setClaimingNft] = useState<string | null>(null);
 
   const walletAddress = publicKey?.toBase58();
+
+  // Use React Query for caching and automatic state management
+  const { data: nfts = [], isLoading: loading } = useCollection(walletAddress, {
+    enabled: connected,
+  });
+  const { invalidateForWallet } = useInvalidateCollection();
 
   const unredeemed = useMemo(() => nfts.filter((n) => !n.isRedeemed), [nfts]);
   const redeemed = useMemo(() => nfts.filter((n) => n.isRedeemed), [nfts]);
@@ -168,35 +199,65 @@ export default function CollectionPage() {
     }
   }, [activeTab, nfts, unredeemed, redeemed]);
 
-  const fetchCollection = async () => {
-    if (!walletAddress) return;
-    try {
-      setLoading(true);
-      // Fetch both unredeemed and redeemed NFTs (backend defaults to unredeemed only)
-      const [unredeemedData, redeemedData] = await Promise.all([
-        usersApi.getCollection(walletAddress, { isRedeemed: false }),
-        usersApi.getCollection(walletAddress, { isRedeemed: true }),
-      ]);
-      // Combine and sort by mintedAt (newest first)
-      const allNfts = [...unredeemedData, ...redeemedData].sort(
-        (a, b) => new Date(b.mintedAt).getTime() - new Date(a.mintedAt).getTime()
-      );
-      setNfts(allNfts);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load collection");
-    } finally {
-      setLoading(false);
+  // Handle claiming a pending NFT
+  const handleClaimNft = useCallback(async (nft: NFT) => {
+    if (!publicKey || !nft.sessionPda) {
+      toast.error("Cannot claim: missing wallet or session data");
+      return;
     }
-  };
 
-  useEffect(() => {
-    if (connected && walletAddress) {
-      fetchCollection();
-    } else {
-      setNfts([]);
+    const sessionPda = nft.sessionPda || nft.mintAddress.slice(8); // Extract from "pending:<sessionPda>"
+    
+    setClaimingNft(nft.mintAddress);
+    toast.info("Preparing claim transaction...");
+
+    try {
+      // Fetch game data to get on-chain address and prize index
+      const game = await gamesApi.getGame(nft.gameId);
+      if (!game?.onChainAddress) {
+        throw new Error("Game not found or not deployed on-chain");
+      }
+
+      // Find the prize to get its index
+      const prize = game.prizes?.find(p => p.id === nft.prizeId);
+      if (prize?.prizeIndex === undefined) {
+        throw new Error("Prize index not found");
+      }
+
+      // Build and sign claim transaction
+      const { tx, mint } = await claimPrize({
+        walletPublicKey: publicKey,
+        gamePda: game.onChainAddress,
+        sessionPda: sessionPda,
+        prizeIndex: prize.prizeIndex,
+      });
+
+      toast.info("Please approve the transaction in your wallet...");
+      const signature = await sendTransaction(tx, connection);
+      
+      toast.info("Confirming transaction...");
+      await connection.confirmTransaction(signature, "confirmed");
+
+      toast.success(`NFT claimed! Mint: ${mint.publicKey.toBase58().slice(0, 8)}...`);
+      
+      // Refresh collection after short delay for indexer to process
+      setTimeout(() => {
+        if (walletAddress) {
+          invalidateForWallet(walletAddress);
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Claim error:", error);
+      const message = error instanceof Error ? error.message : "Claim failed";
+      if (message.includes("rejected") || message.includes("cancelled")) {
+        toast.warning("Transaction cancelled");
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setClaimingNft(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, walletAddress]);
+  }, [publicKey, connection, sendTransaction, walletAddress, invalidateForWallet]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -311,6 +372,8 @@ export default function CollectionPage() {
                         <NFTCardContent
                           nft={nft}
                           onRedeem={() => setSelectedNFT(nft)}
+                          onClaim={() => handleClaimNft(nft)}
+                          isClaiming={claimingNft === nft.mintAddress}
                         />
                       </HolographicCard>
                     </motion.div>
@@ -342,7 +405,10 @@ export default function CollectionPage() {
         signMessage={signMessage}
         onClose={() => setSelectedNFT(null)}
         onSuccess={() => {
-          fetchCollection();
+          // Invalidate cache to trigger refetch
+          if (walletAddress) {
+            invalidateForWallet(walletAddress);
+          }
           setSelectedNFT(null);
         }}
       />

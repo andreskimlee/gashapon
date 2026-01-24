@@ -39,7 +39,7 @@ export const configSchema = Joi.object({
   // created by this program, identified by game_id. The program address is:
   // PDA([b"game", game_id.to_le_bytes()]) derived from this program.
   GACHAPON_GAME_PROGRAM_ID: Joi.string().default(
-    '4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG',
+    'EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6',
   ),
   GACHAPON_MARKETPLACE_PROGRAM_ID: Joi.string().default(
     '4zHkHBrSyBsi2L5J1ikZ5kQwNcGMcE2x3wKrG3FY7UqC',

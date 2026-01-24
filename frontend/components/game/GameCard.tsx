@@ -84,11 +84,11 @@ export default function GameCard({
         )}
 
         <div className="flex items-center justify-between mb-6">
-          <div>
+          <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-neon-cyan neon-glow-cyan">
               {formatTokenAmount(costInTokens)}
             </span>
-            <span className="text-sm text-white/60 ml-1">tokens</span>
+            <img src="/gashapon_token.png" alt="" className="w-7 h-7 rounded-full" />
           </div>
           {totalPlays !== undefined && (
             <span className="text-sm text-white/60">

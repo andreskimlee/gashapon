@@ -7,13 +7,24 @@ import {
   Transaction,
   TransactionInstruction,
   sendAndConfirmTransaction,
+  SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 import { ConfigService } from '@nestjs/config';
 import * as bs58 from 'bs58';
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
+
+// Metaplex Token Metadata Program ID
+const METAPLEX_TOKEN_METADATA_PROGRAM_ID = new PublicKey(
+  'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'
+);
 import BN from 'bn.js';
 
 // Program ID for the gachapon game
-const PROGRAM_ID = new PublicKey('4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG');
+const PROGRAM_ID = new PublicKey('EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6');
 
 // Instruction discriminators from IDL
 const INITIALIZE_GAME_DISCRIMINATOR = Buffer.from([44, 62, 102, 247, 126, 208, 130, 215]);
@@ -311,5 +322,209 @@ export class SolanaService {
       }
     }
     throw new Error('No available game ID found');
+  }
+
+  /**
+   * Get play session PDA
+   */
+  getPlaySessionPda(gamePda: PublicKey, user: PublicKey, slot: bigint): PublicKey {
+    const slotBuf = Buffer.alloc(8);
+    slotBuf.writeBigUInt64LE(slot);
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('session'), gamePda.toBuffer(), user.toBuffer(), slotBuf],
+      PROGRAM_ID,
+    );
+    return pda;
+  }
+
+  /**
+   * Get Metaplex metadata PDA for a mint
+   */
+  getMetadataPda(mint: PublicKey): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        METAPLEX_TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      METAPLEX_TOKEN_METADATA_PROGRAM_ID,
+    );
+    return pda;
+  }
+
+  /**
+   * Get Metaplex master edition PDA for a mint
+   */
+  getMasterEditionPda(mint: PublicKey): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        METAPLEX_TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+        Buffer.from('edition'),
+      ],
+      METAPLEX_TOKEN_METADATA_PROGRAM_ID,
+    );
+    return pda;
+  }
+
+  /**
+   * Finalize a play session with backend-generated randomness
+   * Auto-mints NFT on win - backend pays for account creation
+   */
+  async finalizePlay(params: {
+    sessionPda: string;
+    gamePda: string;
+    winningPrizeIndex: number | null;
+    randomValue: Buffer;  // Must be passed from caller to ensure consistency
+    userWallet: string;   // User's wallet address (needed for NFT minting on win)
+  }): Promise<{ signature: string; randomValue: Buffer; isWin: boolean; prizeIndex: number | null; nftMint: string | null }> {
+    const FINALIZE_PLAY_DISCRIMINATOR = Buffer.from([217, 0, 74, 63, 118, 193, 160, 9]);
+    
+    const sessionPubkey = new PublicKey(params.sessionPda);
+    const gamePubkey = new PublicKey(params.gamePda);
+    const configPda = this.getConfigPda();
+    const userPubkey = new PublicKey(params.userWallet);
+
+    // Use the random value passed from caller (ensures on-chain agrees with our prize selection)
+    const randomValue = params.randomValue;
+
+    this.logger.log(`Finalizing play session ${params.sessionPda}`);
+
+    // Build instruction data: discriminator + random_value (32 bytes)
+    const data = Buffer.concat([
+      FINALIZE_PLAY_DISCRIMINATOR,
+      randomValue,
+    ]);
+
+    const keys = [
+      { pubkey: sessionPubkey, isSigner: false, isWritable: true },
+      { pubkey: gamePubkey, isSigner: false, isWritable: true },
+      { pubkey: configPda, isSigner: false, isWritable: false },
+      { pubkey: this.payer.publicKey, isSigner: true, isWritable: true }, // backend authority (writable to pay for NFT)
+    ];
+
+    // For wins, add all 11 remaining accounts for NFT minting
+    let mintKeypair: Keypair | null = null;
+    if (params.winningPrizeIndex !== null) {
+      // Generate new mint keypair for the NFT
+      mintKeypair = Keypair.generate();
+      
+      const prizePda = this.getPrizePda(gamePubkey, params.winningPrizeIndex);
+      const metadataPda = this.getMetadataPda(mintKeypair.publicKey);
+      const masterEditionPda = this.getMasterEditionPda(mintKeypair.publicKey);
+      const userAta = getAssociatedTokenAddressSync(mintKeypair.publicKey, userPubkey);
+
+      // remaining_accounts order:
+      // [0] Prize, [1] NFT mint (signer), [2] Metadata PDA, [3] Master Edition PDA,
+      // [4] User's ATA, [5] User account, [6] Token Program, [7] Associated Token Program,
+      // [8] Metaplex Program, [9] System Program, [10] Rent
+      keys.push(
+        { pubkey: prizePda, isSigner: false, isWritable: true },                         // [0] Prize
+        { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },             // [1] NFT mint (signer)
+        { pubkey: metadataPda, isSigner: false, isWritable: true },                       // [2] Metadata PDA
+        { pubkey: masterEditionPda, isSigner: false, isWritable: true },                  // [3] Master Edition PDA
+        { pubkey: userAta, isSigner: false, isWritable: true },                           // [4] User's ATA
+        { pubkey: userPubkey, isSigner: false, isWritable: false },                       // [5] User account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },                 // [6] Token Program
+        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // [7] Associated Token Program
+        { pubkey: METAPLEX_TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false }, // [8] Metaplex Program
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },          // [9] System Program
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },               // [10] Rent
+      );
+    }
+
+    const instruction = new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys,
+      data,
+    });
+
+    const tx = new Transaction().add(instruction);
+
+    // Signers: payer (backend authority) + mint keypair (if winning)
+    const signers = [this.payer];
+    if (mintKeypair) {
+      signers.push(mintKeypair);
+    }
+
+    const signature = await sendAndConfirmTransaction(
+      this.connection,
+      tx,
+      signers,
+      { commitment: 'confirmed' },
+    );
+
+    const nftMint = mintKeypair ? mintKeypair.publicKey.toBase58() : null;
+    this.logger.log(`✅ Play finalized: ${signature}, win: ${params.winningPrizeIndex !== null}, nftMint: ${nftMint}`);
+    
+    return {
+      signature,
+      randomValue,
+      isWin: params.winningPrizeIndex !== null,
+      prizeIndex: params.winningPrizeIndex,
+      nftMint,
+    };
+  }
+
+  /**
+   * Fetch and parse game account to get probabilities
+   */
+  async fetchGameProbabilities(gamePda: string): Promise<{ prizeCount: number; probabilities: number[] }> {
+    const gamePubkey = new PublicKey(gamePda);
+    const accountInfo = await this.connection.getAccountInfo(gamePubkey);
+    
+    if (!accountInfo) {
+      throw new Error('Game account not found');
+    }
+
+    const data = accountInfo.data;
+    
+    // Parse to get prize_count and probabilities
+    // Skip: discriminator (8) + authority (32) + game_id (8) + name + desc + image_url + token_mint (32) + cost_usd (8) + treasury (32)
+    let offset = 8 + 32 + 8;
+    
+    // Skip strings
+    const nameLen = data.readUInt32LE(offset);
+    offset += 4 + nameLen;
+    const descLen = data.readUInt32LE(offset);
+    offset += 4 + descLen;
+    const imgLen = data.readUInt32LE(offset);
+    offset += 4 + imgLen;
+    
+    offset += 32; // token_mint
+    offset += 8;  // cost_usd
+    offset += 32; // treasury
+    
+    const prizeCount = data[offset];
+    offset += 1;
+    
+    const probabilities: number[] = [];
+    for (let i = 0; i < 16; i++) {
+      probabilities.push(data.readUInt16LE(offset + i * 2));
+    }
+    
+    return { prizeCount, probabilities };
+  }
+
+  /**
+   * Select prize index based on random value and probabilities
+   * This matches the on-chain logic exactly
+   */
+  selectPrizeIndex(probabilities: number[], prizeCount: number, randomValue: Buffer): number | null {
+    // Convert first 8 bytes to u64 and normalize to 0..9999
+    const randU64 = randomValue.readBigUInt64LE(0);
+    const draw = Number(randU64 % BigInt(10000));
+    
+    let cumulative = 0;
+    for (let idx = 0; idx < prizeCount; idx++) {
+      const prob = probabilities[idx];
+      if (prob === 0) continue;
+      cumulative += prob;
+      if (draw < cumulative) {
+        return idx;
+      }
+    }
+    return null; // Loss
   }
 }

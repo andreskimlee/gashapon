@@ -35,6 +35,10 @@ export interface CollectionItem {
     priceInTokens: string;
     isActive: boolean;
   };
+  // Pending status - true if prize won but NFT not yet minted on-chain
+  isPending: boolean;
+  // Session PDA for claiming (only present when isPending is true)
+  sessionPda?: string;
 }
 
 export interface CollectionFilters {
@@ -103,14 +107,22 @@ export class CollectionService {
     const collectionItems: CollectionItem[] = await Promise.all(
       nfts.map(async (nft) => {
         let onChainMetadata = null;
+        
+        // Try to fetch on-chain metadata
         try {
           onChainMetadata = await this.metaplexService.getNFTMetadata(nft.mintAddress);
         } catch (error) {
-          // If NFT is burned or doesn't exist on-chain, skip metadata
+          // If NFT is burned or doesn't exist on-chain - skip metadata
           console.warn(`Failed to fetch metadata for ${nft.mintAddress}:`, error.message);
         }
+        
+        // NFTs are now auto-minted on win, so there are no pending NFTs
+        const isPending = false;
 
         const listing = nft.marketplaceListings?.find((l) => l.isActive);
+        
+        // For pending NFTs, the mintAddress IS the sessionPda
+        const sessionPda = isPending ? nft.mintAddress : undefined;
 
         return {
           mintAddress: nft.mintAddress,
@@ -142,6 +154,8 @@ export class CollectionService {
                 isActive: listing.isActive,
               }
             : undefined,
+          isPending,
+          sessionPda,
         };
       }),
     );
@@ -168,7 +182,10 @@ export class CollectionService {
     }
 
     const onChainMetadata = await this.metaplexService.getNFTMetadata(mintAddress).catch(() => null);
+    // NFTs are now auto-minted on win, so there are no pending NFTs
+    const isPending = false;
     const activeListing = nft.marketplaceListings?.find((l) => l.isActive);
+    const sessionPda = undefined;
 
     return {
       mintAddress: nft.mintAddress,
@@ -200,6 +217,8 @@ export class CollectionService {
             isActive: activeListing.isActive,
           }
         : undefined,
+      isPending,
+      sessionPda,
     };
   }
 

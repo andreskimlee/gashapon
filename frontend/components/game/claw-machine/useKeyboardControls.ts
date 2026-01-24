@@ -9,6 +9,11 @@ const DEFAULT_KEYS: KeyboardState = {
   Space: false,
 };
 
+// Global ref for mobile controls to inject key states
+export const mobileControlsRef = {
+  current: { ...DEFAULT_KEYS } as KeyboardState,
+};
+
 export function useKeyboardControls() {
   const keysRef = useRef<KeyboardState>({ ...DEFAULT_KEYS });
 
@@ -51,7 +56,18 @@ export function useKeyboardControls() {
     };
   }, []);
 
-  return keysRef;
+  // Merge keyboard and mobile control states
+  return {
+    get current() {
+      return {
+        ArrowUp: keysRef.current.ArrowUp || mobileControlsRef.current.ArrowUp,
+        ArrowDown: keysRef.current.ArrowDown || mobileControlsRef.current.ArrowDown,
+        ArrowLeft: keysRef.current.ArrowLeft || mobileControlsRef.current.ArrowLeft,
+        ArrowRight: keysRef.current.ArrowRight || mobileControlsRef.current.ArrowRight,
+        Space: keysRef.current.Space || mobileControlsRef.current.Space,
+      };
+    },
+  };
 }
 
 

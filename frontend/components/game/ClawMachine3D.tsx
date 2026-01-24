@@ -7,6 +7,7 @@ import * as THREE from "three";
 
 import { PhysicsScene } from "./claw-machine/components/PhysicsScene";
 import type { GameOutcome } from "./claw-machine/types";
+import MobileGameControls from "./MobileGameControls";
 import {
   IntroScreen,
   LoadingScreen,
@@ -528,9 +529,9 @@ export default function ClawMachine3D({
         <LoseScreen gameName={gameName} onPlayAgain={onPlayAgain} />
       )}
 
-      {/* Control hints - only show when claw machine is visible and not showing result */}
+      {/* Control hints - only show when claw machine is visible and not showing result (desktop only) */}
       {shouldShowClawMachine && !showResult && (
-        <div className="absolute bottom-3 left-3 z-20 text-xs text-gray-600 pointer-events-none select-none bg-white/80 backdrop-blur-sm px-3 py-2 rounded-full border border-pink-200 font-medium">
+        <div className="absolute bottom-3 left-3 z-20 text-xs text-gray-600 pointer-events-none select-none bg-white/80 backdrop-blur-sm px-3 py-2 rounded-full border border-pink-200 font-medium hidden md:block">
           <div className="flex gap-4">
             <span>↑↓←→ Move</span>
             <span>Space Grab</span>
@@ -540,9 +541,14 @@ export default function ClawMachine3D({
       )}
 
       {shouldShowClawMachine && !showResult && (
-        <div className="absolute bottom-3 right-3 z-20 text-xs text-pink-400 pointer-events-none select-none bg-white/70 px-2 py-1 rounded-full">
+        <div className="absolute bottom-3 right-3 z-20 text-xs text-pink-400 pointer-events-none select-none bg-white/70 px-2 py-1 rounded-full hidden md:block">
           ✨ Interactive 3D
         </div>
+      )}
+
+      {/* Mobile game controls - only show when claw machine is visible and not showing result */}
+      {shouldShowClawMachine && !showResult && (
+        <MobileGameControls />
       )}
     </div>
   );

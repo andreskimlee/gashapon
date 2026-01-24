@@ -134,9 +134,11 @@ export function IntroScreen({
         {/* Cost display - styled like wallet balance */}
         {costDisplay && (
           <div className="mb-6 inline-flex items-center gap-2 bg-pastel-yellow rounded-full px-4 py-2 border-2 border-yellow-400/50">
-            <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-yellow-500">
-              <span className="text-yellow-700 text-xs font-bold">$</span>
-            </div>
+            <img 
+              src="/gashapon_token.png" 
+              alt="Token" 
+              className="w-8 h-8 rounded-full"
+            />
             <span className="text-sm font-bold text-pastel-text">
               {costDisplay}
             </span>

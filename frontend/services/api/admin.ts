@@ -2,9 +2,8 @@
  * Admin API Service
  *
  * API endpoints for game administration
+ * All requests go through server-side API routes to keep ADMIN_API_KEY secret
  */
-
-import { apiClient } from "./client";
 
 export interface CreatePrizeRequest {
   name: string;
@@ -15,6 +14,10 @@ export interface CreatePrizeRequest {
   probabilityBasisPoints: number;
   supplyTotal: number;
   metadataUri?: string;
+  weightGrams?: number;
+  lengthInches?: number;
+  widthInches?: number;
+  heightInches?: number;
 }
 
 export interface CreateGameRequest {
@@ -51,6 +54,10 @@ export interface CreateGameResponse {
     supplyTotal: number;
     supplyRemaining: number;
     metadataUri: string | null;
+    weightGrams: number | null;
+    lengthInches: number | null;
+    widthInches: number | null;
+    heightInches: number | null;
   }[];
 }
 
@@ -59,19 +66,31 @@ export interface UpdateOnChainRequest {
   gameId: number;
 }
 
-const ADMIN_API_KEY =
-  process.env.NEXT_PUBLIC_ADMIN_API_KEY || "admin-secret-key-change-me";
-
+/**
+ * Admin API - routes through Next.js server-side API routes
+ * This keeps ADMIN_API_KEY secret (not exposed to browser)
+ */
 export const adminApi = {
   /**
    * Create a new game with prizes
    */
   createGame: async (data: CreateGameRequest): Promise<CreateGameResponse> => {
-    return apiClient.post<CreateGameResponse>("/admin/games", data, {
+    const response = await fetch("/api/admin/games", {
+      method: "POST",
       headers: {
-        "x-admin-key": ADMIN_API_KEY,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(data),
     });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        message: `HTTP error! status: ${response.status}`,
+      }));
+      throw new Error(error.message || error.error || "Failed to create game");
+    }
+
+    return response.json();
   },
 
   /**
@@ -81,44 +100,63 @@ export const adminApi = {
     gameId: number,
     data: UpdateOnChainRequest
   ): Promise<CreateGameResponse> => {
-    return apiClient.patch<CreateGameResponse>(
-      `/admin/games/${gameId}/on-chain`,
-      data,
-      {
-        headers: {
-          "x-admin-key": ADMIN_API_KEY,
-        },
-      }
-    );
+    const response = await fetch(`/api/admin/games/${gameId}/on-chain`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        message: `HTTP error! status: ${response.status}`,
+      }));
+      throw new Error(error.message || error.error || "Failed to update game");
+    }
+
+    return response.json();
   },
 
   /**
    * Activate a game
    */
   activateGame: async (gameId: number): Promise<CreateGameResponse> => {
-    return apiClient.patch<CreateGameResponse>(
-      `/admin/games/${gameId}/activate`,
-      {},
-      {
-        headers: {
-          "x-admin-key": ADMIN_API_KEY,
-        },
-      }
-    );
+    const response = await fetch(`/api/admin/games/${gameId}/activate`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        message: `HTTP error! status: ${response.status}`,
+      }));
+      throw new Error(error.message || error.error || "Failed to activate game");
+    }
+
+    return response.json();
   },
 
   /**
    * Deactivate a game
    */
   deactivateGame: async (gameId: number): Promise<CreateGameResponse> => {
-    return apiClient.patch<CreateGameResponse>(
-      `/admin/games/${gameId}/deactivate`,
-      {},
-      {
-        headers: {
-          "x-admin-key": ADMIN_API_KEY,
-        },
-      }
-    );
+    const response = await fetch(`/api/admin/games/${gameId}/deactivate`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        message: `HTTP error! status: ${response.status}`,
+      }));
+      throw new Error(error.message || error.error || "Failed to deactivate game");
+    }
+
+    return response.json();
   },
 };

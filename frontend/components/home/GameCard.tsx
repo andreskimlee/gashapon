@@ -12,6 +12,7 @@
 "use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Gamepad2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import Card from "@/components/ui/Card";
@@ -113,10 +114,10 @@ export default function GameCard({
   const prizePreviewImage = game.prizeImage || game.image;
 
   return (
-    <Link href={`/games/${game.id}`} className="block">
+    <Link href={`/games/${game.id}`} className="block h-full">
       <motion.div
         ref={cardRef}
-        className={cn("cursor-pointer perspective-1000", className)}
+        className={cn("cursor-pointer perspective-1000 h-full", className)}
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={handleMouseLeave}
@@ -133,6 +134,7 @@ export default function GameCard({
           variant="arcade"
           shadowColor="mint"
           padding="none"
+          className="h-full"
         >
           {/* Subtle shine on hover */}
           {isHovered && (
@@ -155,18 +157,26 @@ export default function GameCard({
             </motion.div>
           )}
 
-          <div className="flex relative">
-            {/* Left image panel */}
-            <div className="w-[320px] shrink-0 bg-[#CFEFEA] m-4 rounded-2xl overflow-hidden">
-              <div className="h-full min-h-[360px] flex items-center justify-center">
+          <div className="flex relative h-full">
+            {/* Left image panel - responsive width, stretches to fill height */}
+            <div className="w-[40%] xl:w-[320px] shrink-0 bg-[#CFEFEA] m-3 xl:m-4 rounded-2xl overflow-hidden flex relative">
+              <div className="w-full h-full min-h-[180px] xl:min-h-[360px] flex items-center justify-center">
                 {renderImage(game.image, "large")}
               </div>
+              {/* Plays badge - top left of image */}
+              {typeof game.totalPlays === "number" && (
+                <div className="absolute top-2 left-2 xl:top-3 xl:left-3 inline-flex items-center gap-1 xl:gap-1.5 px-2 xl:px-3 py-1 xl:py-1.5 rounded-full border-2 bg-white/90 backdrop-blur-sm border-[#111827] text-[#111827] text-[10px] xl:text-xs font-bold shadow-sm">
+                  <Gamepad2 className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
+                  <span>{game.totalPlays.toLocaleString()}</span>
+                  <span className="opacity-70">PLAYS</span>
+                </div>
+              )}
             </div>
 
-            {/* Right content */}
-            <div className="flex-1 p-5 flex flex-col overflow-hidden">
+            {/* Right content - responsive padding and sizing */}
+            <div className="flex-1 p-3 xl:p-5 flex flex-col overflow-hidden">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="font-display text-2xl leading-tight text-[#111827]">
+                <h3 className="font-display text-lg xl:text-2xl leading-tight text-[#111827]">
                   {game.name.toUpperCase()}
                 </h3>
                 {game.isActive === false && (
@@ -176,41 +186,42 @@ export default function GameCard({
                 )}
               </div>
 
-              <div className="mt-4">
-                <div className="text-sm font-bold text-[#111827] uppercase tracking-wide text-center">
+              <div className="mt-3 xl:mt-4 flex-1 flex flex-col min-h-0">
+                <div className="text-xs xl:text-sm font-bold text-[#111827] uppercase tracking-wide text-center">
                   PRIZE PREVIEW
                 </div>
-                <div className="mt-2 w-full h-32 rounded-xl border-2 border-[#111827] bg-[#E9EEF2] flex items-center justify-center overflow-hidden">
+                <div className="mt-2 w-full flex-1 min-h-[80px] rounded-xl border-2 border-[#111827] bg-[#E9EEF2] flex items-center justify-center overflow-hidden">
                   {renderImage(prizePreviewImage, "preview")}
                 </div>
               </div>
 
-              <div className="mt-5 text-base text-[#111827] leading-tight">
-                <div className="font-bold">
-                  ROOM: <span className="font-extrabold">{game.room}</span>
-                </div>
-                <div className="mt-2 font-bold flex items-center gap-2 flex-wrap">
+              <div className="mt-3 xl:mt-5 text-sm xl:text-base text-[#111827] leading-tight">
+                <div className="font-bold flex items-center gap-2 flex-wrap">
                   <span>COST:</span>
-                  <span className="px-3 py-1 rounded-md bg-[#FFE39A] border border-[#111827]/20 font-extrabold">
-                    {priceLoading
-                      ? "..."
-                      : tokenAmountFormatted
-                        ? `${tokenAmountFormatted} TOKENS`
-                        : `${formatCompact(game.cost)} TOKENS`}
+                  <span className="inline-flex items-center gap-1.5 px-2 xl:px-3 py-1 xl:py-1.5 rounded-lg bg-[#FFE39A] border-2 border-[#111827]/20 font-extrabold text-base xl:text-lg">
+                    {game.costUsdCents 
+                      ? `$${(game.costUsdCents / 100).toFixed(2)}`
+                      : priceLoading
+                        ? "..."
+                        : formatCompact(game.cost)}
+                    {!game.costUsdCents && !priceLoading && (
+                      <img src="/gashapon_token.png" alt="" className="w-6 h-6 xl:w-7 xl:h-7 rounded-full" />
+                    )}
                   </span>
                 </div>
-                {typeof game.totalPlays === "number" && (
-                  <div className="mt-2 text-sm text-pastel-textLight">
-                    {game.totalPlays.toLocaleString()} plays
+                {tokenAmountFormatted && (
+                  <div className="mt-2 xl:mt-3 inline-flex items-center gap-2 px-3 py-1.5 xl:py-2 rounded-lg bg-pastel-yellow/60 border-2 border-yellow-400/30">
+                    <span className="text-sm xl:text-base font-bold text-[#111827]">≈ {tokenAmountFormatted}</span>
+                    <img src="/gashapon_token.png" alt="" className="w-6 h-6 xl:w-7 xl:h-7 rounded-full" />
                   </div>
                 )}
               </div>
 
-              <div className="mt-auto pt-5">
+              <div className="mt-auto pt-3 xl:pt-5">
                 <CTAButton
-                  size="md"
+                  size="sm"
                   variant="pink"
-                  className="w-full"
+                  className="w-full xl:text-base"
                   disabled={game.isActive === false}
                 >
                   {game.isActive === false ? "UNAVAILABLE" : "ENTER ROOM"}

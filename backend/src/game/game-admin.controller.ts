@@ -1,46 +1,41 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
+  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBody,
   ApiHeader,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { AdminGuard } from "../auth/admin.guard";
+import { CloudinaryService } from "../common/cloudinary.service";
 import {
   CreateGameDto,
   GameAdminService,
   UpdateGameOnChainDto,
 } from "./game-admin.service";
 
-/**
- * Simple header-based admin guard
- * In production, use proper JWT/session auth
- */
-class AdminGuard {
-  canActivate(context: any): boolean {
-    const request = context.switchToHttp().getRequest();
-    const adminKey = request.headers["x-admin-key"];
-    // Check against environment variable or hardcoded key
-    return (
-      adminKey === process.env.ADMIN_API_KEY ||
-      adminKey === "admin-secret-key-change-me"
-    );
-  }
-}
-
 @ApiTags("admin/games")
 @Controller("admin/games")
+@UseGuards(AdminGuard)
 export class GameAdminController {
-  constructor(private readonly gameAdminService: GameAdminService) {}
+  constructor(
+    private readonly gameAdminService: GameAdminService,
+    private readonly cloudinaryService: CloudinaryService
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -131,5 +126,49 @@ export class GameAdminController {
   @ApiResponse({ status: 200, description: "Game deactivated" })
   async deactivateGame(@Param("id", ParseIntPipe) id: number) {
     return this.gameAdminService.deactivateGame(id);
+  }
+
+  @Get("upload-signature")
+  @ApiOperation({
+    summary: "Get Cloudinary upload signature for direct browser uploads",
+  })
+  @ApiHeader({
+    name: "x-admin-key",
+    description: "Admin API key",
+    required: true,
+  })
+  @ApiQuery({
+    name: "type",
+    enum: ["game", "prize"],
+    description: "Type of image being uploaded",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Upload signature generated",
+    schema: {
+      type: "object",
+      properties: {
+        signature: { type: "string" },
+        timestamp: { type: "number" },
+        cloudName: { type: "string" },
+        apiKey: { type: "string" },
+        folder: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: "Invalid type or Cloudinary not configured" })
+  async getUploadSignature(@Query("type") type: "game" | "prize") {
+    if (!this.cloudinaryService.isReady()) {
+      throw new BadRequestException(
+        "Image uploads are not configured. Contact administrator."
+      );
+    }
+
+    if (!type || !["game", "prize"].includes(type)) {
+      throw new BadRequestException('Query param "type" must be "game" or "prize"');
+    }
+
+    const folder = type === "game" ? "gashapon/games" : "gashapon/prizes";
+    return this.cloudinaryService.generateUploadSignature(folder);
   }
 }

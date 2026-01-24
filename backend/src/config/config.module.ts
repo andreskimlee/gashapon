@@ -38,12 +38,29 @@ import * as Joi from "joi";
           .default("devnet"),
         PLATFORM_WALLET_PRIVATE_KEY: Joi.string().optional(),
 
-        // ShipStation (Optional in dev)
+        // Admin API Key (Required in production)
+        ADMIN_API_KEY: Joi.string().when('NODE_ENV', {
+          is: 'production',
+          then: Joi.required().messages({
+            'any.required': 'ADMIN_API_KEY is required in production',
+          }),
+          otherwise: Joi.optional(),
+        }),
+
+        // ShipStation/ShipEngine (Optional in dev)
         SHIPSTATION_API_KEY: Joi.string().optional(),
         SHIPSTATION_API_SECRET: Joi.string().optional(),
+        SHIPENGINE_API_KEY: Joi.string().optional(),
+        SHIPENGINE_CARRIER_ID: Joi.string().optional(),
+        SHIPENGINE_SERVICE_CODE: Joi.string().optional(),
 
         // Encryption - shared AES key for shipping data (base64-encoded 32 bytes)
         ENCRYPTION_KEY: Joi.string().optional(),
+
+        // Cloudinary (Optional in dev)
+        CLOUDINARY_CLOUD_NAME: Joi.string().optional(),
+        CLOUDINARY_API_KEY: Joi.string().optional(),
+        CLOUDINARY_API_SECRET: Joi.string().optional(),
 
         // Redis (Optional)
         REDIS_URL: Joi.string().uri().optional(),

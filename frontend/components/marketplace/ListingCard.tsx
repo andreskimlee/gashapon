@@ -72,10 +72,12 @@ export default function ListingCard({
         </div>
         
         <div className="mb-3">
-          <div className="text-2xl font-bold text-candy-teal">
-            {formatTokenAmount(priceInTokens)}
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-candy-teal">
+              {formatTokenAmount(priceInTokens)}
+            </span>
+            <img src="/gashapon_token.png" alt="" className="w-7 h-7 rounded-full" />
           </div>
-          <div className="text-xs text-candy-dark/60">tokens</div>
         </div>
         
         <div className="text-xs text-candy-dark/60 mb-3">

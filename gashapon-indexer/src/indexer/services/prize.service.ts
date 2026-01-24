@@ -100,8 +100,11 @@ export class PrizeService {
           "tier" = COALESCE($9, "tier"),
           "costInUsd" = COALESCE($10, "costInUsd"),
           "weightGrams" = COALESCE($11, "weightGrams"),
+          "lengthInches" = COALESCE($12, "lengthInches"),
+          "widthInches" = COALESCE($13, "widthInches"),
+          "heightInches" = COALESCE($14, "heightInches"),
           "updatedAt" = NOW()
-        WHERE id = $12`,
+        WHERE id = $15`,
         [
           onChainPrize?.supplyTotal ?? eventData.supply_total,
           onChainPrize?.probabilityBp ?? eventData.probability_bp,
@@ -114,6 +117,9 @@ export class PrizeService {
           onChainPrize ? TIER_MAP[onChainPrize.tier] || 'common' : null,
           onChainPrize ? Number(onChainPrize.costUsd) / 100 : null,
           onChainPrize?.weightGrams ?? null,
+          onChainPrize?.lengthHundredths ? onChainPrize.lengthHundredths / 100 : null,
+          onChainPrize?.widthHundredths ? onChainPrize.widthHundredths / 100 : null,
+          onChainPrize?.heightHundredths ? onChainPrize.heightHundredths / 100 : null,
           existingPrize.id,
         ],
       );
@@ -136,8 +142,10 @@ export class PrizeService {
       `INSERT INTO prizes (
         "gameId", "prizeId", "prizeIndex", "name", "description", 
         "imageUrl", "metadataUri", "physicalSku", "tier", 
-        "probabilityBasisPoints", "costInUsd", "weightGrams", "supplyTotal", "supplyRemaining"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        "probabilityBasisPoints", "costInUsd", "weightGrams", 
+        "lengthInches", "widthInches", "heightInches",
+        "supplyTotal", "supplyRemaining"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
       [
         game.id,
         eventData.prize_id.toString(),
@@ -151,6 +159,9 @@ export class PrizeService {
         onChainPrize?.probabilityBp ?? eventData.probability_bp,
         onChainPrize ? Number(onChainPrize.costUsd) / 100 : 0,
         onChainPrize?.weightGrams ?? null,
+        onChainPrize?.lengthHundredths ? onChainPrize.lengthHundredths / 100 : null,
+        onChainPrize?.widthHundredths ? onChainPrize.widthHundredths / 100 : null,
+        onChainPrize?.heightHundredths ? onChainPrize.heightHundredths / 100 : null,
         onChainPrize?.supplyTotal ?? eventData.supply_total,
         onChainPrize?.supplyRemaining ?? eventData.supply_total,
       ],

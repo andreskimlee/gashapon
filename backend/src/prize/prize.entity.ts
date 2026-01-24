@@ -55,6 +55,16 @@ export class PrizeEntity {
   @Column({ type: 'int', nullable: true })
   weightGrams: number | null;
 
+  // Package dimensions for shipping (in inches)
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  lengthInches: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  widthInches: number | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  heightInches: number | null;
+
   @Column({ type: 'int' })
   supplyTotal: number;
 

@@ -3,6 +3,7 @@
  *
  * Displays user's token balance (SPL token used for games)
  * Shows "LOG IN" when wallet is not connected
+ * Shows custom wallet modal when connected (with balance + disconnect)
  */
 
 "use client";
@@ -13,6 +14,7 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import { formatCompact } from "@/utils/format";
+import WalletModal from "./WalletModal";
 
 // Game token mint address (pump.fun token)
 const GAME_TOKEN_MINT = new PublicKey(
@@ -24,11 +26,12 @@ const TOKEN_DECIMALS = 6;
 
 export default function WalletBalance() {
   const { connection } = useConnection();
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
 
   const [balance, setBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Fetch token balance
   const fetchBalance = useCallback(async () => {
@@ -73,7 +76,52 @@ export default function WalletBalance() {
     fetchBalance();
   }, [fetchBalance]);
 
-  // Refresh balance periodically (every 30 seconds)
+  // Subscribe to token account changes for real-time balance updates
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+
+    let subscriptionId: number | null = null;
+
+    const subscribeToBalance = async () => {
+      try {
+        const tokenAccount = await getAssociatedTokenAddress(
+          GAME_TOKEN_MINT,
+          publicKey
+        );
+
+        // Subscribe to account changes
+        subscriptionId = connection.onAccountChange(
+          tokenAccount,
+          (accountInfo) => {
+            if (accountInfo.data.length > 0) {
+              // Parse token account data - amount is at offset 64, 8 bytes (u64)
+              const data = accountInfo.data;
+              const rawBalance = Number(data.readBigUInt64LE(64));
+              const displayBalance = rawBalance / Math.pow(10, TOKEN_DECIMALS);
+              setBalance(displayBalance);
+            }
+          },
+          "confirmed"
+        );
+        
+        console.log("[WalletBalance] Subscribed to token account changes");
+      } catch (err) {
+        console.error("[WalletBalance] Error subscribing to account:", err);
+      }
+    };
+
+    subscribeToBalance();
+
+    // Cleanup subscription on unmount or wallet change
+    return () => {
+      if (subscriptionId !== null) {
+        connection.removeAccountChangeListener(subscriptionId);
+        console.log("[WalletBalance] Unsubscribed from token account changes");
+      }
+    };
+  }, [connected, publicKey, connection]);
+
+  // Refresh balance periodically as fallback (every 30 seconds)
   useEffect(() => {
     if (!connected) return;
 
@@ -86,40 +134,50 @@ export default function WalletBalance() {
     return (
       <button
         onClick={() => setVisible(true)}
-        className="flex items-center gap-2 bg-pastel-yellow rounded-full px-5 py-2 border-2 border-yellow-400/50 hover:bg-yellow-200 hover:border-yellow-500 transition-all cursor-pointer group"
+        className="flex items-center gap-1.5 md:gap-2 bg-pastel-yellow rounded-full px-3 md:px-5 py-1.5 md:py-2 border-2 border-yellow-400/50 hover:bg-yellow-200 hover:border-yellow-500 transition-all cursor-pointer group"
       >
-        <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-yellow-500 group-hover:scale-110 transition-transform">
-          <span className="text-yellow-700 text-xs font-bold">$</span>
-        </div>
-        <span className="text-sm font-bold text-pastel-text">LOG IN</span>
+        <img 
+          src="/gashapon_token.png" 
+          alt="Token" 
+          className="w-6 h-6 md:w-7 md:h-7 rounded-full group-hover:scale-110 transition-transform"
+        />
+        <span className="text-xs md:text-sm font-bold text-pastel-text">LOG IN</span>
       </button>
     );
   }
 
-  // Connected - show balance
+  // Connected - show balance + custom modal on click
   return (
-    <div
-      className="flex items-center gap-2 bg-pastel-yellow rounded-full px-4 py-2 border-2 border-yellow-400/50 cursor-pointer hover:bg-yellow-200 transition-colors"
-      onClick={() => setVisible(true)}
-      title={`Wallet: ${publicKey?.toString().slice(0, 8)}...${publicKey?.toString().slice(-4)}`}
-    >
-      <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-yellow-500">
-        <span className="text-yellow-700 text-xs font-bold">$</span>
-      </div>
-      {isLoading ? (
-        <span className="text-sm font-bold text-pastel-text animate-pulse">
-          ...
-        </span>
-      ) : (
-        <>
-          <span className="text-sm font-bold text-pastel-text">
+    <>
+      <div
+        className="flex items-center gap-1.5 md:gap-2 bg-pastel-yellow rounded-full px-2.5 md:px-4 py-1.5 md:py-2 border-2 border-yellow-400/50 cursor-pointer hover:bg-yellow-200 transition-colors"
+        onClick={() => setShowWalletModal(true)}
+        title={`Wallet: ${publicKey?.toString().slice(0, 8)}...${publicKey?.toString().slice(-4)}`}
+      >
+        <img 
+          src="/gashapon_token.png" 
+          alt="Token" 
+          className="w-6 h-6 md:w-7 md:h-7 rounded-full"
+        />
+        {isLoading ? (
+          <span className="text-xs md:text-sm font-bold text-pastel-text animate-pulse">
+            ...
+          </span>
+        ) : (
+          <span className="text-xs md:text-sm font-bold text-pastel-text">
             {balance !== null ? formatCompact(balance) : "—"}
           </span>
-          <span className="text-xs font-semibold text-pastel-text/70">
-            TOKENS
-          </span>
-        </>
-      )}
-    </div>
+        )}
+      </div>
+
+      {/* Custom Wallet Modal */}
+      <WalletModal
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        walletAddress={publicKey?.toString() || ""}
+        balance={balance}
+        onDisconnect={disconnect}
+      />
+    </>
   );
 }

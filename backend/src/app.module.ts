@@ -2,12 +2,15 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BlockchainModule } from "./blockchain/blockchain.module";
+import { CommonModule } from "./common/common.module";
 import { ConfigModule } from "./config/config.module";
+import { HealthModule } from "./health/health.module";
 import { NftModule } from "./nft/nft.module";
 import { RedemptionModule } from "./redemption/redemption.module";
 import { UserModule } from "./user/user.module";
 import { GameModule } from "./game/game.module";
 import { PlayModule } from "./play/play.module";
+import { PrizeModule } from "./prize/prize.module";
 
 @Module({
   imports: [
@@ -60,11 +63,14 @@ import { PlayModule } from "./play/play.module";
       inject: [ConfigService],
     }),
     BlockchainModule,
+    CommonModule,
+    HealthModule,
     UserModule,
     RedemptionModule,
     NftModule,
     GameModule,
     PlayModule,
+    PrizeModule,
   ],
 })
 export class AppModule {}

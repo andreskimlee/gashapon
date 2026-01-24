@@ -1,9 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlayEntity, PlayStatus } from './play.entity';
 import { GameEntity } from '../game/game.entity';
 import { PrizeEntity } from '../prize/prize.entity';
+import { SolanaService } from '../blockchain/solana.service';
 
 function generateFakeSignature(): string {
   // Not a real signature - just a unique-looking dev token for simulate flow
@@ -16,6 +17,8 @@ const crypto = globalThis.crypto ?? require('crypto').webcrypto;
 
 @Injectable()
 export class PlayService {
+  private readonly logger = new Logger(PlayService.name);
+
   constructor(
     @InjectRepository(PlayEntity)
     private readonly playRepository: Repository<PlayEntity>,
@@ -23,6 +26,7 @@ export class PlayService {
     private readonly gameRepository: Repository<GameEntity>,
     @InjectRepository(PrizeEntity)
     private readonly prizeRepository: Repository<PrizeEntity>,
+    private readonly solanaService: SolanaService,
   ) {}
 
   async getPlayBySignature(signature: string) {
@@ -127,6 +131,135 @@ export class PlayService {
           }
         : undefined,
       tokenAmountPaid: tokenAmount,
+    };
+  }
+
+  /**
+   * Finalize a play session with backend-generated randomness
+   * This is the secure endpoint that determines play outcomes
+   * 
+   * Flow:
+   * 1. User calls play_game on-chain (creates session, pays tokens)
+   * 2. User calls this endpoint with session PDA
+   * 3. Backend generates random value, determines winner, calls finalize_play on-chain
+   * 4. Returns result to user
+   */
+  async finalizePlay(params: {
+    sessionPda: string;
+    gamePda: string;
+    gameDbId: number;
+    userWallet: string;
+  }) {
+    this.logger.log(`Finalizing play session ${params.sessionPda} for game ${params.gamePda}`);
+
+    // Fetch game probabilities from on-chain
+    const { prizeCount, probabilities } = await this.solanaService.fetchGameProbabilities(params.gamePda);
+
+    // Generate random value and determine winner
+    const randomValue = require('crypto').randomBytes(32);
+    const winningPrizeIndex = this.solanaService.selectPrizeIndex(probabilities, prizeCount, randomValue);
+
+    this.logger.log(`Random draw result: prizeIndex=${winningPrizeIndex}, isWin=${winningPrizeIndex !== null}`);
+
+    // Call finalize_play on-chain with backend signature
+    // IMPORTANT: Pass the SAME randomValue to ensure on-chain agrees with our selection
+    // The contract will auto-mint NFT on win, backend pays for account creation
+    const result = await this.solanaService.finalizePlay({
+      sessionPda: params.sessionPda,
+      gamePda: params.gamePda,
+      winningPrizeIndex,
+      randomValue,  // Pass the random value we used for selection
+      userWallet: params.userWallet,  // Needed for NFT minting on win
+    });
+
+    // Find the prize in database if won
+    let prize: PrizeEntity | null = null;
+    if (winningPrizeIndex !== null) {
+      prize = await this.prizeRepository.findOne({
+        where: { gameId: params.gameDbId, prizeIndex: winningPrizeIndex },
+      });
+    }
+
+    // Create play record in database
+    const play = this.playRepository.create({
+      gameId: params.gameDbId,
+      userWallet: params.userWallet,
+      prizeId: prize?.id || null,
+      nftMint: result.nftMint,  // Store the auto-minted NFT address
+      transactionSignature: result.signature,
+      randomValue: randomValue,
+      status: PlayStatus.COMPLETED,
+      prize: prize,
+    });
+    await this.playRepository.save(play);
+
+    return {
+      success: true,
+      signature: result.signature,
+      status: winningPrizeIndex !== null ? 'win' : 'lose',
+      prizeIndex: winningPrizeIndex,
+      nftMint: result.nftMint,  // Return NFT mint address
+      prize: prize
+        ? {
+            id: prize.id,
+            prizeId: prize.prizeId,
+            name: prize.name,
+            tier: prize.tier,
+          }
+        : undefined,
+    };
+  }
+
+  /**
+   * Get play session status by checking on-chain data
+   */
+  async getSessionStatus(sessionPda: string) {
+    const connection = this.solanaService.getConnection();
+    const { PublicKey } = require('@solana/web3.js');
+    
+    const sessionPubkey = new PublicKey(sessionPda);
+    const accountInfo = await connection.getAccountInfo(sessionPubkey);
+    
+    if (!accountInfo) {
+      return { exists: false };
+    }
+
+    const data = accountInfo.data;
+    
+    // Parse PlaySession account
+    // Skip discriminator (8)
+    let offset = 8;
+    
+    // user (32)
+    offset += 32;
+    // game (32)
+    offset += 32;
+    // amount_paid (8)
+    offset += 8;
+    // created_slot (8)
+    offset += 8;
+    
+    // is_fulfilled (1)
+    const isFulfilled = data[offset] === 1;
+    offset += 1;
+    
+    // random_value (32)
+    offset += 32;
+    
+    // prize_index Option<u8>
+    const hasPrize = data[offset] === 1;
+    const prizeIndex = hasPrize ? data[offset + 1] : null;
+    offset += 2;
+    
+    // is_claimed (1)
+    const isClaimed = data[offset] === 1;
+    
+    return {
+      exists: true,
+      isFulfilled,
+      prizeIndex,
+      isClaimed,
+      isWin: hasPrize,
     };
   }
 }

@@ -17,6 +17,10 @@ export interface NFT {
   imageUrl?: string;
   tier?: 'common' | 'uncommon' | 'rare' | 'legendary';
   metadataUri?: string;
+  // Pending status - true if prize won but NFT not yet minted on-chain
+  isPending?: boolean;
+  // Session PDA for claiming (only present when isPending is true)
+  sessionPda?: string;
 }
 
 export interface RedemptionRequest {

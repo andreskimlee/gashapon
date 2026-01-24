@@ -1,8 +1,6 @@
 import {
   GAME_PROGRAM_ID,
-  SOLANA_RPC_URL,
-  TOKEN_MINT,
-  TREASURY_WALLET,
+  SOLANA_RPC_URL
 } from "@/utils/constants";
 import {
   MINT_SIZE,
@@ -10,6 +8,7 @@ import {
   createAssociatedTokenAccountInstruction,
   createInitializeMint2Instruction,
   getMinimumBalanceForRentExemptMint,
+  getMint,
 } from "@solana/spl-token";
 import {
   Connection,
@@ -20,13 +19,17 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 
-// Anchor discriminator for play_game from IDL
+// Anchor discriminators from IDL
 const PLAY_GAME_DISCRIMINATOR = Uint8Array.from([
   37, 88, 207, 85, 42, 144, 122, 197,
 ]);
-const FINALIZE_PLAY_DISCRIMINATOR = Uint8Array.from([
-  217, 0, 74, 63, 118, 193, 160, 9,
+const CLAIM_PRIZE_DISCRIMINATOR = Uint8Array.from([
+  157, 233, 139, 121, 246, 62, 234, 235,
 ]);
+const CLOSE_PLAY_SESSION_DISCRIMINATOR = Uint8Array.from([
+  104, 80, 12, 193, 178, 215, 87, 53,
+]);
+
 const METADATA_PROGRAM_ID = new PublicKey(
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 );
@@ -60,6 +63,15 @@ export function findAssociatedTokenAddress(
   )[0];
 }
 
+// Derive config PDA
+export function findConfigPda(): PublicKey {
+  const programId = new PublicKey(GAME_PROGRAM_ID!);
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    programId
+  )[0];
+}
+
 // Derive prize PDA
 export function findPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey {
   const programId = new PublicKey(GAME_PROGRAM_ID!);
@@ -67,6 +79,20 @@ export function findPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey 
     [Buffer.from("prize"), gamePda.toBuffer(), Buffer.from([prizeIndex])],
     programId
   )[0];
+}
+
+// Derive play session PDA using session_seed
+export function findPlaySessionPda(gamePda: PublicKey, user: PublicKey, sessionSeed: Uint8Array): PublicKey {
+  const programId = new PublicKey(GAME_PROGRAM_ID!);
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("session"), gamePda.toBuffer(), user.toBuffer(), sessionSeed],
+    programId
+  )[0];
+}
+
+// Generate a unique session seed
+export function generateSessionSeed(): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(32));
 }
 
 // Parse Game account to get prize probabilities and token mint
@@ -78,7 +104,7 @@ interface GameAccountData {
   treasury: PublicKey;
 }
 
-async function fetchGameAccountData(
+export async function fetchGameAccountData(
   connection: Connection,
   gamePda: PublicKey
 ): Promise<GameAccountData> {
@@ -150,39 +176,93 @@ async function fetchGameAccountData(
   };
 }
 
-// Select prize index based on random value and probabilities
-function selectPrizeIndex(
-  probabilities: number[],
-  prizeCount: number,
-  randomValue: Uint8Array
-): number | null {
-  // Convert first 8 bytes to u64 and normalize to 0..9999
-  const view = new DataView(randomValue.buffer, randomValue.byteOffset, 8);
-  const randU64 = view.getBigUint64(0, true);
-  const draw = Number(randU64 % BigInt(10000));
-  
-  let cumulative = 0;
-  for (let idx = 0; idx < prizeCount; idx++) {
-    const prob = probabilities[idx];
-    if (prob === 0) continue;
-    cumulative += prob;
-    if (draw < cumulative) {
-      return idx;
-    }
+// Parse PlaySession account
+export interface PlaySessionData {
+  user: PublicKey;
+  game: PublicKey;
+  amountPaid: bigint;
+  sessionSeed: Uint8Array;
+  isFulfilled: boolean;
+  randomValue: Uint8Array;
+  prizeIndex: number | null;
+  isClaimed: boolean;
+}
+
+export async function fetchPlaySessionData(
+  connection: Connection,
+  sessionPda: PublicKey
+): Promise<PlaySessionData | null> {
+  const accountInfo = await connection.getAccountInfo(sessionPda);
+  if (!accountInfo) {
+    return null;
   }
-  return null; // Loss - draw fell outside prize probability range
+
+  const data = accountInfo.data;
+  
+  // Parse PlaySession account layout:
+  // [0..8]     - discriminator
+  // [8..40]    - user (32)
+  // [40..72]   - game (32)
+  // [72..80]   - amount_paid (8)
+  // [80..88]   - created_slot (8)
+  // [88..89]   - is_fulfilled (1)
+  // [89..121]  - random_value (32)
+  // [121..123] - prize_index Option<u8> (1 + 1)
+  // [123..124] - is_claimed (1)
+  // [124..125] - bump (1)
+  
+  let offset = 8; // Skip discriminator
+  
+  const user = new PublicKey(data.slice(offset, offset + 32));
+  offset += 32;
+  
+  const game = new PublicKey(data.slice(offset, offset + 32));
+  offset += 32;
+  
+  const amountPaid = data.readBigUInt64LE(offset);
+  offset += 8;
+  
+  const sessionSeed = new Uint8Array(data.slice(offset, offset + 32));
+  offset += 32;
+  
+  const isFulfilled = data[offset] === 1;
+  offset += 1;
+  
+  const randomValue = new Uint8Array(data.slice(offset, offset + 32));
+  offset += 32;
+  
+  // Option<u8> - first byte is 0 (None) or 1 (Some), second byte is value
+  const hasPrize = data[offset] === 1;
+  const prizeIndex = hasPrize ? data[offset + 1] : null;
+  offset += 2;
+  
+  const isClaimed = data[offset] === 1;
+  
+  return {
+    user,
+    game,
+    amountPaid,
+    sessionSeed,
+    isFulfilled,
+    randomValue,
+    prizeIndex,
+    isClaimed,
+  };
 }
 
 /**
- * Play game - token transfer only
- * Use this for the simple flow where backend handles finalization
- * Reads token_mint and treasury from the game account itself
+ * Play game - creates a PlaySession and transfers tokens to treasury
+ * Returns the transaction and the session PDA
+ * 
+ * SECURITY: This only creates the session. The backend must call finalize_play
+ * with a random value to determine the outcome. Users cannot determine their own outcome.
  */
 export async function playOnChain(opts: {
   walletPublicKey: PublicKey;
   gamePda: string;
-  tokenAmount: number | bigint;
-}): Promise<Transaction> {
+  tokenAmount?: number | bigint;
+  costUsdCents?: number;
+}): Promise<{ tx: Transaction; sessionPda: PublicKey; sessionSeed: Uint8Array; tokenAmountPaid: bigint }> {
   if (!GAME_PROGRAM_ID) throw new Error("GAME_PROGRAM_ID not configured");
 
   const connection = new Connection(SOLANA_RPC_URL, "confirmed");
@@ -192,24 +272,68 @@ export async function playOnChain(opts: {
   
   // Fetch game account to get token_mint and treasury
   const gameData = await fetchGameAccountData(connection, gamePubkey);
+  if (!gameData.isActive) {
+    throw new Error("Game is not active");
+  }
+  
   const mint = gameData.tokenMint;
   const treasury = gameData.treasury;
+
+  // Calculate token amount
+  let finalTokenAmount: bigint;
+  
+  if (opts.costUsdCents !== undefined) {
+    // Fetch actual token decimals from chain
+    let tokenDecimals = 6;
+    try {
+      const mintInfo = await getMint(connection, mint);
+      tokenDecimals = mintInfo.decimals;
+    } catch (e) {
+      console.warn(`Could not fetch token decimals, using default ${tokenDecimals}:`, e);
+    }
+    
+    // Dynamic calculation using pump.fun price API
+    const { calculateTokenAmount } = await import("@/services/price/pump-fun");
+    const priceResult = await calculateTokenAmount(
+      opts.costUsdCents,
+      mint.toString(),
+      tokenDecimals,
+      0.02
+    );
+    
+    if (!priceResult) {
+      throw new Error(`Could not fetch token price for ${mint.toString()}. Please try again.`);
+    }
+    
+    finalTokenAmount = priceResult.tokenAmount;
+  } else if (opts.tokenAmount !== undefined) {
+    finalTokenAmount = BigInt(opts.tokenAmount);
+  } else {
+    throw new Error("Either tokenAmount or costUsdCents must be provided");
+  }
 
   const userTokenAccount = findAssociatedTokenAddress(user, mint);
   const treasuryTokenAccount = findAssociatedTokenAddress(treasury, mint);
 
-  // Instruction data = discriminator + u64 token_amount
-  const amountLE = toLEU64(opts.tokenAmount);
-  const data = new Uint8Array(PLAY_GAME_DISCRIMINATOR.length + amountLE.length);
+  // Generate unique session seed for PDA derivation
+  const sessionSeed = generateSessionSeed();
+  const sessionPda = findPlaySessionPda(gamePubkey, user, sessionSeed);
+
+  // Instruction data = discriminator + u64 token_amount + [u8; 32] session_seed
+  const amountLE = toLEU64(finalTokenAmount);
+  const data = new Uint8Array(PLAY_GAME_DISCRIMINATOR.length + amountLE.length + 32);
   data.set(PLAY_GAME_DISCRIMINATOR, 0);
   data.set(amountLE, PLAY_GAME_DISCRIMINATOR.length);
+  data.set(sessionSeed, PLAY_GAME_DISCRIMINATOR.length + amountLE.length);
 
   const keys = [
     { pubkey: gamePubkey, isSigner: false, isWritable: true },
     { pubkey: user, isSigner: true, isWritable: true },
     { pubkey: userTokenAccount, isSigner: false, isWritable: true },
     { pubkey: treasuryTokenAccount, isSigner: false, isWritable: true },
+    { pubkey: sessionPda, isSigner: false, isWritable: true },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ];
 
   const ix = new TransactionInstruction({
@@ -219,6 +343,7 @@ export async function playOnChain(opts: {
   });
 
   const tx = new Transaction();
+  
   // Ensure user ATA exists
   const userAtaInfo = await connection.getAccountInfo(userTokenAccount);
   if (!userAtaInfo) {
@@ -231,6 +356,7 @@ export async function playOnChain(opts: {
       )
     );
   }
+  
   // Ensure treasury ATA exists
   const treasuryAtaInfo = await connection.getAccountInfo(treasuryTokenAccount);
   if (!treasuryAtaInfo) {
@@ -243,7 +369,152 @@ export async function playOnChain(opts: {
       )
     );
   }
+  
   // Play instruction
+  tx.add(ix);
+  tx.feePayer = user;
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+
+  return { tx, sessionPda, sessionSeed, tokenAmountPaid: finalTokenAmount };
+}
+
+/**
+ * Claim prize - mints NFT after backend has finalized the play session
+ * Only callable if session.is_fulfilled = true and session.prize_index is Some
+ */
+export async function claimPrize(opts: {
+  walletPublicKey: PublicKey;
+  gamePda: string;
+  sessionPda: string;
+  prizeIndex: number;
+}): Promise<{ tx: Transaction; mint: Keypair }> {
+  if (!GAME_PROGRAM_ID) throw new Error("GAME_PROGRAM_ID not configured");
+  
+  const connection = new Connection(SOLANA_RPC_URL, "confirmed");
+  const programId = new PublicKey(GAME_PROGRAM_ID);
+  const gamePubkey = new PublicKey(opts.gamePda);
+  const sessionPubkey = new PublicKey(opts.sessionPda);
+  const user = opts.walletPublicKey;
+  const prizePda = findPrizePda(gamePubkey, opts.prizeIndex);
+  const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+  );
+
+  // Create new mint for the NFT
+  const nftMint = Keypair.generate();
+  const rentLamports = await getMinimumBalanceForRentExemptMint(connection);
+  
+  const createMintIx = SystemProgram.createAccount({
+    fromPubkey: user,
+    newAccountPubkey: nftMint.publicKey,
+    space: MINT_SIZE,
+    lamports: rentLamports,
+    programId: TOKEN_PROGRAM_ID,
+  });
+  
+  const initMintIx = createInitializeMint2Instruction(
+    nftMint.publicKey,
+    0, // decimals for NFT
+    gamePubkey, // mint authority = game PDA
+    gamePubkey  // freeze authority = game PDA
+  );
+
+  // Derive Metadata and Master Edition PDAs
+  const [metadataPda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      METADATA_PROGRAM_ID.toBuffer(),
+      nftMint.publicKey.toBuffer(),
+    ],
+    METADATA_PROGRAM_ID
+  );
+  const [masterEditionPda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      METADATA_PROGRAM_ID.toBuffer(),
+      nftMint.publicKey.toBuffer(),
+      Buffer.from("edition"),
+    ],
+    METADATA_PROGRAM_ID
+  );
+
+  // User's NFT ATA
+  const userNftAta = findAssociatedTokenAddress(user, nftMint.publicKey);
+  const ataInfo = await connection.getAccountInfo(userNftAta);
+  const ensureAtaIx = !ataInfo
+    ? createAssociatedTokenAccountInstruction(user, userNftAta, user, nftMint.publicKey)
+    : null;
+
+  // Build claim_prize instruction
+  const data = new Uint8Array(CLAIM_PRIZE_DISCRIMINATOR.length);
+  data.set(CLAIM_PRIZE_DISCRIMINATOR, 0);
+
+  const keys = [
+    { pubkey: sessionPubkey, isSigner: false, isWritable: true },
+    { pubkey: gamePubkey, isSigner: false, isWritable: false },
+    { pubkey: prizePda, isSigner: false, isWritable: false },
+    { pubkey: user, isSigner: true, isWritable: true },
+    { pubkey: nftMint.publicKey, isSigner: false, isWritable: true },
+    { pubkey: metadataPda, isSigner: false, isWritable: true },
+    { pubkey: masterEditionPda, isSigner: false, isWritable: true },
+    { pubkey: userNftAta, isSigner: false, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    { pubkey: METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: new PublicKey("SysvarRent111111111111111111111111111111111"), isSigner: false, isWritable: false },
+  ];
+
+  const claimIx = new TransactionInstruction({
+    programId,
+    keys,
+    data: Buffer.from(data),
+  });
+
+  const tx = new Transaction();
+  tx.add(createMintIx, initMintIx);
+  if (ensureAtaIx) tx.add(ensureAtaIx);
+  tx.add(claimIx);
+
+  tx.feePayer = user;
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+  tx.partialSign(nftMint);
+
+  return { tx, mint: nftMint };
+}
+
+/**
+ * Close play session - returns rent to user
+ * Only callable if session.is_fulfilled = true AND (is_claimed = true OR prize_index is None)
+ */
+export async function closePlaySession(opts: {
+  walletPublicKey: PublicKey;
+  sessionPda: string;
+}): Promise<Transaction> {
+  if (!GAME_PROGRAM_ID) throw new Error("GAME_PROGRAM_ID not configured");
+  
+  const connection = new Connection(SOLANA_RPC_URL, "confirmed");
+  const programId = new PublicKey(GAME_PROGRAM_ID);
+  const sessionPubkey = new PublicKey(opts.sessionPda);
+  const user = opts.walletPublicKey;
+
+  const data = new Uint8Array(CLOSE_PLAY_SESSION_DISCRIMINATOR.length);
+  data.set(CLOSE_PLAY_SESSION_DISCRIMINATOR, 0);
+
+  const keys = [
+    { pubkey: sessionPubkey, isSigner: false, isWritable: true },
+    { pubkey: user, isSigner: true, isWritable: true },
+  ];
+
+  const ix = new TransactionInstruction({
+    programId,
+    keys,
+    data: Buffer.from(data),
+  });
+
+  const tx = new Transaction();
   tx.add(ix);
   tx.feePayer = user;
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
@@ -253,340 +524,28 @@ export async function playOnChain(opts: {
 }
 
 /**
- * Build finalize_play transaction with the winning prize account
- * This is called after determining the outcome (e.g., from backend VRF)
+ * Poll for play session fulfillment
+ * Returns the session data when fulfilled, or null if not yet fulfilled
  */
-export async function finalizeOnChain(opts: {
-  walletPublicKey: PublicKey;
-  gamePda: string;
-  randomValue: Uint8Array;
-  winningPrizeIndex: number | null;
-}): Promise<{ tx: Transaction; mint: Keypair }> {
-  if (!GAME_PROGRAM_ID) throw new Error("GAME_PROGRAM_ID not configured");
-  
+export async function pollSessionFulfillment(
+  sessionPda: string,
+  maxAttempts: number = 30,
+  intervalMs: number = 2000
+): Promise<PlaySessionData | null> {
   const connection = new Connection(SOLANA_RPC_URL, "confirmed");
-  const programId = new PublicKey(GAME_PROGRAM_ID);
-  const gamePubkey = new PublicKey(opts.gamePda);
-  const user = opts.walletPublicKey;
-  const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
-    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-  );
-
-  // Create new mint with authority = game PDA, decimals = 0
-  const mint = Keypair.generate();
-  const rentLamports = await getMinimumBalanceForRentExemptMint(connection);
-  const createMintIx = SystemProgram.createAccount({
-    fromPubkey: user,
-    newAccountPubkey: mint.publicKey,
-    space: MINT_SIZE,
-    lamports: rentLamports,
-    programId: TOKEN_PROGRAM_ID,
-  });
-  const initMintIx = createInitializeMint2Instruction(
-    mint.publicKey,
-    0, // decimals
-    gamePubkey, // mint authority = game PDA
-    gamePubkey // freeze authority = game PDA
-  );
-
-  // Derive Metadata and Master Edition PDAs
-  const [metadataPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("metadata"),
-      METADATA_PROGRAM_ID.toBuffer(),
-      mint.publicKey.toBuffer(),
-    ],
-    METADATA_PROGRAM_ID
-  );
-  const [masterEditionPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("metadata"),
-      METADATA_PROGRAM_ID.toBuffer(),
-      mint.publicKey.toBuffer(),
-      Buffer.from("edition"),
-    ],
-    METADATA_PROGRAM_ID
-  );
-
-  // Ensure user's NFT ATA exists
-  const userNftAta = findAssociatedTokenAddress(user, mint.publicKey);
-  const ataInfo = await connection.getAccountInfo(userNftAta);
-  const ensureUserAtaIx = !ataInfo
-    ? createAssociatedTokenAccountInstruction(
-        user,
-        userNftAta,
-        user,
-        mint.publicKey
-      )
-    : null;
-
-  // Build finalize_play instruction
-  const data = new Uint8Array(FINALIZE_PLAY_DISCRIMINATOR.length + 32);
-  data.set(FINALIZE_PLAY_DISCRIMINATOR, 0);
-  data.set(opts.randomValue, FINALIZE_PLAY_DISCRIMINATOR.length);
-
-  const keys = [
-    { pubkey: gamePubkey, isSigner: false, isWritable: true },
-    { pubkey: user, isSigner: true, isWritable: true },
-    { pubkey: mint.publicKey, isSigner: false, isWritable: true },
-    { pubkey: metadataPda, isSigner: false, isWritable: true },
-    { pubkey: masterEditionPda, isSigner: false, isWritable: true },
-    { pubkey: userNftAta, isSigner: false, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    { pubkey: METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
-    {
-      pubkey: new PublicKey("SysvarRent111111111111111111111111111111111"),
-      isSigner: false,
-      isWritable: false,
-    },
-  ];
-
-  // If there's a winning prize, add it as remaining account
-  if (opts.winningPrizeIndex !== null) {
-    const prizePda = findPrizePda(gamePubkey, opts.winningPrizeIndex);
-    keys.push({ pubkey: prizePda, isSigner: false, isWritable: true });
-  }
-
-  const finalizeIx = new TransactionInstruction({
-    programId,
-    keys,
-    data: Buffer.from(data),
-  });
-
-  const tx = new Transaction();
-  tx.add(createMintIx, initMintIx);
-  if (ensureUserAtaIx) tx.add(ensureUserAtaIx);
-  tx.add(finalizeIx);
-
-  tx.feePayer = user;
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = blockhash;
-  tx.partialSign(mint);
+  const sessionPubkey = new PublicKey(sessionPda);
   
-  return { tx, mint };
-}
-
-/**
- * Full flow: play_game + finalize_play in one transaction
- * Determines winner client-side using on-chain probabilities
- * Reads token_mint and treasury from the game account itself
- * 
- * If costUsdCents is provided, calculates token amount dynamically using pump.fun price API.
- * Otherwise, uses the provided tokenAmount (legacy behavior).
- */
-export async function playAndFinalizeOnChain(opts: {
-  walletPublicKey: PublicKey;
-  gamePda: string;
-  tokenAmount?: number | bigint;
-  costUsdCents?: number;
-}): Promise<{ tx: Transaction; mint: Keypair; isWin: boolean; prizeIndex: number | null; tokenAmountPaid: bigint }> {
-  if (!GAME_PROGRAM_ID) throw new Error("GAME_PROGRAM_ID not configured");
-
-  const connection = new Connection(SOLANA_RPC_URL, "confirmed");
-  const programId = new PublicKey(GAME_PROGRAM_ID);
-  const gamePubkey = new PublicKey(opts.gamePda);
-  const user = opts.walletPublicKey;
-  const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
-    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-  );
-
-  // Fetch game account to get prize probabilities, token_mint, and treasury
-  const gameData = await fetchGameAccountData(connection, gamePubkey);
-  if (!gameData.isActive) {
-    throw new Error("Game is not active");
-  }
-
-  // Use the game's token mint and treasury from on-chain data
-  const mintAddress = gameData.tokenMint;
-  const treasury = gameData.treasury;
-  
-  console.log("Using game's token mint:", mintAddress.toString());
-  console.log("Using game's treasury:", treasury.toString());
-
-  // Calculate token amount: use pump.fun price API if costUsdCents provided
-  let finalTokenAmount: bigint;
-  
-  if (opts.costUsdCents !== undefined) {
-    // Dynamic calculation using pump.fun price API
-    const { calculateTokenAmount } = await import("@/services/price/pump-fun");
-    const priceResult = await calculateTokenAmount(
-      opts.costUsdCents,
-      mintAddress.toString(),
-      6, // pump.fun tokens typically have 6 decimals
-      0.02 // 2% slippage tolerance
-    );
+  for (let i = 0; i < maxAttempts; i++) {
+    const sessionData = await fetchPlaySessionData(connection, sessionPubkey);
     
-    if (!priceResult) {
-      throw new Error(`Could not fetch token price for ${mintAddress.toString()}. Please try again.`);
+    if (sessionData?.isFulfilled) {
+      return sessionData;
     }
     
-    finalTokenAmount = priceResult.tokenAmount;
-    console.log(`Calculated token amount: ${finalTokenAmount} tokens for $${(opts.costUsdCents / 100).toFixed(2)} @ $${priceResult.priceUsd.toFixed(10)}/token`);
-  } else if (opts.tokenAmount !== undefined) {
-    // Legacy: use provided token amount directly
-    finalTokenAmount = BigInt(opts.tokenAmount);
-    console.log(`Using provided token amount: ${finalTokenAmount}`);
-  } else {
-    throw new Error("Either tokenAmount or costUsdCents must be provided");
+    if (i < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
   }
-
-  const userTokenAccount = findAssociatedTokenAddress(user, mintAddress);
-  const treasuryTokenAccount = findAssociatedTokenAddress(treasury, mintAddress);
-
-  // Build play_game instruction data
-  const amountLE = toLEU64(finalTokenAmount);
-  const playData = new Uint8Array(
-    PLAY_GAME_DISCRIMINATOR.length + amountLE.length
-  );
-  playData.set(PLAY_GAME_DISCRIMINATOR, 0);
-  playData.set(amountLE, PLAY_GAME_DISCRIMINATOR.length);
-
-  const playKeys = [
-    { pubkey: gamePubkey, isSigner: false, isWritable: true },
-    { pubkey: user, isSigner: true, isWritable: true },
-    { pubkey: userTokenAccount, isSigner: false, isWritable: true },
-    { pubkey: treasuryTokenAccount, isSigner: false, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
-  const playIx = new TransactionInstruction({
-    programId,
-    keys: playKeys,
-    data: Buffer.from(playData),
-  });
-
-  // Generate random value and determine winner
-  const randomValue = crypto.getRandomValues(new Uint8Array(32));
-  const winningPrizeIndex = selectPrizeIndex(
-    gameData.prizeProbabilities,
-    gameData.prizeCount,
-    randomValue
-  );
-  const isWin = winningPrizeIndex !== null;
-
-  // Prepare NFT mint
-  const prizeMint = Keypair.generate();
-  const rentLamports = await getMinimumBalanceForRentExemptMint(connection);
-  const createPrizeMintIx = SystemProgram.createAccount({
-    fromPubkey: user,
-    newAccountPubkey: prizeMint.publicKey,
-    space: MINT_SIZE,
-    lamports: rentLamports,
-    programId: TOKEN_PROGRAM_ID,
-  });
-  const initPrizeMintIx = createInitializeMint2Instruction(
-    prizeMint.publicKey,
-    0,
-    gamePubkey,
-    gamePubkey
-  );
-
-  // Derive Metaplex PDAs
-  const [metadataPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("metadata"),
-      METADATA_PROGRAM_ID.toBuffer(),
-      prizeMint.publicKey.toBuffer(),
-    ],
-    METADATA_PROGRAM_ID
-  );
-  const [masterEditionPda] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("metadata"),
-      METADATA_PROGRAM_ID.toBuffer(),
-      prizeMint.publicKey.toBuffer(),
-      Buffer.from("edition"),
-    ],
-    METADATA_PROGRAM_ID
-  );
-
-  // User's prize ATA
-  const userPrizeAta = findAssociatedTokenAddress(user, prizeMint.publicKey);
-  const userPrizeAtaInfo = await connection.getAccountInfo(userPrizeAta);
-  const ensureUserPrizeAtaIx = !userPrizeAtaInfo
-    ? createAssociatedTokenAccountInstruction(
-        user,
-        userPrizeAta,
-        user,
-        prizeMint.publicKey
-      )
-    : null;
-
-  // Build finalize_play instruction
-  const finData = new Uint8Array(
-    FINALIZE_PLAY_DISCRIMINATOR.length + randomValue.length
-  );
-  finData.set(FINALIZE_PLAY_DISCRIMINATOR, 0);
-  finData.set(randomValue, FINALIZE_PLAY_DISCRIMINATOR.length);
-
-  const finKeys = [
-    { pubkey: gamePubkey, isSigner: false, isWritable: true },
-    { pubkey: user, isSigner: true, isWritable: true },
-    { pubkey: prizeMint.publicKey, isSigner: false, isWritable: true },
-    { pubkey: metadataPda, isSigner: false, isWritable: true },
-    { pubkey: masterEditionPda, isSigner: false, isWritable: true },
-    { pubkey: userPrizeAta, isSigner: false, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    { pubkey: METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
-    {
-      pubkey: new PublicKey("SysvarRent111111111111111111111111111111111"),
-      isSigner: false,
-      isWritable: false,
-    },
-  ];
-
-  // Add winning prize as remaining account if there's a winner
-  if (winningPrizeIndex !== null) {
-    const prizePda = findPrizePda(gamePubkey, winningPrizeIndex);
-    finKeys.push({ pubkey: prizePda, isSigner: false, isWritable: true });
-  }
-
-  const finalizeIx = new TransactionInstruction({
-    programId,
-    keys: finKeys,
-    data: Buffer.from(finData),
-  });
-
-  // Build full transaction
-  const tx = new Transaction();
   
-  // Ensure ATAs for token transfer
-  const userAtaInfo = await connection.getAccountInfo(userTokenAccount);
-  if (!userAtaInfo) {
-    tx.add(
-      createAssociatedTokenAccountInstruction(
-        user,
-        userTokenAccount,
-        user,
-        mintAddress
-      )
-    );
-  }
-  const treasuryAtaInfo = await connection.getAccountInfo(treasuryTokenAccount);
-  if (!treasuryAtaInfo) {
-    tx.add(
-      createAssociatedTokenAccountInstruction(
-        user,
-        treasuryTokenAccount,
-        treasury,
-        mintAddress
-      )
-    );
-  }
-
-  // Order: play -> create prize mint -> init -> ensure user prize ATA -> finalize
-  tx.add(playIx, createPrizeMintIx, initPrizeMintIx);
-  if (ensureUserPrizeAtaIx) tx.add(ensureUserPrizeAtaIx);
-  tx.add(finalizeIx);
-
-  // Prepare for signing
-  tx.feePayer = user;
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = blockhash;
-  tx.partialSign(prizeMint);
-
-  return { tx, mint: prizeMint, isWin, prizeIndex: winningPrizeIndex, tokenAmountPaid: finalTokenAmount };
+  return null;
 }

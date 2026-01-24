@@ -142,6 +142,10 @@ export class RedemptionService {
         phone: shippingData.phone,
         sku: nft.prize.physicalSku,
         weightGrams: nft.prize.weightGrams,
+        // Pass prize dimensions for UPS box selection
+        lengthInches: nft.prize.lengthInches,
+        widthInches: nft.prize.widthInches,
+        heightInches: nft.prize.heightInches,
         orderId: `GACHA-${request.nftMint.slice(0, 8).toUpperCase()}`,
         email: shippingData.email,
       });

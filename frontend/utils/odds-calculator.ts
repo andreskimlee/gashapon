@@ -21,7 +21,11 @@ export interface PrizeInput {
   metadataUri?: string;
   physicalSku: string;
   costUsd: number; // Cost of the prize in USD (e.g., 5.99)
-  weightGrams?: number; // Prize weight in grams
+  weightGrams?: number; // Prize weight in grams for shipping
+  // Package dimensions for UPS shipping (in inches)
+  lengthInches?: number;
+  widthInches?: number;
+  heightInches?: number;
   supplyTotal: number;
 }
 

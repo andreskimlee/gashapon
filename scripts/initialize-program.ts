@@ -12,7 +12,7 @@ import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import * as fs from "fs";
 import * as path from "path";
 
-const PROGRAM_ID = new PublicKey("4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG");
+const PROGRAM_ID = new PublicKey("EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6");
 const WALLET_PATH = path.join(process.cwd(), "phantom-devnet-keypair.json");
 const IDL_PATH = path.join(process.cwd(), "target/idl/gachapon_game.json");
 

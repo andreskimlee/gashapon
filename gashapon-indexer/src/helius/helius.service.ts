@@ -81,7 +81,7 @@ export class HeliusService implements OnModuleInit, OnModuleDestroy {
 
     // Create RPC connection to fetch full transaction details
     const rpcUrl =
-      this.network === 'mainnet-beta'
+      this.network === 'mainnet'
         ? `https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`
         : `https://devnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
     this.connection = new Connection(rpcUrl, 'confirmed');
@@ -205,7 +205,7 @@ export class HeliusService implements OnModuleInit, OnModuleDestroy {
    */
   private getWebSocketUrl(): string {
     const baseUrl =
-      this.network === 'mainnet-beta'
+      this.network === 'mainnet'
         ? 'wss://mainnet.helius-rpc.com'
         : 'wss://devnet.helius-rpc.com';
 

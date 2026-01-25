@@ -599,8 +599,7 @@ describe("Profit Margin Verification", () => {
       maximumWinRate: 0.3,
     });
 
-    // Total inventory cost
-    const inventoryCost = 100 * 10 + 50 * 25 + 10 * 100 + 2 * 500; // = 1000 + 1250 + 1000 + 1000 = $4,250
+    // Total inventory cost = 100 * 10 + 50 * 25 + 10 * 100 + 2 * 500 = 1000 + 1250 + 1000 + 1000 = $4,250
     expect(optimalCost.totalPrizeValue).toBe(4250);
 
     // Expected profit

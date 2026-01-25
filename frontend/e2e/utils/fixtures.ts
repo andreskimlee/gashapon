@@ -1,6 +1,5 @@
 import { test as base, expect, Page } from "@playwright/test";
-import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import bs58 from "bs58";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { createTestWallet, injectMockWallet, TestWallet } from "./wallet-mock";
 
 // Environment variables for test configuration

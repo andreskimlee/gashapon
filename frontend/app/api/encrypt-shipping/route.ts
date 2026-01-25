@@ -14,7 +14,7 @@ export interface ShippingData {
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
-const TAG_LENGTH = 16;
+// TAG_LENGTH = 16 (used implicitly by aes-256-gcm)
 
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;

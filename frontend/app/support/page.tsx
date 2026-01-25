@@ -13,7 +13,6 @@ import {
   HelpCircle,
   LifeBuoy,
   MessageSquare,
-  Package,
   Send,
 } from "lucide-react";
 import { useState } from "react";

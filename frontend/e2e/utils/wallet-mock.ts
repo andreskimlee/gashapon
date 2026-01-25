@@ -1,7 +1,6 @@
-import { Page, BrowserContext } from "@playwright/test";
-import { Keypair, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { Page } from "@playwright/test";
+import { Keypair, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
-import nacl from "tweetnacl";
 
 /**
  * Test wallet configuration

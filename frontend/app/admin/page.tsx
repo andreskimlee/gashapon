@@ -36,7 +36,6 @@ import {
   deployGame,
   checkGameExists,
   fetchIdl,
-  getGamePda,
   checkWalletAuthorization,
   PrizeConfigInput,
 } from '@/services/blockchain/deploy-game';

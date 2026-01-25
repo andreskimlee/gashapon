@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 export type PaymentVerificationPayload = {
   transactionSignature: string;

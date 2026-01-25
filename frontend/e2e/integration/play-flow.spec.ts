@@ -1,10 +1,5 @@
 import { test, expect } from "../utils/fixtures";
-import { Connection, PublicKey, Keypair, Transaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { 
-  getAssociatedTokenAddress, 
-  createAssociatedTokenAccountInstruction,
-  TOKEN_PROGRAM_ID
-} from "@solana/spl-token";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 /**
  * Full Integration Test: Play Flow
@@ -22,7 +17,6 @@ import {
  */
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
-const GAME_PROGRAM_ID = process.env.NEXT_PUBLIC_GAME_PROGRAM_ID || "4oUeUUSqx9GcphRo8MrS5zbnuyPnUWfFK1ysQX2ySWMG";
 
 test.describe("Integration: Full Play Flow", () => {
   // Skip all tests if no game PDA is configured
@@ -173,7 +167,7 @@ test.describe("Integration: Full Play Flow", () => {
     }
   });
 
-  test("should handle insufficient balance gracefully", async ({ walletPage, testWallet }) => {
+  test("should handle insufficient balance gracefully", async ({ walletPage }) => {
     const gamePda = process.env.TEST_GAME_PDA!;
     
     // Navigate to game with empty wallet

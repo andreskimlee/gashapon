@@ -25,8 +25,6 @@ interface ListingCardProps {
 }
 
 export default function ListingCard({
-  listingId,
-  nftMint,
   name,
   imageUrl,
   tier,

@@ -21,7 +21,6 @@ export default function NeonSign({
   children,
   color = 'default',
   className,
-  flicker = false,
 }: NeonSignProps) {
   const colorClasses = {
     pink: 'text-pastel-pink',

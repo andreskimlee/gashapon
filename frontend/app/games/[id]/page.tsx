@@ -25,7 +25,7 @@ import { PublicKey } from "@solana/web3.js";
 import { Keypair } from "@solana/web3.js";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { claimPrize } from "@/services/blockchain/play";
+// claimPrize removed - NFTs are now auto-minted in finalize_play
 
 // Time (ms) to wait after claw drops before showing win/lose screen
 // Adjust this to sync with claw machine animation duration
@@ -69,10 +69,7 @@ export default function GameDetailPage() {
     mint: Keypair;
     signature: string;
   } | null>(null);
-  // Store session PDA for claiming prize
-  const [winSessionPda, setWinSessionPda] = useState<string | null>(null);
-  // Track if we're currently claiming the prize
-  const [claiming, setClaiming] = useState(false);
+  // Note: winSessionPda and claiming state removed - NFTs are now auto-minted
   const dropStartedRef = useRef(false);
   const resultTimerRef = useRef<NodeJS.Timeout | null>(null);
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -258,7 +255,7 @@ export default function GameDetailPage() {
         return;
       }
 
-      const { tx, sessionPda, sessionSeed, tokenAmountPaid } = await playOnChain({
+      const { tx, sessionPda, tokenAmountPaid } = await playOnChain({
         walletPublicKey: publicKey as PublicKey,
         gamePda: onChainAddress,
         costUsdCents: playCostUsdCents,

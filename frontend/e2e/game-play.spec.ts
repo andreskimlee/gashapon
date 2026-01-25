@@ -1,4 +1,4 @@
-import { test, expect, waitForText, clickButton } from "./utils/fixtures";
+import { test, expect } from "./utils/fixtures";
 
 /**
  * End-to-End Test: Game Play Flow
@@ -169,8 +169,7 @@ test.describe("Game Detail Page", () => {
       return;
     }
 
-    // Get the href and click
-    const href = await gameLink.getAttribute("href");
+    // Click the game link
     await gameLink.click();
     
     await walletPage.waitForURL(/\/games\/\d+/);

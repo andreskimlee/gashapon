@@ -1,4 +1,4 @@
-import { GAME_PROGRAM_ID, SOLANA_RPC_URL } from "@/utils/constants";
+import { GAME_PROGRAM_ID } from "@/utils/constants";
 import {
   Connection,
   PublicKey,

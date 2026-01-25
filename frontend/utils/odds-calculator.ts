@@ -283,8 +283,9 @@ export function calculateOdds(
 
   // Step 8: Calculate how many plays to exhaust inventory at this rate
   const avgWinsPerPlay = totalProbabilityBp / 10000;
-  const playsToExhaust =
+  const _playsToExhaust =
     avgWinsPerPlay > 0 ? Math.ceil(totalSupply / avgWinsPerPlay) : 0;
+  void _playsToExhaust; // Reserved for future use
 
   // Validation
   let isValid = true;

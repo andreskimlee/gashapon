@@ -29,7 +29,7 @@ export default function PlayMintTesterPage() {
     }
     try {
       setLoading(true);
-      const res = await nftsApi.mintFromPlay(playSignature, wallet);
+      await nftsApi.mintFromPlay(playSignature, wallet);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Mint failed");
     } finally {

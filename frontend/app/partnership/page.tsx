@@ -1,7 +1,7 @@
 /**
  * Partnership Page
  *
- * Application form for token projects wanting to partner with Gashapon.
+ * Application form for token projects wanting to partner with Grabbit.
  * Prerequisites:
  * - Must be Developer/CTO/Founder
  * - Token market cap minimum $100k
@@ -108,7 +108,7 @@ export default function PartnershipPage() {
             BECOME A PARTNER
           </h1>
           <p className="text-pastel-text max-w-lg mx-auto">
-            Launch your own Gashapon machine with custom prizes for your community.
+            Launch your own Grabbit machine with custom prizes for your community.
             Drive engagement and reward your holders with exclusive collectibles.
           </p>
         </motion.div>
@@ -390,7 +390,7 @@ export default function PartnershipPage() {
             >
               Questions? Reach out on{" "}
               <a
-                href="https://x.com/Gashaponfun"
+                href="https://x.com/grababorbit"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-pastel-coral hover:underline font-semibold"

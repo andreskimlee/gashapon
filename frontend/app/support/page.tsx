@@ -392,7 +392,7 @@ export default function SupportPage() {
             >
               Need urgent help? DM us on{" "}
               <a
-                href="https://x.com/Gashaponfun"
+                href="https://x.com/grababorbit"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-pastel-coral hover:underline font-semibold"

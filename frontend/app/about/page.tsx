@@ -1,7 +1,7 @@
 /**
  * About Page
  *
- * Interactive page explaining Gashapon:
+ * Interactive page explaining Grabbit:
  * - What it is
  * - How it works
  * - Tokenomics
@@ -98,11 +98,11 @@ export default function AboutPage() {
           </motion.div>
 
           <h1 className="font-display text-5xl md:text-7xl text-pastel-coral text-outline-xl mb-6">
-            WHAT IS GASHAPON?
+            WHAT IS GRABBIT?
           </h1>
           
           <p className="text-lg md:text-xl text-pastel-text leading-relaxed mb-8">
-            Gashapon brings the excitement of Japanese claw machines to the blockchain.
+            Grabbit brings the excitement of claw machines to the blockchain.
             Play with your favorite tokens, win real physical prizes, and own your rewards as NFTs.
           </p>
 
@@ -125,7 +125,7 @@ export default function AboutPage() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          WHY GASHAPON?
+          WHY GRABBIT?
         </motion.h2>
 
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">

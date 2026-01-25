@@ -17,7 +17,7 @@ export default function Footer() {
             <a href="/terms" className="hover:text-pastel-coral transition-colors">Terms</a>
           </div>
           <a 
-            href="https://x.com/Gashaponfun" 
+            href="https://x.com/grababorbit" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-pastel-text hover:text-pastel-coral transition-colors"

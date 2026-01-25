@@ -93,7 +93,7 @@ export default function RedeemModal({
 
       // Sign message
       const timestamp = Date.now();
-      const message = `Gashapon Prize Redemption\n\nNFT: ${nft.mintAddress}\nWallet: ${walletAddress}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
+      const message = `Grabbit Prize Redemption\n\nNFT: ${nft.mintAddress}\nWallet: ${walletAddress}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
       const messageBytes = new TextEncoder().encode(message);
 
       let signatureBytes: Uint8Array;

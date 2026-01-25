@@ -40,7 +40,7 @@ function EmptyState() {
       </h3>
       <p className="text-pastel-textLight max-w-md mx-auto mb-6">
         Your collection is waiting to be filled with amazing prizes.
-        Play the Gashapon machines to win exclusive collectibles!
+        Play the Grabbit machines to win exclusive collectibles!
       </p>
       <Link href="/">
         <CTAButton variant="orange" size="lg">
@@ -286,7 +286,7 @@ export default function CollectionPage() {
             MY COLLECTION
           </h1>
           <p className="text-pastel-text max-w-lg mx-auto">
-            Your exclusive Gashapon prizes. Each one is a unique NFT that can be redeemed for physical delivery.
+            Your exclusive Grabbit prizes. Each one is a unique NFT that can be redeemed for physical delivery.
           </p>
         </motion.div>
 

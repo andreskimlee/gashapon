@@ -98,7 +98,7 @@ export function LoadingScreen({ gameName, message }: LoadingScreenProps) {
           >
             <Image
               src="/images/logo.png"
-              alt="Gashapon Logo"
+              alt="Grabbit Logo"
               width={100}
               height={100}
               className="drop-shadow-lg"
@@ -108,7 +108,7 @@ export function LoadingScreen({ gameName, message }: LoadingScreenProps) {
 
         {/* Title */}
         <h2 className="font-display text-2xl md:text-3xl text-center text-pastel-coral mb-2 tracking-wide text-outline-xl">
-          {gameName || "GASHAPON"}
+          {gameName || "GRABBIT"}
         </h2>
 
         {/* Loading text */}

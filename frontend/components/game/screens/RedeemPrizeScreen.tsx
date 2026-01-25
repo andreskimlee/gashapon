@@ -160,7 +160,7 @@ export function RedeemPrizeScreen({
       
       // Create a deterministic message to sign with timestamp for replay protection
       const timestamp = Date.now();
-      const message = `Gashapon Prize Redemption\n\nNFT: ${prizeMint}\nWallet: ${userWallet}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
+      const message = `Grabbit Prize Redemption\n\nNFT: ${prizeMint}\nWallet: ${userWallet}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
       const messageBytes = new TextEncoder().encode(message);
       
       let signatureBytes: Uint8Array;

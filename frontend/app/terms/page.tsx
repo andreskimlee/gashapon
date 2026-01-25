@@ -12,15 +12,15 @@ import CTAButton from "@/components/ui/CTAButton";
 const sections = [
   {
     title: "1. Acceptance of Terms",
-    content: `By accessing or using Gashapon ("the Platform"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Platform. The Platform is a blockchain-based gaming service that allows users to play claw machine games using cryptocurrency tokens and potentially win physical prizes represented as NFTs.`,
+    content: `By accessing or using Grabbit ("the Platform"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Platform. The Platform is a blockchain-based gaming service that allows users to play claw machine games using cryptocurrency tokens and potentially win physical prizes represented as NFTs.`,
   },
   {
     title: "2. Eligibility",
-    content: `You must be at least 18 years old (or the age of majority in your jurisdiction) to use the Platform. By using Gashapon, you represent that you meet this age requirement and have the legal capacity to enter into these Terms. The Platform may not be available in all jurisdictions. It is your responsibility to ensure that your use of the Platform complies with all applicable local laws.`,
+    content: `You must be at least 18 years old (or the age of majority in your jurisdiction) to use the Platform. By using Grabbit, you represent that you meet this age requirement and have the legal capacity to enter into these Terms. The Platform may not be available in all jurisdictions. It is your responsibility to ensure that your use of the Platform complies with all applicable local laws.`,
   },
   {
     title: "3. Wallet Connection & Cryptocurrency",
-    content: `To use the Platform, you must connect a compatible Solana wallet. You are solely responsible for maintaining the security of your wallet, including your private keys and seed phrases. Gashapon will never ask for your private keys. All transactions on the Platform are processed on the Solana blockchain and are irreversible. You are responsible for ensuring you have sufficient tokens to cover transaction fees. The value of cryptocurrency tokens may fluctuate significantly.`,
+    content: `To use the Platform, you must connect a compatible Solana wallet. You are solely responsible for maintaining the security of your wallet, including your private keys and seed phrases. Grabbit will never ask for your private keys. All transactions on the Platform are processed on the Solana blockchain and are irreversible. You are responsible for ensuring you have sufficient tokens to cover transaction fees. The value of cryptocurrency tokens may fluctuate significantly.`,
   },
   {
     title: "4. Gameplay & Prizes",
@@ -40,7 +40,7 @@ const sections = [
   },
   {
     title: "8. Intellectual Property",
-    content: `All content on the Platform, including but not limited to graphics, logos, designs, text, and software, is owned by Gashapon or its licensors and is protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without express written permission. Prize NFT artwork and metadata remain the property of Gashapon, though you may display them for personal, non-commercial purposes.`,
+    content: `All content on the Platform, including but not limited to graphics, logos, designs, text, and software, is owned by Grabbit or its licensors and is protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without express written permission. Prize NFT artwork and metadata remain the property of Grabbit, though you may display them for personal, non-commercial purposes.`,
   },
   {
     title: "9. Disclaimer of Warranties",
@@ -48,11 +48,11 @@ const sections = [
   },
   {
     title: "10. Limitation of Liability",
-    content: `TO THE MAXIMUM EXTENT PERMITTED BY LAW, GASHAPON SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR CRYPTOCURRENCY. OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID TO USE THE PLATFORM IN THE 12 MONTHS PRECEDING THE CLAIM. THIS LIMITATION APPLIES REGARDLESS OF THE LEGAL THEORY UPON WHICH THE CLAIM IS BASED.`,
+    content: `TO THE MAXIMUM EXTENT PERMITTED BY LAW, GRABBIT SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR CRYPTOCURRENCY. OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID TO USE THE PLATFORM IN THE 12 MONTHS PRECEDING THE CLAIM. THIS LIMITATION APPLIES REGARDLESS OF THE LEGAL THEORY UPON WHICH THE CLAIM IS BASED.`,
   },
   {
     title: "11. Indemnification",
-    content: `You agree to indemnify and hold harmless Gashapon, its affiliates, officers, directors, employees, and agents from any claims, damages, losses, or expenses (including reasonable attorney fees) arising from your use of the Platform, violation of these Terms, or infringement of any third-party rights.`,
+    content: `You agree to indemnify and hold harmless Grabbit, its affiliates, officers, directors, employees, and agents from any claims, damages, losses, or expenses (including reasonable attorney fees) arising from your use of the Platform, violation of these Terms, or infringement of any third-party rights.`,
   },
   {
     title: "12. Modifications to Terms",
@@ -68,7 +68,7 @@ const sections = [
   },
   {
     title: "15. Contact Information",
-    content: `For questions about these Terms of Service, please contact us through our Support page or reach out on X (Twitter) @Gashaponfun.`,
+    content: `For questions about these Terms of Service, please contact us through our Support page or reach out on X (Twitter) @Grabbitfun.`,
   },
 ];
 
@@ -127,7 +127,7 @@ export default function TermsPage() {
               {/* Introduction */}
               <div className="p-4 rounded-xl bg-pastel-yellow/30 border border-pastel-yellow">
                 <p className="text-sm text-[#111827]">
-                  <strong>Important:</strong> Please read these Terms of Service carefully before using Gashapon. 
+                  <strong>Important:</strong> Please read these Terms of Service carefully before using Grabbit. 
                   By using the Platform, you acknowledge that you have read, understood, and agree to be bound by these Terms.
                 </p>
               </div>

@@ -9,7 +9,7 @@ const meta: Meta<typeof ClawMachine3D> = {
     layout: "fullscreen",
   },
   args: {
-    gameName: "GASHAPON",
+    gameName: "GRABBIT",
     costDisplay: "1.25 TOKENS",
     isConnected: true,
     isActive: true,

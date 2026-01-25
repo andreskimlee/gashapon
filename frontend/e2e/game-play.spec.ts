@@ -3,7 +3,7 @@ import { test, expect } from "./utils/fixtures";
 /**
  * End-to-End Test: Game Play Flow
  * 
- * Tests the Gashapon game UI with a mock wallet adapter.
+ * Tests the Grabbit game UI with a mock wallet adapter.
  * The mock wallet is injected before page load, allowing us to
  * test wallet interactions without a real browser extension.
  */
@@ -15,8 +15,8 @@ test.describe("Home Page", () => {
   });
 
   test("should display homepage with title", async ({ walletPage }) => {
-    // Check page has loaded - logo text should be visible (GASHAPON on desktop, GASHA on mobile)
-    const logoText = walletPage.locator("span:has-text('GASHAPON'), span:has-text('GASHA')").first();
+    // Check page has loaded - logo text should be visible (GRABBIT on desktop, GRAB on mobile)
+    const logoText = walletPage.locator("span:has-text('GRABBIT'), span:has-text('GRAB')").first();
     await expect(logoText).toBeVisible({ timeout: 10000 });
   });
 
@@ -218,8 +218,8 @@ test.describe("Header & Navigation", () => {
     const logoImg = header.locator("img[alt*='logo']").first();
     const hasLogoImg = await logoImg.isVisible().catch(() => false);
     
-    // Or logo text (GASHAPON/GASHA)
-    const logoText = header.locator("span:has-text('GASHAPON'), span:has-text('GASHA')").first();
+    // Or logo text (GRABBIT/GRAB)
+    const logoText = header.locator("span:has-text('GRABBIT'), span:has-text('GRAB')").first();
     const hasLogoText = await logoText.isVisible().catch(() => false);
     
     expect(hasLogoImg || hasLogoText).toBeTruthy();

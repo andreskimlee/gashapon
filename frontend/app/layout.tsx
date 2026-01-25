@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Gachapon - Play Games, Win NFTs, Redeem Prizes",
+  title: "Grabbit - Play Games, Win NFTs, Redeem Prizes",
   description: "A blockchain-based gachapon platform on Solana. Play games, win NFTs, and redeem physical prizes.",
   icons: {
     icon: "/favicon.ico",

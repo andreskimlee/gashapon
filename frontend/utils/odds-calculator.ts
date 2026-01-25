@@ -1,5 +1,5 @@
 /**
- * Odds Calculator for Gashapon Games
+ * Odds Calculator for Grabbit Games
  *
  * Automatically calculates prize probabilities to achieve 80% profit margin.
  * Uses inverse price weighting - more expensive prizes have lower odds.

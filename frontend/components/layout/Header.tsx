@@ -27,13 +27,13 @@ export default function Header() {
         <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
           <img
             src="/images/logo.png"
-            alt="Gashapon logo"
+            alt="Grabbit logo"
             width={isMobile ? 32 : 45}
             height={isMobile ? 32 : 45}
             className="object-contain"
           />
           <span className="text-2xl md:text-5xl font-display text-pastel-coral tracking-wide text-outline-xl">
-            {isMobile ? "GASHA" : "GASHAPON"}
+            {isMobile ? "GRAB" : "GRABBIT"}
           </span>
         </Link>
 

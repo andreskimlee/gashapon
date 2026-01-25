@@ -113,7 +113,7 @@ export function IntroScreen({
           <div style={{ animation: "bounce-gentle 2s ease-in-out infinite" }}>
             <Image
               src="/images/logo.png"
-              alt="Gashapon Logo"
+              alt="Grabbit Logo"
               width={80}
               height={80}
               className="drop-shadow-lg"
@@ -124,7 +124,7 @@ export function IntroScreen({
         {/* Game title with outline shadow */}
         <div className="relative mb-4">
           <h2 className="font-display text-3xl md:text-4xl text-pastel-coral tracking-wide text-outline-xl">
-            {gameName || "GASHAPON"}
+            {gameName || "GRABBIT"}
           </h2>
           <div className="text-pastel-textLight text-sm font-bold tracking-widest mt-1">
             ★ CLAW MACHINE ★

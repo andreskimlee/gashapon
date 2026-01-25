@@ -44,7 +44,7 @@ export default function EnterPage() {
           <div className="w-24 h-24 mx-auto bg-gradient-to-br from-pastel-coral to-pastel-pink rounded-full flex items-center justify-center shadow-lg border-4 border-white">
             <Image 
               src="/gashapon_token.png" 
-              alt="Gashapon" 
+              alt="Grabbit" 
               width={64} 
               height={64}
               className="rounded-full"
@@ -53,7 +53,7 @@ export default function EnterPage() {
         </div>
 
         <h1 className="font-display text-3xl text-pastel-coral text-outline-sm mb-2">
-          GASHAPON
+          GRABBIT
         </h1>
         <p className="text-pastel-text/70 mb-6 text-sm">
           Enter the secret password to continue

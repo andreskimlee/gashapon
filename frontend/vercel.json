@@ -4,3 +4,4 @@
   "buildCommand": "next build",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet ."
 }
+// Redeploy trigger Sat Jan 24 22:31:52 EST 2026

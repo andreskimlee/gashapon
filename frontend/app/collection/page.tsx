@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Wallet, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useCallback } from "react";
 
@@ -26,14 +27,18 @@ function EmptyState() {
       transition={{ delay: 0.3 }}
     >
       <motion.div
-        className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-pastel-lavender/50 to-pastel-pink/50 flex items-center justify-center"
+        className="w-48 h-48 mx-auto mb-6 relative"
         animate={{
-          scale: [1, 1.05, 1],
-          rotate: [0, 5, -5, 0],
+          y: [0, -10, 0],
         }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       >
-        <span className="text-6xl">🎰</span>
+        <Image
+          src="/images/collections/empty.png"
+          alt="No prizes yet"
+          fill
+          className="object-contain"
+        />
       </motion.div>
       <h3 className="font-display text-2xl text-pastel-coral mb-3">
         No Prizes Yet!
@@ -60,11 +65,16 @@ function ConnectWalletPrompt() {
       animate={{ opacity: 1, scale: 1 }}
     >
       <motion.div
-        className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-pastel-coral to-pastel-pink flex items-center justify-center shadow-lg"
+        className="w-48 h-48 mx-auto mb-6 relative"
         animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       >
-        <Wallet className="w-10 h-10 text-white" />
+        <Image
+          src="/images/collections/empty.png"
+          alt="Connect wallet"
+          fill
+          className="object-contain"
+        />
       </motion.div>
       <h2 className="font-display text-3xl text-pastel-coral mb-4 text-outline-xl">
         CONNECT YOUR WALLET

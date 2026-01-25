@@ -76,7 +76,7 @@ async function fetchCollection(walletAddress: string): Promise<NFT[]> {
   ]);
   
   // Transform and combine, sort by mintedAt (newest first)
-  const allItems = [...unredeemedData, ...redeemedData] as CollectionItemResponse[];
+  const allItems = [...(unredeemedData as unknown as CollectionItemResponse[]), ...(redeemedData as unknown as CollectionItemResponse[])];
   return allItems
     .map(transformToNFT)
     .sort((a, b) => new Date(b.mintedAt).getTime() - new Date(a.mintedAt).getTime());

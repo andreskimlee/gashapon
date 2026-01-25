@@ -15,18 +15,34 @@ import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 
 import { GAME_PROGRAM_ID } from "@/utils/constants";
 
-// Program ID for gachapon-game (from environment)
-const PROGRAM_ID = new PublicKey(GAME_PROGRAM_ID);
+// Lazy-loaded PublicKeys to avoid build-time errors when env vars are not set
+let _PROGRAM_ID: PublicKey | null = null;
+let _DEFAULT_TOKEN_MINT: PublicKey | null = null;
+let _TREASURY_PUBKEY: PublicKey | null = null;
 
-// Default token mint (pump.fun token)
-const DEFAULT_TOKEN_MINT = new PublicKey(
-  "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump"
-);
+function getProgramId(): PublicKey {
+  if (!_PROGRAM_ID) {
+    if (!GAME_PROGRAM_ID) {
+      throw new Error("GAME_PROGRAM_ID environment variable is not set");
+    }
+    _PROGRAM_ID = new PublicKey(GAME_PROGRAM_ID);
+  }
+  return _PROGRAM_ID;
+}
 
-// Treasury wallet (should be configured per environment)
-const TREASURY_PUBKEY = new PublicKey(
-  "EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo"
-);
+function getDefaultTokenMint(): PublicKey {
+  if (!_DEFAULT_TOKEN_MINT) {
+    _DEFAULT_TOKEN_MINT = new PublicKey("Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump");
+  }
+  return _DEFAULT_TOKEN_MINT;
+}
+
+function getTreasuryPubkey(): PublicKey {
+  if (!_TREASURY_PUBKEY) {
+    _TREASURY_PUBKEY = new PublicKey("EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo");
+  }
+  return _TREASURY_PUBKEY;
+}
 
 export type PrizeTier = "common" | "uncommon" | "rare" | "legendary";
 
@@ -73,7 +89,7 @@ export interface DeployGameResult {
 export function getGamePda(gameId: number): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("game"), new BN(gameId).toArrayLike(Buffer, "le", 8)],
-    PROGRAM_ID
+    getProgramId()
   );
   return pda;
 }
@@ -84,7 +100,7 @@ export function getGamePda(gameId: number): PublicKey {
 export function getConfigPda(): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
-    PROGRAM_ID
+    getProgramId()
   );
   return pda;
 }
@@ -95,7 +111,7 @@ export function getConfigPda(): PublicKey {
 export function getPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("prize"), gamePda.toBuffer(), Buffer.from([prizeIndex])],
-    PROGRAM_ID
+    getProgramId()
   );
   return pda;
 }
@@ -176,11 +192,11 @@ export async function deployGame(
 
     const tokenMint = params.tokenMint
       ? new PublicKey(params.tokenMint)
-      : DEFAULT_TOKEN_MINT;
+      : getDefaultTokenMint();
 
     const treasury = params.treasury
       ? new PublicKey(params.treasury)
-      : TREASURY_PUBKEY;
+      : getTreasuryPubkey();
 
     log(`Deploying game ID ${params.gameId}: ${params.name}`);
     log(`Game PDA: ${gamePda.toString()}`);

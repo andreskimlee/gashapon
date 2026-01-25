@@ -25,3 +25,5 @@ phantom-devnet-keypair.json
 .pnpm-store
 
 
+.vercel
+.env*.local

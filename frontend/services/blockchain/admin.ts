@@ -8,7 +8,17 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 
-const PROGRAM_ID = new PublicKey(GAME_PROGRAM_ID!);
+// Lazy-loaded PublicKey to avoid build-time errors when env vars are not set
+let _PROGRAM_ID: PublicKey | null = null;
+function getProgramId(): PublicKey {
+  if (!_PROGRAM_ID) {
+    if (!GAME_PROGRAM_ID) {
+      throw new Error("GAME_PROGRAM_ID environment variable is not set");
+    }
+    _PROGRAM_ID = new PublicKey(GAME_PROGRAM_ID);
+  }
+  return _PROGRAM_ID;
+}
 
 // Instruction discriminators from IDL
 const INITIALIZE_GAME_DISCRIMINATOR = Buffer.from([
@@ -56,7 +66,7 @@ export interface PrizeParams {
 export function getConfigPda(): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
-    PROGRAM_ID
+    getProgramId()
   );
   return pda;
 }
@@ -68,7 +78,7 @@ export function getGamePda(gameId: number): PublicKey {
   const gameIdBn = new BN(gameId);
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("game"), gameIdBn.toArrayLike(Buffer, "le", 8)],
-    PROGRAM_ID
+    getProgramId()
   );
   return pda;
 }
@@ -79,7 +89,7 @@ export function getGamePda(gameId: number): PublicKey {
 export function getPrizePda(gamePda: PublicKey, prizeIndex: number): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("prize"), gamePda.toBuffer(), Buffer.from([prizeIndex])],
-    PROGRAM_ID
+    getProgramId()
   );
   return pda;
 }
@@ -143,7 +153,7 @@ export function buildInitializeGameInstruction(
   ]);
 
   return new TransactionInstruction({
-    programId: PROGRAM_ID,
+    programId: getProgramId(),
     keys: [
       { pubkey: authority, isSigner: true, isWritable: true },
       { pubkey: configPda, isSigner: false, isWritable: false },
@@ -203,7 +213,7 @@ export function buildAddPrizeInstruction(
   ]);
 
   return new TransactionInstruction({
-    programId: PROGRAM_ID,
+    programId: getProgramId(),
     keys: [
       { pubkey: authority, isSigner: true, isWritable: true },
       { pubkey: gamePda, isSigner: false, isWritable: true },

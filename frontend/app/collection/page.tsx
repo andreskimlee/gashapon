@@ -219,9 +219,9 @@ export default function CollectionPage() {
       }
 
       // Find the prize to get its index
-      const prize = game.prizes?.find(p => p.id === nft.prizeId);
-      if (prize?.prizeIndex === undefined) {
-        throw new Error("Prize index not found");
+      const prize = game.prizes?.find(p => p.prizeId === nft.prizeId);
+      if (!prize) {
+        throw new Error("Prize not found");
       }
 
       // Build and sign claim transaction
@@ -229,7 +229,7 @@ export default function CollectionPage() {
         walletPublicKey: publicKey,
         gamePda: game.onChainAddress,
         sessionPda: sessionPda,
-        prizeIndex: prize.prizeIndex,
+        prizeIndex: prize.prizeId, // prizeId is used as the on-chain index
       });
 
       toast.info("Please approve the transaction in your wallet...");

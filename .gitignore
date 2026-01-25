@@ -11,6 +11,8 @@ build/
 !tsconfig.json
 !**/idl/*.json
 !frontend/public/idl/*.json
+!vercel.json
+!**/vercel.json
 
 # Treasury keypairs (NEVER commit these)
 treasury-*-keypair.json

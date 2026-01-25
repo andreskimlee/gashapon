@@ -11,7 +11,7 @@ const PUBLIC_PATHS = [
   "/gashapon_token.png",
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip auth check for public paths and static files

@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "next build",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet ."
 }

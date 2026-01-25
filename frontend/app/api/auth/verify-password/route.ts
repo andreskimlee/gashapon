@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Password is stored as a non-public server-side secret
-const SITE_PASSWORD = process.env.SITE_PASSWORD;
+const SITE_PASSWORD = process.env.SITE_PASSWORD?.trim();
 
 export async function POST(request: NextRequest) {
   if (!SITE_PASSWORD) {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { password } = body;
 
-    if (password === SITE_PASSWORD) {
+    if (password?.trim() === SITE_PASSWORD) {
       const response = NextResponse.json({ success: true });
       response.cookies.set('site-auth', 'authenticated', {
         httpOnly: true,

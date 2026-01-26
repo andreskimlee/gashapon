@@ -21,6 +21,8 @@ export async function GET(
   try {
     const { mint } = await params;
     
+    console.log("[Price API] Requested mint:", mint);
+    
     if (!mint) {
       return NextResponse.json(
         { error: "Token mint address is required" },
@@ -29,6 +31,7 @@ export async function GET(
     }
 
     const apiUrl = `${PUMP_FUN_API_URL}/${mint}`;
+    console.log("[Price API] Fetching from:", apiUrl);
     
     const response = await fetch(apiUrl, {
       headers: {

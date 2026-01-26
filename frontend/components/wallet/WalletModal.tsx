@@ -134,20 +134,22 @@ export default function WalletModal({
                 {balance !== null ? formatCompact(balance) : "0"}
               </span>
             </div>
-            {/* Copy CA Button */}
-            <button
-              onClick={handleCopyCa}
-              className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E9EEF2] border-2 border-[#111827]/20 text-xs font-bold text-[#111827]/70 hover:bg-[#dde3e7] hover:text-[#111827] transition-colors"
-            >
-              <span className="font-mono">
-                {TOKEN_CA.slice(0, 6)}...{TOKEN_CA.slice(-4)}
-              </span>
-              {caCopied ? (
-                <Check className="w-3 h-3 text-emerald-600" />
-              ) : (
-                <Copy className="w-3 h-3" />
-              )}
-            </button>
+            {/* Copy CA Button - wrapped in div for proper block layout */}
+            <div className="mt-3">
+              <button
+                onClick={handleCopyCa}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E9EEF2] border-2 border-[#111827]/20 text-xs font-bold text-[#111827]/70 hover:bg-[#dde3e7] hover:text-[#111827] transition-colors"
+              >
+                <span className="font-mono">
+                  {TOKEN_CA.slice(0, 6)}...{TOKEN_CA.slice(-4)}
+                </span>
+                {caCopied ? (
+                  <Check className="w-3 h-3 text-emerald-600" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* View on Solscan */}

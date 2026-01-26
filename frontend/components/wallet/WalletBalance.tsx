@@ -17,9 +17,13 @@ import { useCallback, useEffect, useState } from "react";
 import WalletModal from "./WalletModal";
 
 // Game token mint address (pump.fun token)
-const GAME_TOKEN_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_TOKEN_MINT || "11111111111111111111111111111111",
-);
+const TOKEN_MINT_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_MINT || "11111111111111111111111111111111";
+const GAME_TOKEN_MINT = new PublicKey(TOKEN_MINT_ADDRESS);
+
+// Log the mint being used (for debugging)
+if (typeof window !== "undefined") {
+  console.log("[WalletBalance] Using token mint:", TOKEN_MINT_ADDRESS);
+}
 
 // Token decimals (USDC-style has 6 decimals)
 const TOKEN_DECIMALS = 6;
@@ -48,23 +52,31 @@ export default function WalletBalance() {
         publicKey,
       );
 
+      console.log("[WalletBalance] Fetching balance for:", {
+        wallet: publicKey.toString(),
+        tokenMint: GAME_TOKEN_MINT.toString(),
+        tokenAccount: tokenAccount.toString(),
+      });
+
       try {
         const accountInfo = await getAccount(connection, tokenAccount);
         // Convert from raw amount to display amount (divide by 10^decimals)
         const rawBalance = Number(accountInfo.amount);
         const displayBalance = rawBalance / Math.pow(10, TOKEN_DECIMALS);
+        console.log("[WalletBalance] Balance fetched:", { rawBalance, displayBalance });
         setBalance(displayBalance);
       } catch (err: any) {
         // Token account doesn't exist - user has 0 balance
         if (err.name === "TokenAccountNotFoundError") {
+          console.log("[WalletBalance] Token account not found - balance is 0");
           setBalance(0);
         } else {
-          console.error("Error fetching token account:", err);
+          console.error("[WalletBalance] Error fetching token account:", err);
           setBalance(null);
         }
       }
     } catch (error) {
-      console.error("Error fetching balance:", error);
+      console.error("[WalletBalance] Error fetching balance:", error);
       setBalance(null);
     } finally {
       setIsLoading(false);

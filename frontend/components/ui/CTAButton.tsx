@@ -1,21 +1,25 @@
 /**
  * CTA Button Component
  *
- * Call-to-action button with claw machine grab & release hover effect
+ * Call-to-action button with shimmer hover effect
  */
 
 "use client";
 
 import { cn } from "@/utils/helpers";
-import { motion, useAnimation } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
-import { ButtonHTMLAttributes, ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
-interface CTAButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface CTAButtonProps {
   children: ReactNode;
   href?: string;
   size?: "xs" | "sm" | "md" | "lg";
   variant?: "orange" | "pink";
+  disabled?: boolean;
+  className?: string;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  type?: "button" | "submit" | "reset";
 }
 
 export default function CTAButton({
@@ -25,9 +29,10 @@ export default function CTAButton({
   size = "md",
   variant = "orange",
   disabled,
-  ...props
+  onClick,
+  type = "button",
 }: CTAButtonProps) {
-  const controls = useAnimation();
+  const [isHovered, setIsHovered] = useState(false);
 
   const sizes = {
     xs: "px-3 py-1.5 text-base",
@@ -41,16 +46,23 @@ export default function CTAButton({
     pink: "linear-gradient(to bottom, #FFB3B8 0%, #F8959E 50%, #F07A84 100%)",
   };
 
+  const hoverGradients = {
+    orange: "linear-gradient(to bottom, #FFCC99 0%, #FFB366 50%, #FF9C45 100%)",
+    pink: "linear-gradient(to bottom, #FFD4D8 0%, #FFB3B8 50%, #F8959E 100%)",
+  };
+
   const buttonClasses = cn(
     "inline-flex items-center justify-center gap-2 rounded-full font-bold tracking-wide",
-    "text-white",
+    "text-white relative overflow-hidden",
+    "transition-all duration-200",
+    "active:scale-95 active:brightness-95",
     "disabled:opacity-50 disabled:cursor-not-allowed",
     sizes[size],
     className
   );
 
   const style = {
-    background: gradients[variant],
+    background: isHovered && !disabled ? hoverGradients[variant] : gradients[variant],
     borderTop: "2px solid #374151",
     borderLeft: "2px solid #374151",
     borderRight: "4px solid #374151",
@@ -58,56 +70,46 @@ export default function CTAButton({
     textShadow: "0 1px 2px rgba(0,0,0,0.3)",
   };
 
-  // Claw grab effect
-  const handleHoverStart = async () => {
-    if (disabled) return;
-    await controls.start({
-      y: -6,
-      scale: 0.97,
-      transition: { type: "spring", stiffness: 500, damping: 15 }
-    });
-  };
-
-  // Release with bounce
-  const handleHoverEnd = async () => {
-    if (disabled) return;
-    await controls.start({
-      y: [null, 3, -1, 0],
-      scale: [null, 1.03, 0.99, 1],
-      transition: {
-        duration: 0.4,
-        times: [0, 0.4, 0.7, 1],
-        ease: "easeOut"
-      }
-    });
-  };
-
-  const motionProps = {
-    animate: controls,
-    onHoverStart: handleHoverStart,
-    onHoverEnd: handleHoverEnd,
-    whileTap: disabled ? {} : { scale: 0.95, y: 2 },
-  };
+  const content = (
+    <>
+      {/* Shimmer effect on hover */}
+      {isHovered && !disabled && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
+          initial={{ x: "-100%" }}
+          animate={{ x: "200%" }}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
+        />
+      )}
+      <span className="relative z-10">{children}</span>
+    </>
+  );
 
   if (href) {
     return (
-      <motion.div {...motionProps} className="inline-block">
-        <Link href={href} className={buttonClasses} style={style}>
-          {children}
-        </Link>
-      </motion.div>
+      <Link 
+        href={href} 
+        className={buttonClasses} 
+        style={style}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {content}
+      </Link>
     );
   }
 
   return (
-    <motion.button
+    <button
       className={buttonClasses}
       style={style}
       disabled={disabled}
-      {...motionProps}
-      {...props}
+      onClick={onClick}
+      type={type}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {children}
-    </motion.button>
+      {content}
+    </button>
   );
 }

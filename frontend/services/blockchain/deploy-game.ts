@@ -32,7 +32,9 @@ function getProgramId(): PublicKey {
 
 function getDefaultTokenMint(): PublicKey {
   if (!_DEFAULT_TOKEN_MINT) {
-    _DEFAULT_TOKEN_MINT = new PublicKey("Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump");
+    _DEFAULT_TOKEN_MINT = new PublicKey(
+      process.env.NEXT_PUBLIC_TOKEN_MINT || "11111111111111111111111111111111"
+    );
   }
   return _DEFAULT_TOKEN_MINT;
 }

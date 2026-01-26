@@ -90,7 +90,7 @@ export default function AdminPage() {
   }, []);
 
   // Default token mint (pump.fun token)
-  const DEFAULT_TOKEN_MINT = 'Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump';
+  const DEFAULT_TOKEN_MINT = process.env.NEXT_PUBLIC_TOKEN_MINT || '';
   // Default treasury wallet
   const DEFAULT_TREASURY = 'EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo';
 

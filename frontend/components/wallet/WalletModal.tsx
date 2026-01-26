@@ -25,7 +25,7 @@ interface WalletModalProps {
 }
 
 // Token contract address
-const TOKEN_CA = "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump";
+const TOKEN_CA = process.env.NEXT_PUBLIC_TOKEN_MINT || "";
 
 export default function WalletModal({
   isOpen,

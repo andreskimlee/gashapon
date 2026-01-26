@@ -18,7 +18,7 @@ import WalletModal from "./WalletModal";
 
 // Game token mint address (pump.fun token)
 const GAME_TOKEN_MINT = new PublicKey(
-  "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump",
+  process.env.NEXT_PUBLIC_TOKEN_MINT || "11111111111111111111111111111111",
 );
 
 // Token decimals (USDC-style has 6 decimals)

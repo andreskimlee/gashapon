@@ -2,9 +2,15 @@
  * Token Balance Proxy API
  * 
  * Fetches SPL token balance server-side to avoid exposing RPC URL to clients.
+ * Supports both regular SPL tokens and Token-2022 tokens.
  */
 
-import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+import { 
+  getAccount, 
+  getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
+} from "@solana/spl-token";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -38,11 +44,28 @@ export async function GET(
     const walletPubkey = new PublicKey(wallet);
     const mintPubkey = new PublicKey(TOKEN_MINT);
 
-    // Get the associated token account
-    const tokenAccount = await getAssociatedTokenAddress(mintPubkey, walletPubkey);
+    // First, check which token program owns the mint (regular SPL or Token-2022)
+    const mintAccountInfo = await connection.getAccountInfo(mintPubkey);
+    if (!mintAccountInfo) {
+      return NextResponse.json(
+        { error: "Token mint not found" },
+        { status: 404 }
+      );
+    }
+
+    const isToken2022 = mintAccountInfo.owner.equals(TOKEN_2022_PROGRAM_ID);
+    const tokenProgramId = isToken2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
+
+    // Get the associated token account for the correct program
+    const tokenAccount = getAssociatedTokenAddressSync(
+      mintPubkey, 
+      walletPubkey,
+      false, // allowOwnerOffCurve
+      tokenProgramId
+    );
 
     try {
-      const accountInfo = await getAccount(connection, tokenAccount);
+      const accountInfo = await getAccount(connection, tokenAccount, "confirmed", tokenProgramId);
       const rawBalance = Number(accountInfo.amount);
       const displayBalance = rawBalance / Math.pow(10, TOKEN_DECIMALS);
 
@@ -51,6 +74,7 @@ export async function GET(
         rawBalance,
         tokenAccount: tokenAccount.toString(),
         tokenMint: TOKEN_MINT,
+        tokenProgram: isToken2022 ? "token-2022" : "spl-token",
       });
     } catch (err: any) {
       // Token account doesn't exist - user has 0 balance
@@ -60,6 +84,7 @@ export async function GET(
           rawBalance: 0,
           tokenAccount: tokenAccount.toString(),
           tokenMint: TOKEN_MINT,
+          tokenProgram: isToken2022 ? "token-2022" : "spl-token",
         });
       }
       throw err;

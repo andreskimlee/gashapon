@@ -10,7 +10,7 @@
 "use client";
 
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { Grid3X3, Handshake, Home, Menu, Store, X } from "lucide-react";
+import { Gamepad2, Grid3X3, Handshake, Home, Menu, Store, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import TokenLogo from "../ui/TokenLogo";
@@ -137,31 +137,21 @@ export default function Header() {
   return (
     <header className="relative z-50 bg-pastel-mint border-b-4 border-[#111827] h-[72px] md:h-24 overflow-visible">
       <div className="container mx-auto px-3 md:px-4 h-full flex items-center">
-        {/* Brand - swinging like it's hanging from a claw */}
-        <motion.div
-          className="shrink-0 -my-4 origin-top"
-          animate={{ 
-            rotate: [-1, 1, -1],
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          whileHover={{ 
-            scale: 1.05,
-            rotate: 0,
-            transition: { type: "spring", stiffness: 300 }
-          }}
-        >
+        {/* Brand */}
+        <div className="shrink-0 -my-4">
           <Link href="/">
             <img
               src="/images/title.png"
               alt="Grabbit.fun"
-              className="h-20 md:h-24 w-auto object-contain"
+              className="h-20 md:h-24 w-auto object-contain hover:scale-105 transition-transform"
             />
           </Link>
-        </motion.div>
+        </div>
 
         {/* Navigation links - hidden on mobile */}
         <nav className="hidden md:flex items-center gap-4 ml-10">
           <GrabLink href="/">Home</GrabLink>
+          <GrabLink href="/games">Games</GrabLink>
           <GrabLink href="/collection">Collection</GrabLink>
           <GrabLink href="/partnership">Partnership</GrabLink>
           
@@ -281,12 +271,24 @@ export default function Header() {
               </MobileMenuItem>
               
               <MobileMenuItem
+                href="/games"
+                icon={Gamepad2}
+                iconBg="bg-pastel-sky"
+                iconColor="text-cyan-600"
+                borderColor="border-cyan-400/50"
+                index={1}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Games
+              </MobileMenuItem>
+              
+              <MobileMenuItem
                 href="/collection"
                 icon={Grid3X3}
                 iconBg="bg-pastel-pink"
                 iconColor="text-pink-600"
                 borderColor="border-pink-400/50"
-                index={1}
+                index={2}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Collection
@@ -298,7 +300,7 @@ export default function Header() {
                 iconBg="bg-pastel-lavender"
                 iconColor="text-purple-600"
                 borderColor="border-purple-400/50"
-                index={2}
+                index={3}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Partnership
@@ -311,7 +313,7 @@ export default function Header() {
                   opacity: 1, 
                   x: 0, 
                   rotate: 0,
-                  transition: { delay: 0.24, type: "spring", stiffness: 200, damping: 20 }
+                  transition: { delay: 0.32, type: "spring", stiffness: 200, damping: 20 }
                 }}
               >
                 <div
@@ -338,7 +340,7 @@ export default function Header() {
                 animate={{ 
                   opacity: 1, 
                   x: 0,
-                  transition: { delay: 0.32, type: "spring", stiffness: 200, damping: 20 }
+                  transition: { delay: 0.40, type: "spring", stiffness: 200, damping: 20 }
                 }}
               >
                 <a

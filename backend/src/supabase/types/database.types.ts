@@ -238,6 +238,44 @@ export interface Database {
           played_at?: string
         }
       }
+      game_categories: {
+        Row: {
+          id: number
+          name: string
+          slug: string
+          description: string | null
+          icon: string | null
+          game_ids: number[]
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          slug: string
+          description?: string | null
+          icon?: string | null
+          game_ids?: number[]
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          slug?: string
+          description?: string | null
+          icon?: string | null
+          game_ids?: number[]
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       marketplace_listings: {
         Row: {
           id: number

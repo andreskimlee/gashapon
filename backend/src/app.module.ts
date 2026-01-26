@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BlockchainModule } from "./blockchain/blockchain.module";
+import { CategoryModule } from "./category/category.module";
 import { CommonModule } from "./common/common.module";
 import { ConfigModule } from "./config/config.module";
 import { HealthModule } from "./health/health.module";
@@ -63,6 +64,7 @@ import { PrizeModule } from "./prize/prize.module";
       inject: [ConfigService],
     }),
     BlockchainModule,
+    CategoryModule,
     CommonModule,
     HealthModule,
     UserModule,

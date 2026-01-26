@@ -91,8 +91,6 @@ export default function AdminPage() {
 
   // Default token mint (pump.fun token)
   const DEFAULT_TOKEN_MINT = process.env.NEXT_PUBLIC_TOKEN_MINT || '';
-  // Default treasury wallet
-  const DEFAULT_TREASURY = 'EgvbCzEZ1RvRKA1VdZEzPuJJKnEfB3jhG7S7mJVd6wzo';
 
   // Game form state
   const [gameData, setGameData] = useState<GameFormData>({
@@ -101,7 +99,7 @@ export default function AdminPage() {
     imageUrl: '',
     playCostUsd: 5.00,
     tokenMint: DEFAULT_TOKEN_MINT,
-    treasury: DEFAULT_TREASURY,
+    treasury: '', // Will be set to connected wallet address
   });
 
   // Prizes state
@@ -171,6 +169,13 @@ export default function AdminPage() {
 
     checkAuth();
   }, [wallet.publicKey, connection]);
+
+  // Set default treasury to connected wallet address
+  useEffect(() => {
+    if (wallet.publicKey && !gameData.treasury) {
+      setGameData(prev => ({ ...prev, treasury: wallet.publicKey!.toString() }));
+    }
+  }, [wallet.publicKey]);
 
   // Load IDL on mount
   useEffect(() => {
@@ -493,7 +498,7 @@ export default function AdminPage() {
         imageUrl: '',
         playCostUsd: 5.00,
         tokenMint: DEFAULT_TOKEN_MINT,
-        treasury: DEFAULT_TREASURY,
+        treasury: wallet.publicKey?.toString() || '',
       });
       setPrizes([]);
       setNextGameId(gameIdToUse + 1);

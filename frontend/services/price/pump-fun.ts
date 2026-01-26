@@ -1,47 +1,9 @@
 /**
  * Pump.fun Price Service
  *
- * Fetches token prices from pump.fun API to calculate
- * the correct token amount for a given USD cost.
+ * Fetches token prices via our proxy API to avoid CORS issues.
+ * The proxy fetches from pump.fun server-side.
  */
-
-const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || "devnet";
-const isDevnet = SOLANA_NETWORK === "devnet";
-
-// pump.fun API URLs
-const PUMP_FUN_API_URL = isDevnet
-  ? "https://frontend-api-devnet-v3.pump.fun/coins-v2"
-  : "https://frontend-api-v3.pump.fun/coins-v2";
-
-interface PumpFunCoinResponse {
-  mint: string;
-  name: string;
-  symbol: string;
-  description: string;
-  image_uri: string;
-  metadata_uri: string;
-  twitter: string | null;
-  telegram: string | null;
-  bonding_curve: string;
-  associated_bonding_curve: string;
-  creator: string;
-  created_timestamp: number;
-  raydium_pool: string | null;
-  complete: boolean;
-  virtual_sol_reserves: number;
-  virtual_token_reserves: number;
-  total_supply: number;
-  website: string | null;
-  show_name: boolean;
-  king_of_the_hill_timestamp: number | null;
-  market_cap: number;
-  reply_count: number;
-  last_reply: number | null;
-  nsfw: boolean;
-  market_id: string | null;
-  inverted: boolean | null;
-  usd_market_cap: number;
-}
 
 export interface TokenPrice {
   priceUsd: number;
@@ -52,7 +14,7 @@ export interface TokenPrice {
 }
 
 /**
- * Fetch token price from pump.fun API
+ * Fetch token price via our proxy API (avoids CORS)
  * 
  * Note: Caching is handled by React Query at the hook level.
  * This function is a pure fetch without internal caching.
@@ -61,10 +23,9 @@ export async function getTokenPrice(
   tokenMint: string
 ): Promise<TokenPrice | null> {
   try {
-    const apiUrl = `${PUMP_FUN_API_URL}/${tokenMint}`;
-    console.log(
-      `[PriceService] Fetching price from pump.fun (${SOLANA_NETWORK}): ${apiUrl}`
-    );
+    // Use our proxy API to avoid CORS issues
+    const apiUrl = `/api/price/${tokenMint}`;
+    console.log(`[PriceService] Fetching price via proxy: ${apiUrl}`);
 
     const response = await fetch(apiUrl, {
       headers: {
@@ -74,42 +35,32 @@ export async function getTokenPrice(
 
     if (!response.ok) {
       if (response.status === 404) {
-        console.warn(
-          `[PriceService] Token ${tokenMint} not found on pump.fun (${SOLANA_NETWORK})`
-        );
+        console.warn(`[PriceService] Token ${tokenMint} not found`);
         return null;
       }
-      throw new Error(
-        `pump.fun API (${SOLANA_NETWORK}) returned ${response.status}`
-      );
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API returned ${response.status}`);
     }
 
-    const data: PumpFunCoinResponse = await response.json();
-
-    // All pump.fun tokens have a fixed supply of 1 billion tokens
-    const PUMP_FUN_TOTAL_SUPPLY = 1_000_000_000;
-
-    // Price per token = market cap / total supply
-    const priceUsd = data.usd_market_cap / PUMP_FUN_TOTAL_SUPPLY;
-    const priceSol = data.market_cap / PUMP_FUN_TOTAL_SUPPLY;
+    const data = await response.json();
 
     console.log(
-      `[PriceService] pump.fun price for ${data.symbol}: $${priceUsd.toFixed(10)}/token ` +
-        `(market cap: $${data.usd_market_cap.toFixed(2)})`
+      `[PriceService] Price for ${data.symbol || tokenMint}: $${data.priceUsd.toFixed(10)}/token ` +
+        `(market cap: $${data.marketCapUsd.toFixed(2)})`
     );
 
     const price: TokenPrice = {
-      priceUsd,
-      priceSol,
-      marketCapUsd: data.usd_market_cap,
+      priceUsd: data.priceUsd,
+      priceSol: data.priceSol,
+      marketCapUsd: data.marketCapUsd,
       source: "pump.fun",
-      timestamp: Date.now(),
+      timestamp: data.timestamp,
     };
 
     return price;
   } catch (error) {
     console.error(
-      `[PriceService] Error fetching pump.fun price for ${tokenMint}:`,
+      `[PriceService] Error fetching price for ${tokenMint}:`,
       error
     );
     return null;

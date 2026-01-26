@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   "/enter",
   "/admin",
   "/api/auth/verify-password",
+  "/api/price",
   "/_next",
   "/favicon.ico",
   "/grabbit-coin-image.png",

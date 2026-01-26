@@ -1,23 +1,23 @@
 /**
  * Marketplace Listing Card Component
- * 
+ *
  * Displays a marketplace listing card
  * Shows: NFT image, name, tier, price, seller info
  */
 
-'use client';
+"use client";
 
-import Card from '../ui/Card';
-import Button from '../ui/Button';
-import Badge from '../ui/Badge';
-import { formatTokenAmount, formatWalletAddress } from '@/utils/helpers';
+import { formatTokenAmount, formatWalletAddress } from "@/utils/helpers";
+import Badge from "../ui/Badge";
+import Button from "../ui/Button";
+import Card from "../ui/Card";
 
 interface ListingCardProps {
   listingId: string;
   nftMint: string;
   name: string;
   imageUrl?: string;
-  tier: 'common' | 'uncommon' | 'rare' | 'legendary';
+  tier: "common" | "uncommon" | "rare" | "legendary";
   priceInTokens: number;
   sellerWallet: string;
   onClick?: () => void;
@@ -63,25 +63,32 @@ export default function ListingCard({
           <Badge variant={tier}>{tier}</Badge>
         </div>
       </div>
-      
+
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-display font-bold text-candy-dark truncate flex-1">{name}</h3>
+          <h3 className="font-display font-bold text-candy-dark truncate flex-1">
+            {name}
+          </h3>
         </div>
-        
+
         <div className="mb-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-candy-teal">
               {formatTokenAmount(priceInTokens)}
             </span>
-            <img src="/gashapon_token.png" alt="" className="w-7 h-7 rounded-full" />
+            <img
+              src="/grabbit-coin-image.png"
+              alt=""
+              className="w-7 h-7 rounded-full"
+            />
           </div>
         </div>
-        
+
         <div className="text-xs text-candy-dark/60 mb-3">
-          Seller: <span className="font-mono">{formatWalletAddress(sellerWallet)}</span>
+          Seller:{" "}
+          <span className="font-mono">{formatWalletAddress(sellerWallet)}</span>
         </div>
-        
+
         <Button
           variant="primary"
           className="w-full"
@@ -96,4 +103,3 @@ export default function ListingCard({
     </Card>
   );
 }
-

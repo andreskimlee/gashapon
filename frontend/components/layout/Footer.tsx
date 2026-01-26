@@ -8,14 +8,12 @@
 
 export default function Footer() {
   return (
-    <footer className="relative py-6 px-4 border-t border-pastel-pink/30 bg-white/50">
+    <footer className="relative py-4 px-4 border-t border-pastel-pink/30 bg-white/50">
       <div className="container mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex gap-6 text-sm text-pastel-text">
-            <a href="/about" className="hover:text-pastel-coral transition-colors">About</a>
-            <a href="/support" className="hover:text-pastel-coral transition-colors">Support</a>
-            <a href="/terms" className="hover:text-pastel-coral transition-colors">Terms</a>
-          </div>
+        <div className="flex justify-center items-center gap-4 text-sm text-pastel-text">
+          <a href="/about" className="hover:text-pastel-coral transition-colors">About</a>
+          <a href="/support" className="hover:text-pastel-coral transition-colors">Support</a>
+          <a href="/terms" className="hover:text-pastel-coral transition-colors">Terms</a>
           <a 
             href="https://x.com/grababorbit" 
             target="_blank" 

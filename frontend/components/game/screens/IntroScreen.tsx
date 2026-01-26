@@ -134,9 +134,9 @@ export function IntroScreen({
         {/* Cost display - styled like wallet balance */}
         {costDisplay && (
           <div className="mb-6 inline-flex items-center gap-2 bg-pastel-yellow rounded-full px-4 py-2 border-2 border-yellow-400/50">
-            <img 
-              src="/gashapon_token.png" 
-              alt="Token" 
+            <img
+              src="/grabbit-coin-image.png"
+              alt="Token"
               className="w-8 h-8 rounded-full"
             />
             <span className="text-sm font-bold text-pastel-text">

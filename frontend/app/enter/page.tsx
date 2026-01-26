@@ -1,36 +1,36 @@
-'use client';
+"use client";
 
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
 
 export default function EnterPage() {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/verify-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
 
       if (res.ok) {
-        router.push('/');
+        router.push("/");
         router.refresh();
       } else {
         const data = await res.json();
-        setError(data.error || 'Wrong password!');
+        setError(data.error || "Wrong password!");
       }
     } catch {
-      setError('Something went wrong. Try again!');
+      setError("Something went wrong. Try again!");
     } finally {
       setLoading(false);
     }
@@ -42,10 +42,10 @@ export default function EnterPage() {
         {/* Cute mascot/logo */}
         <div className="mb-6">
           <div className="w-24 h-24 mx-auto bg-gradient-to-br from-pastel-coral to-pastel-pink rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-            <Image 
-              src="/gashapon_token.png" 
-              alt="Grabbit" 
-              width={64} 
+            <Image
+              src="/grabbit-coin-image.png"
+              alt="Grabbit"
+              width={64}
               height={64}
               className="rounded-full"
             />
@@ -76,9 +76,7 @@ export default function EnterPage() {
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm animate-pulse">
-              {error}
-            </p>
+            <p className="text-red-500 text-sm animate-pulse">{error}</p>
           )}
 
           <button
@@ -92,7 +90,7 @@ export default function EnterPage() {
                 CHECKING...
               </span>
             ) : (
-              'ENTER'
+              "ENTER"
             )}
           </button>
         </form>

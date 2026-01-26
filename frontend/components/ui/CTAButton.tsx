@@ -1,12 +1,13 @@
 /**
  * CTA Button Component
  *
- * Call-to-action button with box shadow - supports orange and pink variants
+ * Call-to-action button with claw machine grab & release hover effect
  */
 
 "use client";
 
 import { cn } from "@/utils/helpers";
+import { motion, useAnimation } from "framer-motion";
 import Link from "next/link";
 import { ButtonHTMLAttributes, ReactNode } from "react";
 
@@ -23,8 +24,11 @@ export default function CTAButton({
   href,
   size = "md",
   variant = "orange",
+  disabled,
   ...props
 }: CTAButtonProps) {
+  const controls = useAnimation();
+
   const sizes = {
     xs: "px-3 py-1.5 text-base",
     sm: "px-2 py-2 text-xl",
@@ -40,9 +44,6 @@ export default function CTAButton({
   const buttonClasses = cn(
     "inline-flex items-center justify-center gap-2 rounded-full font-bold tracking-wide",
     "text-white",
-    "transition-all duration-150",
-    "hover:brightness-105",
-    "active:translate-y-0.5",
     "disabled:opacity-50 disabled:cursor-not-allowed",
     sizes[size],
     className
@@ -57,17 +58,56 @@ export default function CTAButton({
     textShadow: "0 1px 2px rgba(0,0,0,0.3)",
   };
 
+  // Claw grab effect
+  const handleHoverStart = async () => {
+    if (disabled) return;
+    await controls.start({
+      y: -6,
+      scale: 0.97,
+      transition: { type: "spring", stiffness: 500, damping: 15 }
+    });
+  };
+
+  // Release with bounce
+  const handleHoverEnd = async () => {
+    if (disabled) return;
+    await controls.start({
+      y: [null, 3, -1, 0],
+      scale: [null, 1.03, 0.99, 1],
+      transition: {
+        duration: 0.4,
+        times: [0, 0.4, 0.7, 1],
+        ease: "easeOut"
+      }
+    });
+  };
+
+  const motionProps = {
+    animate: controls,
+    onHoverStart: handleHoverStart,
+    onHoverEnd: handleHoverEnd,
+    whileTap: disabled ? {} : { scale: 0.95, y: 2 },
+  };
+
   if (href) {
     return (
-      <Link href={href} className={buttonClasses} style={style}>
-        {children}
-      </Link>
+      <motion.div {...motionProps} className="inline-block">
+        <Link href={href} className={buttonClasses} style={style}>
+          {children}
+        </Link>
+      </motion.div>
     );
   }
 
   return (
-    <button className={buttonClasses} style={style} {...props}>
+    <motion.button
+      className={buttonClasses}
+      style={style}
+      disabled={disabled}
+      {...motionProps}
+      {...props}
+    >
       {children}
-    </button>
+    </motion.button>
   );
 }

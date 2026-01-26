@@ -8,17 +8,17 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { formatCompact } from "@/utils/format";
+import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
-import { formatCompact } from "@/utils/format";
+import { useCallback, useEffect, useState } from "react";
 import WalletModal from "./WalletModal";
 
 // Game token mint address (pump.fun token)
 const GAME_TOKEN_MINT = new PublicKey(
-  "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump"
+  "Cp95mjbZZnDvqCNYExmGYEzrgu6wAScf32Fmwt2Kpump",
 );
 
 // Token decimals (USDC-style has 6 decimals)
@@ -45,7 +45,7 @@ export default function WalletBalance() {
       // Get the associated token account for the user
       const tokenAccount = await getAssociatedTokenAddress(
         GAME_TOKEN_MINT,
-        publicKey
+        publicKey,
       );
 
       try {
@@ -86,7 +86,7 @@ export default function WalletBalance() {
       try {
         const tokenAccount = await getAssociatedTokenAddress(
           GAME_TOKEN_MINT,
-          publicKey
+          publicKey,
         );
 
         // Subscribe to account changes
@@ -101,9 +101,9 @@ export default function WalletBalance() {
               setBalance(displayBalance);
             }
           },
-          "confirmed"
+          "confirmed",
         );
-        
+
         console.log("[WalletBalance] Subscribed to token account changes");
       } catch (err) {
         console.error("[WalletBalance] Error subscribing to account:", err);
@@ -136,12 +136,14 @@ export default function WalletBalance() {
         onClick={() => setVisible(true)}
         className="flex items-center gap-1.5 md:gap-2 bg-pastel-yellow rounded-full px-3 md:px-5 py-1.5 md:py-2 border-2 border-yellow-400/50 hover:bg-yellow-200 hover:border-yellow-500 transition-all cursor-pointer group"
       >
-        <img 
-          src="/gashapon_token.png" 
-          alt="Token" 
+        <img
+          src="/grabbit-coin-image.png"
+          alt="Token"
           className="w-6 h-6 md:w-7 md:h-7 rounded-full group-hover:scale-110 transition-transform"
         />
-        <span className="text-xs md:text-sm font-bold text-pastel-text">LOG IN</span>
+        <span className="text-xs md:text-sm font-bold text-pastel-text">
+          LOG IN
+        </span>
       </button>
     );
   }
@@ -154,9 +156,9 @@ export default function WalletBalance() {
         onClick={() => setShowWalletModal(true)}
         title={`Wallet: ${publicKey?.toString().slice(0, 8)}...${publicKey?.toString().slice(-4)}`}
       >
-        <img 
-          src="/gashapon_token.png" 
-          alt="Token" 
+        <img
+          src="/grabbit-coin-image.png"
+          alt="Token"
           className="w-6 h-6 md:w-7 md:h-7 rounded-full"
         />
         {isLoading ? (

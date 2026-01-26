@@ -1,57 +1,62 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import HolographicCard from "@/components/collection/HolographicCard";
 import RedeemModal from "@/components/collection/RedeemModal";
+import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
 import { toast } from "@/components/ui/Toast";
-import { useCollection, useInvalidateCollection } from "@/hooks/api/useCollection";
-import type { NFT } from "@/types/api/nfts";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useConnection } from "@solana/wallet-adapter-react";
-import { claimPrize } from "@/services/blockchain/play";
+import {
+  useCollection,
+  useInvalidateCollection,
+} from "@/hooks/api/useCollection";
 import { gamesApi } from "@/services/api/games";
+import { claimPrize } from "@/services/blockchain/play";
+import type { NFT } from "@/types/api/nfts";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
 // Empty state component
 function EmptyState() {
   return (
     <motion.div
-      className="text-center py-16"
+      className="flex justify-center"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <motion.div
-        className="w-48 h-48 mx-auto mb-6 relative"
-        animate={{
-          y: [0, -10, 0],
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <Image
-          src="/images/collections/empty.png"
-          alt="No prizes yet"
-          fill
-          className="object-contain"
-        />
-      </motion.div>
-      <h3 className="font-display text-2xl text-pastel-coral mb-3">
-        No Prizes Yet!
-      </h3>
-      <p className="text-pastel-textLight max-w-md mx-auto mb-6">
-        Your collection is waiting to be filled with amazing prizes.
-        Play the Grabbit machines to win exclusive collectibles!
-      </p>
-      <Link href="/">
-        <CTAButton variant="orange" size="lg">
-          PLAY NOW <ArrowRight className="w-5 h-5 ml-2 inline" />
-        </CTAButton>
-      </Link>
+      <Card variant="arcade" shadowColor="pink" padding="xl" className="max-w-md text-center">
+        <motion.div
+          className="h-[280px] relative mx-auto -mb-12"
+          animate={{
+            y: [0, -10, 0],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Image
+            src="/images/collections/empty-collection.png"
+            alt="No prizes yet"
+            fill
+            className="object-contain"
+          />
+        </motion.div>
+        <h3 className="font-display text-3xl text-pastel-coral text-outline-xl mb-3">
+          NO PRIZES YET!
+        </h3>
+        <p className="text-pastel-textLight mb-6">
+          Your collection is waiting to be filled with amazing prizes. Play the
+          Grabbit machines to win exclusive collectibles!
+        </p>
+        <Link href="/">
+          <CTAButton variant="orange" size="lg">
+            PLAY NOW <ArrowRight className="w-5 h-5 ml-2 inline" />
+          </CTAButton>
+        </Link>
+      </Card>
     </motion.div>
   );
 }
@@ -60,36 +65,49 @@ function EmptyState() {
 function ConnectWalletPrompt() {
   return (
     <motion.div
-      className="text-center py-20"
+      className="flex justify-center py-8"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
     >
-      <motion.div
-        className="w-48 h-48 mx-auto mb-6 relative"
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <Image
-          src="/images/collections/empty.png"
-          alt="Connect wallet"
-          fill
-          className="object-contain"
-        />
-      </motion.div>
-      <h2 className="font-display text-3xl text-pastel-coral mb-4 text-outline-xl">
-        CONNECT YOUR WALLET
-      </h2>
-      <p className="text-pastel-textLight max-w-md mx-auto">
-        Connect your Solana wallet to view your prize collection and redeem for physical delivery.
-      </p>
+      <Card variant="arcade" shadowColor="pink" padding="xl" className="max-w-md text-center">
+        <motion.div
+          className="h-[280px] relative mx-auto -mb-12"
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Image
+            src="/images/collections/empty-collection.png"
+            alt="Connect wallet"
+            fill
+            className="object-contain"
+          />
+        </motion.div>
+        <h2 className="font-display text-3xl text-pastel-coral mb-4 text-outline-xl">
+          CONNECT YOUR WALLET
+        </h2>
+        <p className="text-pastel-textLight">
+          Connect your Solana wallet to view your prize collection and redeem for
+          physical delivery.
+        </p>
+      </Card>
     </motion.div>
   );
 }
 
 // NFT Card content
-function NFTCardContent({ nft, onRedeem, onClaim, isClaiming }: { nft: NFT; onRedeem: () => void; onClaim?: () => void; isClaiming?: boolean }) {
+function NFTCardContent({
+  nft,
+  onRedeem,
+  onClaim,
+  isClaiming,
+}: {
+  nft: NFT;
+  onRedeem: () => void;
+  onClaim?: () => void;
+  isClaiming?: boolean;
+}) {
   const isPending = nft.isPending === true;
-  
+
   return (
     <div className="flex flex-col h-full">
       {/* Image */}
@@ -117,25 +135,29 @@ function NFTCardContent({ nft, onRedeem, onClaim, isClaiming }: { nft: NFT; onRe
       <h3 className="font-display text-lg text-[#111827] mb-1 line-clamp-1">
         {nft.name?.toUpperCase() || `PRIZE #${nft.prizeId}`}
       </h3>
-      
+
       {/* Tier badge */}
       {nft.tier && (
         <div className="mb-2">
-          <span className={`
+          <span
+            className={`
             inline-block px-2 py-0.5 rounded text-xs font-bold uppercase
-            ${nft.tier === 'legendary' ? 'bg-amber-100 text-amber-700 border border-amber-300' : ''}
-            ${nft.tier === 'rare' ? 'bg-purple-100 text-purple-700 border border-purple-300' : ''}
-            ${nft.tier === 'uncommon' ? 'bg-teal-100 text-teal-700 border border-teal-300' : ''}
-            ${nft.tier === 'common' ? 'bg-gray-100 text-gray-600 border border-gray-300' : ''}
-          `}>
+            ${nft.tier === "legendary" ? "bg-amber-100 text-amber-700 border border-amber-300" : ""}
+            ${nft.tier === "rare" ? "bg-purple-100 text-purple-700 border border-purple-300" : ""}
+            ${nft.tier === "uncommon" ? "bg-teal-100 text-teal-700 border border-teal-300" : ""}
+            ${nft.tier === "common" ? "bg-gray-100 text-gray-600 border border-gray-300" : ""}
+          `}
+          >
             {nft.tier}
           </span>
         </div>
       )}
-      
+
       {/* Mint address - show "Pending claim" for unclaimed */}
       <p className="text-xs text-pastel-textLight mb-3 font-mono truncate">
-        {isPending ? "Pending on-chain claim" : `${nft.mintAddress.slice(0, 8)}...${nft.mintAddress.slice(-6)}`}
+        {isPending
+          ? "Pending on-chain claim"
+          : `${nft.mintAddress.slice(0, 8)}...${nft.mintAddress.slice(-6)}`}
       </p>
 
       {/* Action */}
@@ -167,7 +189,9 @@ function NFTCardContent({ nft, onRedeem, onClaim, isClaiming }: { nft: NFT; onRe
       ) : (
         <div className="mt-auto">
           <div className="px-3 py-2 rounded-lg bg-pastel-mint/30 border border-pastel-mint text-center">
-            <span className="text-xs font-bold text-emerald-600">✓ REDEEMED</span>
+            <span className="text-xs font-bold text-emerald-600">
+              ✓ REDEEMED
+            </span>
           </div>
           {nft.redeemedAt && (
             <p className="mt-1 text-xs text-pastel-textLight text-center">
@@ -184,7 +208,9 @@ export default function CollectionPage() {
   const { publicKey, connected, signMessage, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "unredeemed" | "redeemed">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "unredeemed" | "redeemed">(
+    "all",
+  );
   const [claimingNft, setClaimingNft] = useState<string | null>(null);
 
   const walletAddress = publicKey?.toBase58();
@@ -210,64 +236,75 @@ export default function CollectionPage() {
   }, [activeTab, nfts, unredeemed, redeemed]);
 
   // Handle claiming a pending NFT
-  const handleClaimNft = useCallback(async (nft: NFT) => {
-    if (!publicKey || !nft.sessionPda) {
-      toast.error("Cannot claim: missing wallet or session data");
-      return;
-    }
-
-    const sessionPda = nft.sessionPda || nft.mintAddress.slice(8); // Extract from "pending:<sessionPda>"
-    
-    setClaimingNft(nft.mintAddress);
-    toast.info("Preparing claim transaction...");
-
-    try {
-      // Fetch game data to get on-chain address and prize index
-      const game = await gamesApi.getGame(nft.gameId);
-      if (!game?.onChainAddress) {
-        throw new Error("Game not found or not deployed on-chain");
+  const handleClaimNft = useCallback(
+    async (nft: NFT) => {
+      if (!publicKey || !nft.sessionPda) {
+        toast.error("Cannot claim: missing wallet or session data");
+        return;
       }
 
-      // Find the prize to get its index
-      const prize = game.prizes?.find(p => p.prizeId === nft.prizeId);
-      if (!prize) {
-        throw new Error("Prize not found");
-      }
+      const sessionPda = nft.sessionPda || nft.mintAddress.slice(8); // Extract from "pending:<sessionPda>"
 
-      // Build and sign claim transaction
-      const { tx, mint } = await claimPrize({
-        walletPublicKey: publicKey,
-        gamePda: game.onChainAddress,
-        sessionPda: sessionPda,
-        prizeIndex: prize.prizeId, // prizeId is used as the on-chain index
-      });
+      setClaimingNft(nft.mintAddress);
+      toast.info("Preparing claim transaction...");
 
-      toast.info("Please approve the transaction in your wallet...");
-      const signature = await sendTransaction(tx, connection);
-      
-      toast.info("Confirming transaction...");
-      await connection.confirmTransaction(signature, "confirmed");
-
-      toast.success(`NFT claimed! Mint: ${mint.publicKey.toBase58().slice(0, 8)}...`);
-      
-      // Refresh collection after short delay for indexer to process
-      setTimeout(() => {
-        if (walletAddress) {
-          invalidateForWallet(walletAddress);
+      try {
+        // Fetch game data to get on-chain address and prize index
+        const game = await gamesApi.getGame(nft.gameId);
+        if (!game?.onChainAddress) {
+          throw new Error("Game not found or not deployed on-chain");
         }
-      }, 3000);
-    } catch (error) {
-      console.error("Claim error:", error);
-      const message = error instanceof Error ? error.message : "Claim failed";
-      if (message.includes("rejected") || message.includes("cancelled")) {
-        toast.warning("Transaction cancelled");
-      } else {
-        toast.error(message);
+
+        // Find the prize to get its index
+        const prize = game.prizes?.find((p) => p.prizeId === nft.prizeId);
+        if (!prize) {
+          throw new Error("Prize not found");
+        }
+
+        // Build and sign claim transaction
+        const { tx, mint } = await claimPrize({
+          walletPublicKey: publicKey,
+          gamePda: game.onChainAddress,
+          sessionPda: sessionPda,
+          prizeIndex: prize.prizeId, // prizeId is used as the on-chain index
+        });
+
+        toast.info("Please approve the transaction in your wallet...");
+        const signature = await sendTransaction(tx, connection);
+
+        toast.info("Confirming transaction...");
+        await connection.confirmTransaction(signature, "confirmed");
+
+        toast.success(
+          `NFT claimed! Mint: ${mint.publicKey.toBase58().slice(0, 8)}...`,
+        );
+
+        // Refresh collection after short delay for indexer to process
+        setTimeout(() => {
+          if (walletAddress) {
+            invalidateForWallet(walletAddress);
+          }
+        }, 3000);
+      } catch (error) {
+        console.error("Claim error:", error);
+        const message = error instanceof Error ? error.message : "Claim failed";
+        if (message.includes("rejected") || message.includes("cancelled")) {
+          toast.warning("Transaction cancelled");
+        } else {
+          toast.error(message);
+        }
+      } finally {
+        setClaimingNft(null);
       }
-    } finally {
-      setClaimingNft(null);
-    }
-  }, [publicKey, connection, sendTransaction, walletAddress, invalidateForWallet]);
+    },
+    [
+      publicKey,
+      connection,
+      sendTransaction,
+      walletAddress,
+      invalidateForWallet,
+    ],
+  );
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -283,12 +320,14 @@ export default function CollectionPage() {
         >
           <motion.div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border-2 border-[#111827] mb-6"
-            style={{ boxShadow: '3px 4px 0 #8ECCC1' }}
+            style={{ boxShadow: "3px 4px 0 #8ECCC1" }}
             animate={{ y: [0, -5, 0] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           >
             <Sparkles className="w-4 h-4 text-pastel-coral" />
-            <span className="text-sm font-bold text-[#111827]">YOUR PRIZE VAULT</span>
+            <span className="text-sm font-bold text-[#111827]">
+              YOUR PRIZE VAULT
+            </span>
             <Sparkles className="w-4 h-4 text-pastel-coral" />
           </motion.div>
 
@@ -296,7 +335,8 @@ export default function CollectionPage() {
             MY COLLECTION
           </h1>
           <p className="text-pastel-text max-w-lg mx-auto">
-            Your exclusive Grabbit prizes. Each one is a unique NFT that can be redeemed for physical delivery.
+            Your exclusive Grabbit prizes. Each one is a unique NFT that can be
+            redeemed for physical delivery.
           </p>
         </motion.div>
 
@@ -326,12 +366,25 @@ export default function CollectionPage() {
                       }
                     `}
                     style={{
-                      boxShadow: activeTab === tab ? '3px 4px 0 #111827' : '2px 3px 0 #111827'
+                      boxShadow:
+                        activeTab === tab
+                          ? "3px 4px 0 #111827"
+                          : "2px 3px 0 #111827",
                     }}
                   >
-                    {tab === "all" ? "ALL" : tab === "unredeemed" ? "UNREDEEMED" : "REDEEMED"}
+                    {tab === "all"
+                      ? "ALL"
+                      : tab === "unredeemed"
+                        ? "UNREDEEMED"
+                        : "REDEEMED"}
                     <span className="ml-1 opacity-70">
-                      ({tab === "all" ? nfts.length : tab === "unredeemed" ? unredeemed.length : redeemed.length})
+                      (
+                      {tab === "all"
+                        ? nfts.length
+                        : tab === "unredeemed"
+                          ? unredeemed.length
+                          : redeemed.length}
+                      )
                     </span>
                   </button>
                 ))}
@@ -400,7 +453,8 @@ export default function CollectionPage() {
                 animate={{ opacity: 1 }}
               >
                 <p className="text-pastel-textLight">
-                  No {activeTab === "unredeemed" ? "unredeemed" : "redeemed"} prizes found.
+                  No {activeTab === "unredeemed" ? "unredeemed" : "redeemed"}{" "}
+                  prizes found.
                 </p>
               </motion.div>
             )}

@@ -1,6 +1,6 @@
 /**
  * Custom Wallet Modal
- * 
+ *
  * Shows token balance and disconnect option when wallet is connected.
  * Uses the existing Modal component with kawaii pastel styling.
  */
@@ -8,7 +8,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { LogOut, Wallet, Copy, Check, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, LogOut, Wallet } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -93,7 +93,9 @@ export default function WalletModal({
                 <Wallet className="w-5 h-5 text-[#111827]" />
               </div>
               <div>
-                <h2 className="font-display text-lg text-[#111827]">MY WALLET</h2>
+                <h2 className="font-display text-lg text-[#111827]">
+                  MY WALLET
+                </h2>
                 <button
                   onClick={handleCopy}
                   className="flex items-center gap-1 text-xs text-[#111827]/70 hover:text-[#111827] transition-colors"
@@ -123,9 +125,9 @@ export default function WalletModal({
               Token Balance
             </p>
             <div className="inline-flex items-center gap-3 bg-pastel-yellow rounded-2xl px-6 py-4 border-3 border-yellow-400/50">
-              <img 
-                src="/gashapon_token.png" 
-                alt="Token" 
+              <img
+                src="/grabbit-coin-image.png"
+                alt="Token"
                 className="w-12 h-12 rounded-full"
               />
               <span className="text-3xl font-bold text-[#111827]">
@@ -137,7 +139,9 @@ export default function WalletModal({
               onClick={handleCopyCa}
               className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E9EEF2] border-2 border-[#111827]/20 text-xs font-bold text-[#111827]/70 hover:bg-[#dde3e7] hover:text-[#111827] transition-colors"
             >
-              <span className="font-mono">{TOKEN_CA.slice(0, 6)}...{TOKEN_CA.slice(-4)}</span>
+              <span className="font-mono">
+                {TOKEN_CA.slice(0, 6)}...{TOKEN_CA.slice(-4)}
+              </span>
               {caCopied ? (
                 <Check className="w-3 h-3 text-emerald-600" />
               ) : (

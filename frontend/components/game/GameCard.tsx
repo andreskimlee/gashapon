@@ -88,7 +88,11 @@ export default function GameCard({
             <span className="text-2xl font-bold text-neon-cyan neon-glow-cyan">
               {formatTokenAmount(costInTokens)}
             </span>
-            <img src="/gashapon_token.png" alt="" className="w-7 h-7 rounded-full" />
+            <img
+              src="/grabbit-coin-image.png"
+              alt=""
+              className="w-7 h-7 rounded-full"
+            />
           </div>
           {totalPlays !== undefined && (
             <span className="text-sm text-white/60">

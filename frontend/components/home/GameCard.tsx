@@ -17,6 +17,7 @@ import { useRef, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { formatCompact } from "@/utils/format";
 import { cn } from "@/utils/helpers";
@@ -44,18 +45,25 @@ export default function GameCard({
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const isMobile = useIsMobile();
 
-  // Mouse position for 3D effect
+  // Mouse position for 3D effect (desktop only)
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
   // Smooth spring animation
   const springConfig = { stiffness: 150, damping: 15, mass: 0.1 };
-  const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [5, -5]), springConfig);
-  const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-5, 5]), springConfig);
+  const rotateX = useSpring(
+    useTransform(mouseY, [-0.5, 0.5], [5, -5]),
+    springConfig,
+  );
+  const rotateY = useSpring(
+    useTransform(mouseX, [-0.5, 0.5], [-5, 5]),
+    springConfig,
+  );
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || isMobile) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
@@ -72,7 +80,7 @@ export default function GameCard({
   // Dynamic token cost calculation
   const { tokenAmountFormatted, loading: priceLoading } = useTokenCost(
     game.currencyTokenMintAddress,
-    game.costUsdCents
+    game.costUsdCents,
   );
 
   const isImageUrl = (value: string) =>
@@ -90,7 +98,7 @@ export default function GameCard({
               ? "w-full h-full"
               : size === "preview"
                 ? "w-full h-full"
-                : "w-16 h-16"
+                : "w-16 h-16",
           )}
         />
       );
@@ -103,7 +111,7 @@ export default function GameCard({
             ? "text-6xl"
             : size === "preview"
               ? "text-4xl"
-              : "text-3xl"
+              : "text-3xl",
         )}
       >
         {image}
@@ -117,16 +125,24 @@ export default function GameCard({
     <Link href={`/games/${game.id}`} className="block h-full">
       <motion.div
         ref={cardRef}
-        className={cn("cursor-pointer perspective-1000 h-full", className)}
+        className={cn(
+          "cursor-pointer h-full touch-pan-y",
+          !isMobile && "perspective-1000",
+          className,
+        )}
         onMouseMove={handleMouseMove}
-        onMouseEnter={() => setIsHovered(true)}
+        onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={handleMouseLeave}
-        style={{
-          rotateX,
-          rotateY,
-          transformStyle: "preserve-3d",
-        }}
-        whileHover={{ y: -4 }}
+        style={
+          isMobile
+            ? undefined
+            : {
+                rotateX,
+                rotateY,
+                transformStyle: "preserve-3d",
+              }
+        }
+        whileHover={isMobile ? undefined : { y: -4 }}
         whileTap={{ scale: 0.98 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
       >
@@ -143,7 +159,7 @@ export default function GameCard({
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.15 }}
             >
-              <div 
+              <div
                 className="absolute inset-0"
                 style={{
                   background: `linear-gradient(
@@ -199,20 +215,30 @@ export default function GameCard({
                 <div className="font-bold flex items-center gap-2 flex-wrap">
                   <span>COST:</span>
                   <span className="inline-flex items-center gap-1.5 px-2 xl:px-3 py-1 xl:py-1.5 rounded-lg bg-[#FFE39A] border-2 border-[#111827]/20 font-extrabold text-base xl:text-lg">
-                    {game.costUsdCents 
+                    {game.costUsdCents
                       ? `$${(game.costUsdCents / 100).toFixed(2)}`
                       : priceLoading
                         ? "..."
                         : formatCompact(game.cost)}
                     {!game.costUsdCents && !priceLoading && (
-                      <img src="/gashapon_token.png" alt="" className="w-6 h-6 xl:w-7 xl:h-7 rounded-full" />
+                      <img
+                        src="/grabbit-coin-image.png"
+                        alt=""
+                        className="w-6 h-6 xl:w-7 xl:h-7 rounded-full"
+                      />
                     )}
                   </span>
                 </div>
                 {tokenAmountFormatted && (
                   <div className="mt-2 xl:mt-3 inline-flex items-center gap-2 px-3 py-1.5 xl:py-2 rounded-lg bg-pastel-yellow/60 border-2 border-yellow-400/30">
-                    <span className="text-sm xl:text-base font-bold text-[#111827]">≈ {tokenAmountFormatted}</span>
-                    <img src="/gashapon_token.png" alt="" className="w-6 h-6 xl:w-7 xl:h-7 rounded-full" />
+                    <span className="text-sm xl:text-base font-bold text-[#111827]">
+                      ≈ {tokenAmountFormatted}
+                    </span>
+                    <img
+                      src="/grabbit-coin-image.png"
+                      alt=""
+                      className="w-6 h-6 xl:w-7 xl:h-7 rounded-full"
+                    />
                   </div>
                 )}
               </div>

@@ -8,7 +8,7 @@ const PUBLIC_PATHS = [
   "/api/auth/verify-password",
   "/_next",
   "/favicon.ico",
-  "/gashapon_token.png",
+  "/grabbit-coin-image.png",
 ];
 
 export function proxy(request: NextRequest) {

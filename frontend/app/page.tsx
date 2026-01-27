@@ -1,6 +1,6 @@
 /**
  * Home Page
- * 
+ *
  * Pastel kawaii landing page with:
  * - Sky background with fluffy clouds
  * - 3D claw machine in hero section
@@ -8,14 +8,14 @@
  * - Staggered entrance animations
  */
 
-'use client';
+"use client";
 
 import { motion } from "framer-motion";
 
-import GameCard from '@/components/home/GameCard';
-import HeroSection from '@/components/home/HeroSection';
-import Loading from '@/components/ui/Loading';
-import { useGames } from '@/hooks/api/useGames';
+import GameCard from "@/components/home/GameCard";
+import HeroSection from "@/components/home/HeroSection";
+import Loading from "@/components/ui/Loading";
+import { useGames } from "@/hooks/api/useGames";
 
 export default function Home() {
   const { games, loading, error } = useGames();
@@ -34,18 +34,22 @@ export default function Home() {
             </div>
           ) : error ? (
             <div className="text-center py-20">
-              <p className="text-pastel-coral text-xl mb-4">Failed to load games</p>
+              <p className="text-pastel-coral text-xl mb-4">
+                Failed to load games
+              </p>
               <p className="text-pastel-textLight text-sm">{error}</p>
             </div>
           ) : games.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-pastel-text text-xl mb-4">No games available</p>
+              <p className="text-pastel-text text-xl mb-4">
+                No games available
+              </p>
               <p className="text-pastel-textLight text-sm">
                 Check back later for new games!
               </p>
             </div>
           ) : (
-            <motion.div 
+            <motion.div
               className="grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8 max-w-2xl xl:max-w-7xl mx-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -68,14 +72,17 @@ export default function Home() {
                     game={{
                       id: game.id,
                       name: game.name,
-                      image: game.imageUrl || '🎮',
+                      image: game.imageUrl || "🎮",
                       prizeImage:
-                        game.prizes?.find((prize) => prize.imageUrl)?.imageUrl ||
-                        undefined,
+                        game.prizes?.find((prize) => prize.imageUrl)
+                          ?.imageUrl || undefined,
                       room: `#${game.id}`,
                       cost: Number(game.costInTokens) || 0,
-                      costUsdCents: game.costInUsd ? Number(game.costInUsd) * 100 : undefined,
-                      currencyTokenMintAddress: game.currencyTokenMintAddress || undefined,
+                      costUsdCents: game.costInUsd
+                        ? Number(game.costInUsd) * 100
+                        : undefined,
+                      currencyTokenMintAddress:
+                        game.currencyTokenMintAddress || undefined,
                       isActive: game.isActive,
                       totalPlays: game.totalPlays,
                     }}

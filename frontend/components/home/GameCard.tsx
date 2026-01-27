@@ -93,12 +93,12 @@ export default function GameCard({
           src={image}
           alt={game.name}
           className={cn(
-            "rounded-lg",
+            "object-cover rounded-lg",
             size === "large"
-              ? "w-full h-full object-contain"
+              ? "w-full h-full"
               : size === "preview"
-                ? "w-full h-full object-contain"
-                : "w-16 h-16 object-cover",
+                ? "w-full h-full"
+                : "w-16 h-16",
           )}
         />
       );
@@ -175,7 +175,7 @@ export default function GameCard({
 
           <div className="flex relative h-full">
             {/* Left image panel - responsive width, stretches to fill height */}
-            <div className="w-[40%] xl:w-[320px] shrink-0 bg-[#CFEFEA] m-3 xl:m-4 rounded-2xl overflow-hidden flex relative">
+            <div className="w-[40%] xl:w-[320px] shrink-0 bg-[#CFEFEA] m-3 xl:m-4 rounded-2xl overflow-hidden flex relative border-2 border-[#111827]">
               <div className="w-full h-full min-h-[180px] xl:min-h-[360px] flex items-center justify-center">
                 {renderImage(game.image, "large")}
               </div>

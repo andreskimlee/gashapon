@@ -93,12 +93,12 @@ export default function GameCard({
           src={image}
           alt={game.name}
           className={cn(
-            "object-cover rounded-lg",
+            "rounded-lg",
             size === "large"
-              ? "w-full h-full"
+              ? "w-full h-full object-contain"
               : size === "preview"
-                ? "w-full h-full"
-                : "w-16 h-16",
+                ? "w-full h-full object-contain"
+                : "w-16 h-16 object-cover",
           )}
         />
       );

@@ -158,7 +158,7 @@ function CategoryGameCard({ game }: { game: Game }) {
 
             {/* Price Badge */}
             <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-pastel-yellow border-2 border-yellow-400/50 text-[10px] md:text-xs font-bold text-[#111827]">
-              ${((game.costInUsd as number) || (Number(game.costInTokens) / 100)).toFixed(2)}
+              ${(Number(game.costInUsd) || Number(game.costInTokens) / 100).toFixed(2)}
             </div>
           </div>
 

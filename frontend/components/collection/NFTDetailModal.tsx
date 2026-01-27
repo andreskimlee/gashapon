@@ -138,16 +138,9 @@ export default function NFTDetailModal({
 
                 {/* Info Section */}
                 <div className="p-5">
-                  <h2 className="font-display text-2xl text-[#111827] mb-2">
+                  <h2 className="font-display text-2xl text-[#111827] mb-4">
                     {nft.name?.toUpperCase() || `PRIZE #${nft.prizeId}`}
                   </h2>
-
-                  {/* Description if available */}
-                  {nft.description && (
-                    <p className="text-pastel-textLight text-sm mb-4 line-clamp-2">
-                      {nft.description}
-                    </p>
-                  )}
 
                   {/* Mint address */}
                   <div className="flex items-center gap-2 mb-4 p-2 bg-gray-50 rounded-lg">

@@ -36,7 +36,7 @@ jobs:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
           git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/gashapon-backend.git
-          git push heroku `git subtree split --prefix backend main`:main --force
+          git push heroku main:main --force
 
   deploy-indexer:
     needs: changes
@@ -52,4 +52,4 @@ jobs:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
           git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/gashapon-indexer.git
-          git push heroku `git subtree split --prefix gashapon-indexer main`:main --force
+          git push heroku main:main --force

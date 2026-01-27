@@ -20,6 +20,7 @@ import { usePlayEvents } from "@/hooks/api/usePaymentVerification";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { gamesApi } from "@/services/api/games";
 import type { Game } from "@/types/game/game";
+import { formatPercent, formatOddsRatio } from "@/utils/odds-calculator";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { Keypair } from "@solana/web3.js";
@@ -578,6 +579,15 @@ export default function GameDetailPage() {
                             <Badge variant={p.tier as any} size="sm">
                               {p.tier}
                             </Badge>
+                          </div>
+                          {/* Prize Odds */}
+                          <div className="mt-1 text-xs text-pastel-textLight">
+                            {(() => {
+                              const percent = p.probabilityBasisPoints / 100;
+                              return percent >= 1
+                                ? `${formatPercent(percent)} chance`
+                                : formatOddsRatio(percent);
+                            })()}
                           </div>
                           <div className="mt-2">
                             <div className="flex items-center justify-between text-[11px] text-pastel-textLight">

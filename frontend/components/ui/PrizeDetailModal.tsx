@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import Badge from "./Badge";
+import { formatPercent, formatOddsRatio } from "@/utils/odds-calculator";
 
 export interface Prize {
   prizeId: number;
@@ -93,6 +94,19 @@ export default function PrizeDetailModal({ prize, onClose }: PrizeDetailModalPro
                   <Badge variant={prize.tier as any} size="md">
                     {prize.tier}
                   </Badge>
+                </div>
+
+                {/* Win Odds */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#111827] uppercase">Win Odds</span>
+                  <span className="text-pastel-text font-mono text-sm">
+                    {(() => {
+                      const percent = prize.probabilityBasisPoints / 100;
+                      return percent >= 1
+                        ? formatPercent(percent)
+                        : formatOddsRatio(percent);
+                    })()}
+                  </span>
                 </div>
 
                 {/* Description */}

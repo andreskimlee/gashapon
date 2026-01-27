@@ -8,9 +8,10 @@
 'use client';
 
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Sparkles, TrendingUp, Clock, Star, Flame, Gift } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
+import { ChevronLeft, ChevronRight, Sparkles, Layers, Gamepad2, Heart, Star, Coffee } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
@@ -21,14 +22,14 @@ import { useGames } from "@/hooks/api/useGames";
 import { cn } from "@/utils/helpers";
 import type { Game } from "@/types/game/game";
 
-// Category icons mapping
+// Category icons mapping (matches Lucide icon names stored in DB)
 const CATEGORY_ICONS: Record<string, typeof Sparkles> = {
-  "Featured": Sparkles,
-  "Trending": TrendingUp,
-  "New Arrivals": Clock,
-  "Top Rated": Star,
-  "Hot Right Now": Flame,
-  "Limited Edition": Gift,
+  "Sparkles": Sparkles,
+  "Layers": Layers,
+  "Gamepad2": Gamepad2,
+  "Heart": Heart,
+  "Star": Star,
+  "Coffee": Coffee,
 };
 
 // Mock categories with game IDs (will be replaced with API call)
@@ -114,6 +115,10 @@ const MOCK_GAMES: Game[] = [
 function CategoryGameCard({ game }: { game: Game }) {
   const [isHovered, setIsHovered] = useState(false);
 
+  // Get the first prize with an image, or fall back to game image
+  const prizeImage = game.prizes?.find(p => p.imageUrl)?.imageUrl;
+  const displayImage = prizeImage || game.imageUrl;
+
   return (
     <Link href={`/games/${game.id}`}>
       <motion.div
@@ -125,11 +130,11 @@ function CategoryGameCard({ game }: { game: Game }) {
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
         <Card variant="arcade" shadowColor="mint" padding="none" className="overflow-hidden">
-          {/* Game Image */}
+          {/* Prize/Game Image */}
           <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden">
-            {game.imageUrl ? (
+            {displayImage ? (
               <img
-                src={game.imageUrl}
+                src={displayImage}
                 alt={game.name}
                 className="w-full h-full object-cover"
               />
@@ -179,47 +184,51 @@ function CategoryGameCard({ game }: { game: Game }) {
   );
 }
 
-// Horizontal scrolling category row
+// Horizontal scrolling category row with Embla Carousel
 function CategoryRow({ 
   name, 
+  icon,
   games 
 }: { 
   name: string; 
+  icon: string | null;
   games: Game[];
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
-  const [isScrollable, setIsScrollable] = useState(false);
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: "start",
+    containScroll: "trimSnaps",
+    dragFree: true,
+  });
+  
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
 
-  const Icon = CATEGORY_ICONS[name] || Sparkles;
+  const Icon = (icon && CATEGORY_ICONS[icon]) || Sparkles;
 
-  // Check if content is scrollable and update arrow visibility
-  const updateScrollState = () => {
-    if (!scrollRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-    const canScroll = scrollWidth > clientWidth;
-    setIsScrollable(canScroll);
-    setShowLeftArrow(canScroll && scrollLeft > 0);
-    setShowRightArrow(canScroll && scrollLeft < scrollWidth - clientWidth - 10);
-  };
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
 
-  // Check on mount and window resize
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
   useEffect(() => {
-    updateScrollState();
-    window.addEventListener("resize", updateScrollState);
-    return () => window.removeEventListener("resize", updateScrollState);
-  }, [games]);
-
-  const handleScroll = () => {
-    updateScrollState();
-  };
-
-  const scroll = (direction: "left" | "right") => {
-    if (!scrollRef.current) return;
-    const scrollAmount = direction === "left" ? -400 : 400;
-    scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-  };
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
+    };
+  }, [emblaApi, onSelect]);
 
   if (games.length === 0) return null;
 
@@ -243,61 +252,48 @@ function CategoryRow({
         </h2>
       </div>
 
-      {/* Scrollable Games Row */}
+      {/* Carousel */}
       <div className="relative group">
-        {/* Left Arrow - only show when scrollable */}
-        {isScrollable && (
-          <motion.button
-            className={cn(
-              "absolute left-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/90 border-2 border-[#111827] flex items-center justify-center shadow-lg",
-              "opacity-0 group-hover:opacity-100 transition-opacity",
-              !showLeftArrow && "!opacity-0 pointer-events-none"
-            )}
-            style={{ boxShadow: "3px 3px 0 #111827" }}
-            onClick={() => scroll("left")}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <ChevronLeft className="w-6 h-6 text-[#111827]" />
-          </motion.button>
-        )}
-
-        {/* Games Container */}
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide px-4 md:px-8 py-2"
-          onScroll={handleScroll}
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        {/* Left Arrow */}
+        <motion.button
+          className={cn(
+            "absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] flex items-center justify-center",
+            "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+            !canScrollPrev && "!opacity-0 pointer-events-none"
+          )}
+          style={{ boxShadow: "3px 3px 0 #111827" }}
+          onClick={scrollPrev}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
-          {games.map((game) => (
-            <CategoryGameCard key={`${name}-${game.id}`} game={game} />
-          ))}
+          <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-[#111827]" />
+        </motion.button>
+
+        {/* Embla Viewport */}
+        <div className="overflow-hidden px-4 md:px-8" ref={emblaRef}>
+          <div className="flex gap-4 py-2">
+            {games.map((game) => (
+              <div key={`${name}-${game.id}`} className="flex-none">
+                <CategoryGameCard game={game} />
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Right Arrow - only show when scrollable */}
-        {isScrollable && (
-          <motion.button
-            className={cn(
-              "absolute right-0 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/90 border-2 border-[#111827] flex items-center justify-center shadow-lg",
-              "opacity-0 group-hover:opacity-100 transition-opacity",
-              !showRightArrow && "!opacity-0 pointer-events-none"
-            )}
-            style={{ boxShadow: "3px 3px 0 #111827" }}
-            onClick={() => scroll("right")}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <ChevronRight className="w-6 h-6 text-[#111827]" />
-          </motion.button>
-        )}
-
-        {/* Gradient Fades - only show when scrollable */}
-        {isScrollable && (
-          <>
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white/30 to-transparent pointer-events-none z-10 backdrop-blur-[2px]" />
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white/30 to-transparent pointer-events-none z-10 backdrop-blur-[2px]" />
-          </>
-        )}
+        {/* Right Arrow */}
+        <motion.button
+          className={cn(
+            "absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] flex items-center justify-center",
+            "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+            !canScrollNext && "!opacity-0 pointer-events-none"
+          )}
+          style={{ boxShadow: "3px 3px 0 #111827" }}
+          onClick={scrollNext}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-[#111827]" />
+        </motion.button>
       </div>
     </div>
   );
@@ -317,6 +313,7 @@ export default function GamesPage() {
   const categoryRows = apiCategories.length > 0
     ? apiCategories.map(cat => ({
         name: cat.name,
+        icon: cat.icon,
         games: cat.games.length > 0 ? cat.games : 
           // If no games in category, try to populate from allGames using mock IDs (dev only)
           isDev 
@@ -330,7 +327,7 @@ export default function GamesPage() {
           const categoryGames = gameIds
             .map(id => allGames.find(g => g.id === id))
             .filter((g): g is Game => g !== undefined);
-          return { name: categoryName, games: categoryGames };
+          return { name: categoryName, icon: null, games: categoryGames };
         })
       : [];
 
@@ -412,7 +409,7 @@ export default function GamesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <CategoryRow name={category.name} games={category.games} />
+              <CategoryRow name={category.name} icon={category.icon} games={category.games} />
             </motion.div>
           ))}
         </div>

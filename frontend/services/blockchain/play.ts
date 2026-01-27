@@ -5,6 +5,7 @@ import {
 import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
   createInitializeMint2Instruction,
   getMinimumBalanceForRentExemptMint,
@@ -49,16 +50,17 @@ function toLEU64(value: bigint | number): Uint8Array {
   return out;
 }
 
-// Minimal ATA derivation without importing full helpers
+// ATA derivation - defaults to Token-2022 for GRABBIT, but can specify legacy for NFTs
 export function findAssociatedTokenAddress(
   owner: PublicKey,
-  mint: PublicKey
+  mint: PublicKey,
+  tokenProgramId: PublicKey = TOKEN_2022_PROGRAM_ID
 ): PublicKey {
   const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
     "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
   );
   return PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    [owner.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID
   )[0];
 }
@@ -283,10 +285,10 @@ export async function playOnChain(opts: {
   let finalTokenAmount: bigint;
   
   if (opts.costUsdCents !== undefined) {
-    // Fetch actual token decimals from chain
+    // Fetch actual token decimals from chain (using Token-2022)
     let tokenDecimals = 6;
     try {
-      const mintInfo = await getMint(connection, mint);
+      const mintInfo = await getMint(connection, mint, undefined, TOKEN_2022_PROGRAM_ID);
       tokenDecimals = mintInfo.decimals;
     } catch (e) {
       console.warn(`Could not fetch token decimals, using default ${tokenDecimals}:`, e);
@@ -312,6 +314,7 @@ export async function playOnChain(opts: {
     throw new Error("Either tokenAmount or costUsdCents must be provided");
   }
 
+  // Derive ATAs using Token-2022
   const userTokenAccount = findAssociatedTokenAddress(user, mint);
   const treasuryTokenAccount = findAssociatedTokenAddress(treasury, mint);
 
@@ -332,7 +335,7 @@ export async function playOnChain(opts: {
     { pubkey: userTokenAccount, isSigner: false, isWritable: true },
     { pubkey: treasuryTokenAccount, isSigner: false, isWritable: true },
     { pubkey: sessionPda, isSigner: false, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ];
 
@@ -344,7 +347,7 @@ export async function playOnChain(opts: {
 
   const tx = new Transaction();
   
-  // Ensure user ATA exists
+  // Ensure user ATA exists (Token-2022)
   const userAtaInfo = await connection.getAccountInfo(userTokenAccount);
   if (!userAtaInfo) {
     tx.add(
@@ -352,12 +355,13 @@ export async function playOnChain(opts: {
         user,
         userTokenAccount,
         user,
-        mint
+        mint,
+        TOKEN_2022_PROGRAM_ID
       )
     );
   }
   
-  // Ensure treasury ATA exists
+  // Ensure treasury ATA exists (Token-2022)
   const treasuryAtaInfo = await connection.getAccountInfo(treasuryTokenAccount);
   if (!treasuryAtaInfo) {
     tx.add(
@@ -365,7 +369,8 @@ export async function playOnChain(opts: {
         user,
         treasuryTokenAccount,
         treasury,
-        mint
+        mint,
+        TOKEN_2022_PROGRAM_ID
       )
     );
   }
@@ -439,11 +444,11 @@ export async function claimPrize(opts: {
     METADATA_PROGRAM_ID
   );
 
-  // User's NFT ATA
-  const userNftAta = findAssociatedTokenAddress(user, nftMint.publicKey);
+  // User's NFT ATA (NFTs use legacy Token Program)
+  const userNftAta = findAssociatedTokenAddress(user, nftMint.publicKey, TOKEN_PROGRAM_ID);
   const ataInfo = await connection.getAccountInfo(userNftAta);
   const ensureAtaIx = !ataInfo
-    ? createAssociatedTokenAccountInstruction(user, userNftAta, user, nftMint.publicKey)
+    ? createAssociatedTokenAccountInstruction(user, userNftAta, user, nftMint.publicKey, TOKEN_PROGRAM_ID)
     : null;
 
   // Build claim_prize instruction

@@ -528,6 +528,9 @@
           "writable": true
         },
         {
+          "name": "token_mint"
+        },
+        {
           "name": "play_session",
           "writable": true,
           "pda": {
@@ -560,8 +563,7 @@
           }
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_program"
         },
         {
           "name": "system_program",
@@ -736,8 +738,10 @@
           "writable": true
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          "name": "token_mint"
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": [

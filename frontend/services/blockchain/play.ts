@@ -334,6 +334,7 @@ export async function playOnChain(opts: {
     { pubkey: user, isSigner: true, isWritable: true },
     { pubkey: userTokenAccount, isSigner: false, isWritable: true },
     { pubkey: treasuryTokenAccount, isSigner: false, isWritable: true },
+    { pubkey: mint, isSigner: false, isWritable: false }, // token_mint for transfer_checked
     { pubkey: sessionPda, isSigner: false, isWritable: true },
     { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },

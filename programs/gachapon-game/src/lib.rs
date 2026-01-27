@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, MintTo, Token, TokenAccount, Transfer};
+use anchor_lang::prelude::InterfaceAccount;
+use anchor_lang::prelude::Interface;
+use anchor_spl::token::{self, MintTo, Token};
+use anchor_spl::token_interface::{self, TokenAccount, TokenInterface, TransferChecked};
 use anchor_spl::associated_token::AssociatedToken;
 
 declare_id!("EKzLHZyU6WVfhYVXcE6R4hRE4YuWrva8NeLGMYB7ZDU6");
@@ -182,14 +185,20 @@ pub mod gachapon_game {
             ErrorCode::Unauthorized
         );
 
-        // Transfer tokens from user to treasury
-        let cpi_accounts = Transfer {
+        // Get token decimals from mint account
+        let mint_info = ctx.accounts.token_mint.to_account_info();
+        let mint_data = mint_info.try_borrow_data()?;
+        let decimals = mint_data[44]; // Decimals is at offset 44 in mint account data
+
+        // Transfer tokens from user to treasury using token interface (supports both Token and Token-2022)
+        let cpi_accounts = TransferChecked {
             from: ctx.accounts.user_token_account.to_account_info(),
+            mint: ctx.accounts.token_mint.to_account_info(),
             to: ctx.accounts.treasury_token_account.to_account_info(),
             authority: ctx.accounts.user.to_account_info(),
         };
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
-        token::transfer(cpi_ctx, token_amount)?;
+        token_interface::transfer_checked(cpi_ctx, token_amount, decimals)?;
 
         // Initialize play session - awaiting backend finalization
         let session = &mut ctx.accounts.play_session;
@@ -259,13 +268,19 @@ pub mod gachapon_game {
     pub fn withdraw_treasury(ctx: Context<WithdrawTreasury>, amount: u64) -> Result<()> {
         let game = &ctx.accounts.game;
         
-        let cpi_accounts = Transfer {
+        // Get token decimals from mint account
+        let mint_info = ctx.accounts.token_mint.to_account_info();
+        let mint_data = mint_info.try_borrow_data()?;
+        let decimals = mint_data[44]; // Decimals is at offset 44 in mint account data
+        
+        let cpi_accounts = TransferChecked {
             from: ctx.accounts.treasury_token_account.to_account_info(),
+            mint: ctx.accounts.token_mint.to_account_info(),
             to: ctx.accounts.destination_token_account.to_account_info(),
             authority: ctx.accounts.treasury.to_account_info(),
         };
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
-        token::transfer(cpi_ctx, amount)?;
+        token_interface::transfer_checked(cpi_ctx, amount, decimals)?;
 
         emit!(TreasuryWithdrawn {
             game_id: game.game_id,
@@ -826,9 +841,11 @@ pub struct PlayGame<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(mut)]
-    pub user_token_account: Account<'info, TokenAccount>,
+    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
     #[account(mut)]
-    pub treasury_token_account: Account<'info, TokenAccount>,
+    pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Token mint account - validated in instruction
+    pub token_mint: AccountInfo<'info>,
     
     // PlaySession PDA - unique per game + user + session_seed
     #[account(
@@ -840,7 +857,7 @@ pub struct PlayGame<'info> {
     )]
     pub play_session: Account<'info, PlaySession>,
     
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
@@ -876,10 +893,12 @@ pub struct WithdrawTreasury<'info> {
         constraint = treasury_token_account.mint == game.token_mint @ ErrorCode::Unauthorized,
         constraint = treasury_token_account.owner == treasury.key() @ ErrorCode::Unauthorized
     )]
-    pub treasury_token_account: Account<'info, TokenAccount>,
+    pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
     #[account(mut, constraint = destination_token_account.mint == game.token_mint @ ErrorCode::Unauthorized)]
-    pub destination_token_account: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    pub destination_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Token mint account - needed for transfer_checked
+    pub token_mint: AccountInfo<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]

@@ -20,7 +20,7 @@ unexpected_cfgs = { level = "allow" }
 
 [dependencies]
 anchor-lang = "0.32.1"
-anchor-spl = { version = "0.32.1", features = ["token", "associated_token"] }
+anchor-spl = { version = "0.32.1", features = ["token", "token_2022", "associated_token"] }
 mpl-token-metadata = "5.1.0"
 
 

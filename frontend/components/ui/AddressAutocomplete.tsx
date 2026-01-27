@@ -29,37 +29,81 @@ interface PlacePrediction {
   toPlace: () => google.maps.places.Place;
 }
 
-// Load Google Maps script with the new importLibrary approach
-let googleScriptLoaded = false;
-let googleScriptLoading = false;
-const loadCallbacks: (() => void)[] = [];
+// Load Google Maps with importLibrary support
+let googleMapsPromise: Promise<void> | null = null;
 
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (googleScriptLoaded) {
+  if (googleMapsPromise) {
+    return googleMapsPromise;
+  }
+
+  googleMapsPromise = new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (typeof google !== "undefined" && google.maps?.importLibrary) {
       resolve();
       return;
     }
 
-    loadCallbacks.push(resolve);
+    // Use Google's recommended inline bootstrap loader
+    const g = { key: apiKey, v: "weekly" } as Record<string, string>;
+    
+    /* eslint-disable */
+    // @ts-ignore - Google's bootstrap loader
+    ((g) => {
+      let h: Promise<void> | undefined,
+        a: HTMLScriptElement,
+        k: string,
+        p = "The Google Maps JavaScript API",
+        c = "google",
+        l = "importLibrary",
+        q = "__ib__",
+        m = document,
+        b = window as any;
+      b = b[c] || (b[c] = {});
+      const d = b.maps || (b.maps = {});
+      const r = new Set();
+      const e = new URLSearchParams();
+      const u = () =>
+        h ||
+        (h = new Promise(async (f, n) => {
+          await (a = m.createElement("script"));
+          e.set("libraries", [...r] + "");
+          for (k in g)
+            e.set(
+              k.replace(/[A-Z]/g, (t: string) => "_" + t[0].toLowerCase()),
+              g[k]
+            );
+          e.set("callback", c + ".maps." + q);
+          a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
+          d[q] = f;
+          a.onerror = () => (h = n(Error(p + " could not load.")));
+          a.nonce = (m.querySelector("script[nonce]") as HTMLScriptElement)?.nonce || "";
+          m.head.append(a);
+        }));
+      d[l]
+        ? console.warn(p + " only loads once. Ignoring:", g)
+        : (d[l] = (f: string, ...n: unknown[]) => r.add(f) && u().then(() => d[l](f, ...n)));
+    })(g);
+    /* eslint-enable */
 
-    if (googleScriptLoading) {
-      return;
-    }
+    // Wait for the script to be ready
+    const checkReady = setInterval(() => {
+      if (typeof google !== "undefined" && google.maps?.importLibrary) {
+        clearInterval(checkReady);
+        resolve();
+      }
+    }, 100);
 
-    googleScriptLoading = true;
-
-    // Use the new loader approach
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`;
-    script.async = true;
-    script.onload = () => {
-      googleScriptLoaded = true;
-      loadCallbacks.forEach((cb) => cb());
-      loadCallbacks.length = 0;
-    };
-    document.head.appendChild(script);
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      clearInterval(checkReady);
+      if (typeof google === "undefined" || !google.maps?.importLibrary) {
+        reject(new Error("Google Maps failed to load"));
+      }
+    }, 10000);
   });
+
+  return googleMapsPromise;
 }
 
 export default function AddressAutocomplete({

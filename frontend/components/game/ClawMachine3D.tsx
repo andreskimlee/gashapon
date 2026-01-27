@@ -2,6 +2,7 @@
 
 import { Environment, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Leva } from "leva";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -327,6 +328,9 @@ export default function ClawMachine3D({
     isDragging.current = false;
   }, []);
 
+  // Hide Leva controls in production
+  const isProduction = process.env.NODE_ENV === "production";
+
   return (
     <div
       ref={containerRef}
@@ -339,6 +343,9 @@ export default function ClawMachine3D({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
     >
+      {/* Hide Leva debug controls in production */}
+      <Leva hidden={isProduction} collapsed={true} />
+      
       {/* Pastel sky gradient background - kawaii theme */}
       {shouldShowClawMachine && (
         <>

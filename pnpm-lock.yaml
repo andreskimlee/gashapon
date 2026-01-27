@@ -189,6 +189,9 @@ importers:
       '@dimforge/rapier3d':
         specifier: ^0.19.3
         version: 0.19.3
+      '@googlemaps/js-api-loader':
+        specifier: ^2.0.2
+        version: 2.0.2
       '@react-three/cannon':
         specifier: ^6.6.0
         version: 6.6.0(@react-three/fiber@9.5.0(@types/react@19.2.8)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.1(@babel/core@7.28.6)(@types/react@19.2.8)(bufferutil@4.1.0)(react@19.2.0)(utf-8-validate@5.0.10))(react@19.2.0)(three@0.181.2))(react@19.2.0)(three@0.181.2)(typescript@5.9.3)
@@ -1135,6 +1138,9 @@ packages:
 
   '@gltf-transform/core@4.3.0':
     resolution: {integrity: sha512-ZeaQfszGJ9LYwELszu45CuDQCsE26lJNNe36FVmN8xclaT6WDdCj7fwGpQXo0/l/YgAVAHX+uO7YNBW75/SRYw==}
+
+  '@googlemaps/js-api-loader@2.0.2':
+    resolution: {integrity: sha512-bKVuTqatS8Jven5aFqVB7rCHF1VFEzpzyi0ruzO0GUR+A7m9oMqMgtnmpANj7kMYEvvhty8Fk7TnJ1MKjWHu+Q==}
 
   '@hapi/hoek@9.3.0':
     resolution: {integrity: sha512-/c6rf4UJlmHlC9b5BaNvzAcFv7HZ2QHaV0D4/HNlBdvFnvQq8RI4kYdhyPCl7Xj+oWvTWQ8ujhqS53LIgAe6KQ==}
@@ -11763,6 +11769,10 @@ snapshots:
   '@gltf-transform/core@4.3.0':
     dependencies:
       property-graph: 4.0.0
+
+  '@googlemaps/js-api-loader@2.0.2':
+    dependencies:
+      '@types/google.maps': 3.58.1
 
   '@hapi/hoek@9.3.0': {}
 

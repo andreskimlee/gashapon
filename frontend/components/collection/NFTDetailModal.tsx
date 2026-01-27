@@ -11,7 +11,6 @@ import type { NFT } from "@/types/api/nfts";
 interface NFTDetailModalProps {
   nft: NFT | null;
   onClose: () => void;
-  onRedeem: () => void;
   onClaim?: () => void;
   isClaiming?: boolean;
 }
@@ -26,7 +25,6 @@ const tierColors = {
 export default function NFTDetailModal({
   nft,
   onClose,
-  onRedeem,
   onClaim,
   isClaiming,
 }: NFTDetailModalProps) {
@@ -175,8 +173,8 @@ export default function NFTDetailModal({
                     </div>
                   )}
 
-                  {/* Action Button */}
-                  {isPending ? (
+                  {/* Action Button - only show claim for pending NFTs */}
+                  {isPending && (
                     <CTAButton
                       variant="orange"
                       size="lg"
@@ -186,16 +184,7 @@ export default function NFTDetailModal({
                     >
                       {isClaiming ? "CLAIMING..." : "CLAIM NFT"}
                     </CTAButton>
-                  ) : !nft.isRedeemed ? (
-                    <CTAButton
-                      variant="pink"
-                      size="lg"
-                      className="w-full"
-                      onClick={onRedeem}
-                    >
-                      REDEEM FOR PHYSICAL
-                    </CTAButton>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </CometCard>

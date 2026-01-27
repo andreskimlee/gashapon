@@ -30,7 +30,12 @@ function EmptyState() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <Card variant="arcade" shadowColor="pink" padding="xl" className="max-w-md text-center">
+      <Card
+        variant="arcade"
+        shadowColor="pink"
+        padding="xl"
+        className="max-w-md text-center"
+      >
         <motion.div
           className="h-[280px] relative mx-auto -mb-12"
           animate={{
@@ -70,7 +75,12 @@ function ConnectWalletPrompt() {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
     >
-      <Card variant="arcade" shadowColor="pink" padding="xl" className="max-w-md text-center">
+      <Card
+        variant="arcade"
+        shadowColor="pink"
+        padding="xl"
+        className="max-w-md text-center"
+      >
         <motion.div
           className="h-[280px] relative mx-auto -mb-12"
           animate={{ y: [0, -10, 0] }}
@@ -87,8 +97,8 @@ function ConnectWalletPrompt() {
           CONNECT YOUR WALLET
         </h2>
         <p className="text-pastel-textLight">
-          Connect your Solana wallet to view your prize collection and redeem for
-          physical delivery.
+          Connect your Solana wallet to view your prize collection and redeem
+          for physical delivery.
         </p>
       </Card>
     </motion.div>
@@ -469,10 +479,6 @@ export default function CollectionPage() {
       <NFTDetailModal
         nft={viewingNFT}
         onClose={() => setViewingNFT(null)}
-        onRedeem={() => {
-          setSelectedNFT(viewingNFT);
-          setViewingNFT(null);
-        }}
         onClaim={() => {
           if (viewingNFT) {
             handleClaimNft(viewingNFT);

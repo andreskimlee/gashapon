@@ -1,5 +1,6 @@
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import { Toaster } from "@/components/ui/Toast/Toaster";
 import SolanaWalletProvider from "@/components/wallet/SolanaWalletProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -31,6 +32,7 @@ export default function RootLayout({
               <main className="relative flex-1">{children}</main>
               <Footer />
             </div>
+            <Toaster />
           </SolanaWalletProvider>
         </QueryProvider>
       </body>

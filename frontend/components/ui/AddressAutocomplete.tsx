@@ -27,8 +27,8 @@ let optionsSet = false;
 function initializeLoader(apiKey: string) {
   if (!optionsSet) {
     setOptions({
-      apiKey,
-      version: "weekly",
+      key: apiKey,
+      v: "weekly",
     });
     optionsSet = true;
   }

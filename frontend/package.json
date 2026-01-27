@@ -34,6 +34,8 @@
     "@tanstack/react-query": "^5.90.19",
     "@types/three": "^0.181.0",
     "bs58": "^5.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.26.2",
     "leva": "^0.10.1",
@@ -42,6 +44,8 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7",
     "three": "^0.181.2"
   },
   "devDependencies": {

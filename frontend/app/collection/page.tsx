@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import HolographicCard from "@/components/collection/HolographicCard";
+import NFTDetailModal from "@/components/collection/NFTDetailModal";
 import RedeemModal from "@/components/collection/RedeemModal";
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
@@ -207,7 +208,8 @@ function NFTCardContent({
 export default function CollectionPage() {
   const { publicKey, connected, signMessage, sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
+  const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null); // For redeem modal
+  const [viewingNFT, setViewingNFT] = useState<NFT | null>(null); // For detail modal
   const [activeTab, setActiveTab] = useState<"all" | "unredeemed" | "redeemed">(
     "all",
   );
@@ -431,6 +433,7 @@ export default function CollectionPage() {
                       <HolographicCard
                         tier={nft.tier || "common"}
                         isRedeemed={nft.isRedeemed}
+                        onClick={() => setViewingNFT(nft)}
                       >
                         <NFTCardContent
                           nft={nft}
@@ -461,6 +464,22 @@ export default function CollectionPage() {
           </>
         )}
       </div>
+
+      {/* NFT Detail Modal */}
+      <NFTDetailModal
+        nft={viewingNFT}
+        onClose={() => setViewingNFT(null)}
+        onRedeem={() => {
+          setSelectedNFT(viewingNFT);
+          setViewingNFT(null);
+        }}
+        onClaim={() => {
+          if (viewingNFT) {
+            handleClaimNft(viewingNFT);
+          }
+        }}
+        isClaiming={viewingNFT ? claimingNft === viewingNFT.mintAddress : false}
+      />
 
       {/* Redeem Modal */}
       <RedeemModal

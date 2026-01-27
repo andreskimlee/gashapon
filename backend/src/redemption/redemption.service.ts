@@ -372,7 +372,7 @@ export class RedemptionService {
     }
 
     // 2. Verify message format matches expected structure
-    const expectedMessage = `Gashapon Prize Redemption\n\nNFT: ${nftMint}\nWallet: ${wallet}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
+    const expectedMessage = `Grabbit Prize Redemption\n\nNFT: ${nftMint}\nWallet: ${wallet}\nTimestamp: ${timestamp}\n\nBy signing this message, you confirm that you own this NFT and authorize its redemption for physical delivery.`;
     
     if (message !== expectedMessage) {
       console.warn("Message format mismatch");

@@ -34,7 +34,7 @@ export class RedemptionRequestDto {
 
   @ApiProperty({
     description: 'Original message that was signed by the wallet',
-    example: 'Gashapon Prize Redemption\n\nNFT: ...\nWallet: ...\nTimestamp: ...',
+    example: 'Grabbit Prize Redemption\n\nNFT: ...\nWallet: ...\nTimestamp: ...',
   })
   @IsString()
   @IsNotEmpty()

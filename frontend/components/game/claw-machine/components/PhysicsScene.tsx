@@ -3,6 +3,10 @@
 import { Physics } from "@react-three/rapier";
 import { useControls } from "leva";
 import { useMemo, useState } from "react";
+
+// Check if we're in production
+const isProduction = process.env.NODE_ENV === "production";
+
 import {
   DEFAULT_BACK_WALL,
   DEFAULT_DROP_BOX,
@@ -48,7 +52,7 @@ export function PhysicsScene({
   // ====================================
   const { devMode, glassOpacity } = useControls({
     devMode: {
-      value: true,
+      value: !isProduction, // Default to false in production
       label: "🛠️ Dev Mode",
     },
     glassOpacity: {

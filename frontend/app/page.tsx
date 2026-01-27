@@ -20,6 +20,9 @@ import { useGames } from "@/hooks/api/useGames";
 export default function Home() {
   const { games, loading, error } = useGames();
 
+  // Filter to only show active games
+  const activeGames = games.filter((game) => game.isActive);
+
   return (
     <div className="relative min-h-screen">
       <HeroSection />
@@ -39,7 +42,7 @@ export default function Home() {
               </p>
               <p className="text-pastel-textLight text-sm">{error}</p>
             </div>
-          ) : games.length === 0 ? (
+          ) : activeGames.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-pastel-text text-xl mb-4">
                 No games available
@@ -55,7 +58,7 @@ export default function Home() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              {games.map((game, index) => (
+              {activeGames.map((game, index) => (
                 <motion.div
                   key={game.id}
                   className="h-full"

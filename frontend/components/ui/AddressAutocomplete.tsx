@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader } from "@googlemaps/js-api-loader";
+import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface ParsedAddress {
@@ -21,18 +21,17 @@ interface AddressAutocompleteProps {
   disabled?: boolean;
 }
 
-// Singleton loader instance
-let loader: Loader | null = null;
+// Track if options have been set
+let optionsSet = false;
 
-function getLoader(apiKey: string): Loader {
-  if (!loader) {
-    loader = new Loader({
+function initializeLoader(apiKey: string) {
+  if (!optionsSet) {
+    setOptions({
       apiKey,
       version: "weekly",
-      libraries: ["places"],
     });
+    optionsSet = true;
   }
-  return loader;
 }
 
 export default function AddressAutocomplete({
@@ -63,8 +62,8 @@ export default function AddressAutocomplete({
 
     const initPlaces = async () => {
       try {
-        const loaderInstance = getLoader(apiKey);
-        await loaderInstance.importLibrary("places");
+        initializeLoader(apiKey);
+        await importLibrary("places");
         
         // Create initial session token
         sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();

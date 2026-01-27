@@ -15,7 +15,7 @@ export default function Footer() {
           <a href="/support" className="hover:text-pastel-coral transition-colors">Support</a>
           <a href="/terms" className="hover:text-pastel-coral transition-colors">Terms</a>
           <a 
-            href="https://x.com/grababorbit" 
+            href="https://x.com/Grabbitdotfun" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-pastel-text hover:text-pastel-coral transition-colors"

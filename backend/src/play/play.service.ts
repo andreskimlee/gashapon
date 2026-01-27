@@ -180,18 +180,33 @@ export class PlayService {
       });
     }
 
-    // Create play record in database
-    const play = this.playRepository.create({
-      gameId: params.gameDbId,
-      userWallet: params.userWallet,
-      prizeId: prize?.id || null,
-      nftMint: result.nftMint,  // Store the auto-minted NFT address
-      transactionSignature: result.signature,
-      randomValue: randomValue,
-      status: PlayStatus.COMPLETED,
-      prize: prize,
+    // Create or update play record in database (upsert to handle retries)
+    // If on-chain succeeded but DB save failed, retry should update existing record
+    const existingPlay = await this.playRepository.findOne({
+      where: { transactionSignature: result.signature },
     });
-    await this.playRepository.save(play);
+    
+    if (existingPlay) {
+      // Update existing record (retry case)
+      existingPlay.prizeId = prize?.id || null;
+      existingPlay.nftMint = result.nftMint;
+      existingPlay.status = PlayStatus.COMPLETED;
+      existingPlay.prize = prize;
+      await this.playRepository.save(existingPlay);
+    } else {
+      // Create new record
+      const play = this.playRepository.create({
+        gameId: params.gameDbId,
+        userWallet: params.userWallet,
+        prizeId: prize?.id || null,
+        nftMint: result.nftMint,  // Store the auto-minted NFT address
+        transactionSignature: result.signature,
+        randomValue: randomValue,
+        status: PlayStatus.COMPLETED,
+        prize: prize,
+      });
+      await this.playRepository.save(play);
+    }
 
     return {
       success: true,

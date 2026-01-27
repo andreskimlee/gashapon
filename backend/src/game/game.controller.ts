@@ -2,7 +2,7 @@ import { Controller, Get, Param, ParseIntPipe, Query } from "@nestjs/common";
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { GameService } from "./game.service";
 
-// Force redeploy: 2026-01-27
+// Deployed: 2026-01-27
 
 @ApiTags("games")
 @Controller("games")

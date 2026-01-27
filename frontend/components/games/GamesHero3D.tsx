@@ -2,7 +2,7 @@
  * Games Hero 3D Component
  * 
  * Eye-catching 3D hero section with floating capsule balls
- * and animated claw.
+ * and animated claw. Uses static banner on mobile for performance.
  */
 
 "use client";
@@ -10,7 +10,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useGLTF } from "@react-three/drei";
 import { motion } from "framer-motion";
-import { Suspense, useRef, useMemo, useEffect } from "react";
+import { Suspense, useRef, useMemo, useEffect, useState } from "react";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
 
@@ -227,9 +227,95 @@ function Scene() {
   );
 }
 
-export default function GamesHero3D() {
+// Mobile-friendly static hero (no 3D)
+function MobileHero() {
   return (
-    <div className="relative h-[280px] md:h-[350px] overflow-hidden border-b-4 border-[#111827]">
+    <div className="relative h-[220px] overflow-hidden border-b-4 border-[#111827]">
+      {/* Animated gradient background */}
+      <motion.div 
+        className="absolute inset-0"
+        animate={{
+          background: [
+            "linear-gradient(135deg, #A1E5CC 0%, #B8E4F0 25%, #DDA0DD 50%, #F7ABAD 75%, #FFE5A0 100%)",
+            "linear-gradient(135deg, #FFE5A0 0%, #A1E5CC 25%, #B8E4F0 50%, #DDA0DD 75%, #F7ABAD 100%)",
+            "linear-gradient(135deg, #F7ABAD 0%, #FFE5A0 25%, #A1E5CC 50%, #B8E4F0 75%, #DDA0DD 100%)",
+            "linear-gradient(135deg, #A1E5CC 0%, #B8E4F0 25%, #DDA0DD 50%, #F7ABAD 75%, #FFE5A0 100%)",
+          ]
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+      />
+      
+      {/* Floating CSS circles for decoration */}
+      <motion.div
+        className="absolute w-20 h-20 rounded-full bg-white/40 blur-sm"
+        style={{ top: "10%", left: "5%" }}
+        animate={{ y: [0, -10, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute w-16 h-16 rounded-full bg-pastel-coral/50 blur-sm"
+        style={{ top: "20%", right: "10%" }}
+        animate={{ y: [0, 10, 0], scale: [1, 1.15, 1] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+      />
+      <motion.div
+        className="absolute w-12 h-12 rounded-full bg-pastel-yellow/50 blur-sm"
+        style={{ bottom: "25%", left: "15%" }}
+        animate={{ y: [0, -8, 0], scale: [1, 1.2, 1] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+      />
+      <motion.div
+        className="absolute w-14 h-14 rounded-full bg-pastel-mint/50 blur-sm"
+        style={{ bottom: "15%", right: "20%" }}
+        animate={{ y: [0, 12, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+      />
+      <motion.div
+        className="absolute w-10 h-10 rounded-full bg-white/30 blur-sm"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
+        animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      />
+      
+      {/* Text Overlay */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center"
+        >
+          <h1 
+            className="font-display text-4xl text-white drop-shadow-lg"
+            style={{
+              textShadow: "0 3px 0 #F7ABAD, 0 6px 0 rgba(0,0,0,0.15)"
+            }}
+          >
+            BROWSE GAMES
+          </h1>
+          <p 
+            className="mt-3 text-sm text-white font-bold max-w-xs mx-auto px-4"
+            style={{
+              textShadow: "1px 1px 0 #111827, -1px -1px 0 #111827, 1px -1px 0 #111827, -1px 1px 0 #111827"
+            }}
+          >
+            Explore our claw machines and win amazing prizes!
+          </p>
+        </motion.div>
+      </div>
+      
+      {/* Vignette overlay */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.1) 100%)"
+      }} />
+    </div>
+  );
+}
+
+// Desktop 3D hero
+function DesktopHero() {
+  return (
+    <div className="relative h-[350px] overflow-hidden border-b-4 border-[#111827]">
       {/* Animated gradient background */}
       <div className="absolute inset-0">
         <motion.div 
@@ -300,7 +386,7 @@ export default function GamesHero3D() {
           className="text-center"
         >
           <motion.h1 
-            className="font-display text-5xl md:text-7xl lg:text-8xl text-white drop-shadow-lg"
+            className="font-display text-7xl lg:text-8xl text-white drop-shadow-lg"
             style={{
               textShadow: "0 4px 0 #F7ABAD, 0 8px 0 rgba(0,0,0,0.15), 0 0 40px rgba(247,171,173,0.5)"
             }}
@@ -316,7 +402,7 @@ export default function GamesHero3D() {
             BROWSE GAMES
           </motion.h1>
           <motion.p 
-            className="mt-4 text-lg md:text-xl text-white font-bold max-w-xl mx-auto px-4"
+            className="mt-4 text-xl text-white font-bold max-w-xl mx-auto px-4"
             style={{
               textShadow: "2px 2px 0 #111827, -1px -1px 0 #111827, 1px -1px 0 #111827, -1px 1px 0 #111827"
             }}
@@ -327,7 +413,6 @@ export default function GamesHero3D() {
             Explore our collection of claw machines and win amazing prizes!
           </motion.p>
         </motion.div>
-        
       </div>
       
       {/* Vignette overlay */}
@@ -336,4 +421,32 @@ export default function GamesHero3D() {
       }} />
     </div>
   );
+}
+
+export default function GamesHero3D() {
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Check for mobile based on screen width and touch capability
+    const checkMobile = () => {
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth < 768;
+      setIsMobile(isTouchDevice || isSmallScreen);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Show nothing during SSR to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="relative h-[220px] md:h-[350px] overflow-hidden border-b-4 border-[#111827] bg-gradient-to-r from-pastel-mint via-pastel-sky to-pastel-coral" />
+    );
+  }
+
+  return isMobile ? <MobileHero /> : <DesktopHero />;
 }

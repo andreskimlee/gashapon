@@ -7,11 +7,11 @@
 
 'use client';
 
+import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, Sparkles, Layers, Gamepad2, Heart, Star, Coffee } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
@@ -111,32 +111,26 @@ const MOCK_GAMES: Game[] = [
   },
 ];
 
-// Game Card for the category rows
-function CategoryGameCard({ game }: { game: Game }) {
-  const [isHovered, setIsHovered] = useState(false);
-
+// Game Card for the category rows - optimized for mobile
+const CategoryGameCard = React.memo(function CategoryGameCard({ game }: { game: Game }) {
   // Get the first prize with an image, or fall back to game image
   const prizeImage = game.prizes?.find(p => p.imageUrl)?.imageUrl;
   const displayImage = prizeImage || game.imageUrl;
 
   return (
     <Link href={`/games/${game.id}`}>
-      <motion.div
-        className="relative flex-shrink-0 w-[200px] md:w-[280px] cursor-pointer"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        whileHover={{ scale: 1.05, zIndex: 10 }}
-        whileTap={{ scale: 0.98 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      <div
+        className="relative flex-shrink-0 w-[200px] md:w-[280px] cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-98"
       >
         <Card variant="arcade" shadowColor="mint" padding="none" className="overflow-hidden">
           {/* Prize/Game Image */}
-          <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden">
+          <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden group">
             {displayImage ? (
               <img
                 src={displayImage}
                 alt={game.name}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -144,20 +138,17 @@ function CategoryGameCard({ game }: { game: Game }) {
               </div>
             )}
             
-            {/* Hover Overlay */}
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-3"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isHovered ? 1 : 0 }}
-              transition={{ duration: 0.2 }}
+            {/* Hover Overlay - CSS only, hidden on mobile */}
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden md:flex"
             >
               <CTAButton size="sm" variant="orange" className="w-full">
                 PLAY NOW
               </CTAButton>
-            </motion.div>
+            </div>
 
             {/* Plays Badge */}
-            <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 backdrop-blur-sm border-2 border-[#111827] text-[10px] md:text-xs font-bold text-[#111827]">
+            <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 border-2 border-[#111827] text-[10px] md:text-xs font-bold text-[#111827]">
               {game.totalPlays.toLocaleString()} plays
             </div>
 
@@ -179,13 +170,13 @@ function CategoryGameCard({ game }: { game: Game }) {
             )}
           </div>
         </Card>
-      </motion.div>
+      </div>
     </Link>
   );
-}
+});
 
-// Horizontal scrolling category row with Embla Carousel
-function CategoryRow({ 
+// Horizontal scrolling category row with Embla Carousel - optimized
+const CategoryRow = React.memo(function CategoryRow({ 
   name, 
   icon,
   games 
@@ -236,15 +227,13 @@ function CategoryRow({
     <div className="mb-8 md:mb-12">
       {/* Category Header */}
       <div className="flex items-center gap-3 mb-5 px-4 md:px-8">
-        {/* Animated Icon */}
-        <motion.div 
-          className="relative w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-pastel-coral to-pastel-pink flex items-center justify-center border-2 border-[#111827]"
+        {/* Icon - no hover animation on mobile */}
+        <div 
+          className="relative w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-pastel-coral to-pastel-pink flex items-center justify-center border-2 border-[#111827] md:hover:scale-110 md:hover:rotate-3 transition-transform duration-200"
           style={{ boxShadow: "2px 2px 0 #111827" }}
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          transition={{ type: "spring", stiffness: 400 }}
         >
           <Icon className="w-5 h-5 md:w-6 md:h-6 text-white drop-shadow-md" />
-        </motion.div>
+        </div>
         
         {/* Title */}
         <h2 className="font-display text-lg md:text-2xl text-[#111827]">
@@ -254,20 +243,19 @@ function CategoryRow({
 
       {/* Carousel */}
       <div className="relative group">
-        {/* Left Arrow */}
-        <motion.button
+        {/* Left Arrow - CSS only, hidden on mobile */}
+        <button
           className={cn(
-            "absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] flex items-center justify-center",
-            "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+            "absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] items-center justify-center",
+            "opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-90",
+            "hidden md:flex",
             !canScrollPrev && "!opacity-0 pointer-events-none"
           )}
           style={{ boxShadow: "3px 3px 0 #111827" }}
           onClick={scrollPrev}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
         >
           <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-[#111827]" />
-        </motion.button>
+        </button>
 
         {/* Embla Viewport */}
         <div className="overflow-hidden px-4 md:px-8" ref={emblaRef}>
@@ -280,24 +268,23 @@ function CategoryRow({
           </div>
         </div>
 
-        {/* Right Arrow */}
-        <motion.button
+        {/* Right Arrow - CSS only, hidden on mobile */}
+        <button
           className={cn(
-            "absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] flex items-center justify-center",
-            "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+            "absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] items-center justify-center",
+            "opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-90",
+            "hidden md:flex",
             !canScrollNext && "!opacity-0 pointer-events-none"
           )}
           style={{ boxShadow: "3px 3px 0 #111827" }}
           onClick={scrollNext}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
         >
           <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-[#111827]" />
-        </motion.button>
+        </button>
       </div>
     </div>
   );
-}
+});
 
 export default function GamesPage() {
   const { games: apiGames, loading: gamesLoading, error: gamesError } = useGames();
@@ -349,51 +336,12 @@ export default function GamesPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Animated gradient background matching hero */}
-      <div className="fixed inset-0 -z-10">
-        <motion.div 
-          className="absolute inset-0"
-          animate={{
-            background: [
-              "linear-gradient(180deg, #B8E4F0 0%, #A1E5CC 30%, #DDA0DD 60%, #F7ABAD 100%)",
-              "linear-gradient(180deg, #A1E5CC 0%, #B8E4F0 30%, #F7ABAD 60%, #DDA0DD 100%)",
-              "linear-gradient(180deg, #DDA0DD 0%, #F7ABAD 30%, #B8E4F0 60%, #A1E5CC 100%)",
-              "linear-gradient(180deg, #B8E4F0 0%, #A1E5CC 30%, #DDA0DD 60%, #F7ABAD 100%)",
-            ]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        />
-        
-        {/* Subtle floating blobs */}
-        <motion.div
-          className="absolute w-[800px] h-[800px] rounded-full bg-white/10 blur-3xl"
-          style={{ top: "-200px", right: "-200px" }}
-          animate={{
-            x: [0, -100, 0],
-            y: [0, 100, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute w-[600px] h-[600px] rounded-full bg-pastel-mint/20 blur-3xl"
-          style={{ bottom: "10%", left: "-150px" }}
-          animate={{
-            x: [0, 80, 0],
-            y: [0, -60, 0],
-            scale: [1, 1.3, 1],
-          }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full bg-pastel-coral/15 blur-3xl"
-          style={{ top: "40%", right: "10%" }}
-          animate={{
-            scale: [1, 1.4, 1],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
+      {/* Static gradient background - no animations for performance */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-b from-pastel-sky via-pastel-mint to-pastel-coral/30">
+        {/* Static decorative blobs - only on desktop */}
+        <div className="hidden md:block absolute w-[800px] h-[800px] rounded-full bg-white/10 blur-3xl -top-[200px] -right-[200px]" />
+        <div className="hidden md:block absolute w-[600px] h-[600px] rounded-full bg-pastel-mint/20 blur-3xl bottom-[10%] -left-[150px]" />
+        <div className="hidden md:block absolute w-[500px] h-[500px] rounded-full bg-pastel-coral/15 blur-3xl top-[40%] right-[10%]" />
       </div>
 
       <div className="relative pb-12">

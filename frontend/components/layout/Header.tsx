@@ -68,7 +68,7 @@ function GrabLink({ href, children }: { href: string; children: React.ReactNode 
   );
 }
 
-// Mobile menu item with grab effect
+// Mobile menu item - optimized with CSS transitions
 function MobileMenuItem({ 
   href, 
   icon: Icon, 
@@ -76,7 +76,6 @@ function MobileMenuItem({
   iconColor, 
   borderColor,
   children, 
-  index,
   onClick 
 }: { 
   href: string; 
@@ -85,49 +84,22 @@ function MobileMenuItem({
   iconColor: string;
   borderColor: string;
   children: React.ReactNode;
-  index: number;
   onClick: () => void;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 100, rotate: 5 }}
-      animate={{ 
-        opacity: 1, 
-        x: 0, 
-        rotate: 0,
-        transition: { 
-          delay: index * 0.08, 
-          type: "spring", 
-          stiffness: 200, 
-          damping: 20 
-        }
-      }}
-      whileHover={{ 
-        x: 8,
-        rotate: -1,
-        transition: { type: "spring", stiffness: 400, damping: 10 }
-      }}
-      whileTap={{ 
-        scale: 0.95,
-        rotate: 0,
-        transition: { type: "spring", stiffness: 400, damping: 10 }
-      }}
+    <Link
+      href={href}
+      onClick={onClick}
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border-2 border-[#111827] font-bold text-[#111827] active:scale-95 transition-transform duration-150"
+      style={{ boxShadow: "3px 3px 0 #111827" }}
     >
-      <Link
-        href={href}
-        onClick={onClick}
-        className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border-2 border-[#111827] font-bold text-[#111827]"
-        style={{ boxShadow: "3px 3px 0 #111827" }}
+      <div 
+        className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center border-2 ${borderColor}`}
       >
-        <motion.div 
-          className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center border-2 ${borderColor}`}
-          whileHover={{ rotate: [0, -10, 10, 0], transition: { duration: 0.3 } }}
-        >
-          <Icon className={`w-4 h-4 ${iconColor}`} />
-        </motion.div>
-        {children}
-      </Link>
-    </motion.div>
+        <Icon className={`w-4 h-4 ${iconColor}`} />
+      </div>
+      {children}
+    </Link>
   );
 }
 
@@ -211,52 +183,46 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile menu overlay */}
+      {/* Mobile menu overlay - no blur for performance */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 md:hidden"
+            className="fixed inset-0 bg-black/50 z-50 md:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={() => setMobileMenuOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Mobile menu drawer - drops in like a prize */}
+      {/* Mobile menu drawer - simplified animation */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
             className="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-pastel-mint to-pastel-sky border-l-4 border-[#111827] z-50 md:hidden overflow-hidden"
-            initial={{ x: "100%", rotate: 3 }}
-            animate={{ x: 0, rotate: 0 }}
-            exit={{ x: "110%", rotate: -3 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
           >
             {/* Header with close button */}
             <div className="flex items-center justify-between p-4 border-b-2 border-[#111827]/20">
-              <motion.span 
-                className="font-display text-xl text-pastel-coral text-outline-xl"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, type: "spring" }}
-              >
+              <span className="font-display text-xl text-pastel-coral text-outline-xl">
                 MENU
-              </motion.span>
-              <motion.button
+              </span>
+              <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-[#111827]"
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-[#111827] active:scale-90 transition-transform"
                 style={{ boxShadow: "2px 2px 0 #111827" }}
-                whileHover={{ rotate: 90, scale: 1.1 }}
-                whileTap={{ scale: 0.85 }}
                 aria-label="Close menu"
               >
                 <X className="w-5 h-5 text-[#111827]" />
-              </motion.button>
+              </button>
             </div>
 
-            {/* Menu links with staggered grab animation */}
+            {/* Menu links - no staggered animation */}
             <nav className="flex flex-col p-4 gap-3">
               <MobileMenuItem
                 href="/"
@@ -264,7 +230,6 @@ export default function Header() {
                 iconBg="bg-pastel-mint"
                 iconColor="text-emerald-700"
                 borderColor="border-emerald-400/50"
-                index={0}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Home
@@ -276,7 +241,6 @@ export default function Header() {
                 iconBg="bg-pastel-sky"
                 iconColor="text-cyan-600"
                 borderColor="border-cyan-400/50"
-                index={1}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Games
@@ -288,7 +252,6 @@ export default function Header() {
                 iconBg="bg-pastel-pink"
                 iconColor="text-pink-600"
                 borderColor="border-pink-400/50"
-                index={2}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Collection
@@ -300,63 +263,39 @@ export default function Header() {
                 iconBg="bg-pastel-lavender"
                 iconColor="text-purple-600"
                 borderColor="border-purple-400/50"
-                index={3}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Partnership
               </MobileMenuItem>
               
               {/* Marketplace - disabled */}
-              <motion.div
-                initial={{ opacity: 0, x: 100, rotate: 5 }}
-                animate={{ 
-                  opacity: 1, 
-                  x: 0, 
-                  rotate: 0,
-                  transition: { delay: 0.32, type: "spring", stiffness: 200, damping: 20 }
-                }}
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/60 border-2 border-[#111827]/40 font-bold text-[#111827]/40 cursor-not-allowed"
+                style={{ boxShadow: "3px 3px 0 #11182740" }}
               >
-                <div
-                  className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/60 border-2 border-[#111827]/40 font-bold text-[#111827]/40 cursor-not-allowed"
-                  style={{ boxShadow: "3px 3px 0 #11182740" }}
-                >
-                  <div className="w-8 h-8 rounded-full bg-pastel-yellow/50 flex items-center justify-center border-2 border-yellow-400/30">
-                    <Store className="w-4 h-4 text-yellow-700/50" />
-                  </div>
-                  Marketplace
-                  <motion.sup 
-                    className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-pastel-coral text-white rounded-full"
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    SOON
-                  </motion.sup>
+                <div className="w-8 h-8 rounded-full bg-pastel-yellow/50 flex items-center justify-center border-2 border-yellow-400/30">
+                  <Store className="w-4 h-4 text-yellow-700/50" />
                 </div>
-              </motion.div>
+                Marketplace
+                <sup className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-pastel-coral text-white rounded-full">
+                  SOON
+                </sup>
+              </div>
 
               {/* Buy CTA */}
-              <motion.div
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ 
-                  opacity: 1, 
-                  x: 0,
-                  transition: { delay: 0.40, type: "spring", stiffness: 200, damping: 20 }
-                }}
+              <a
+                href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_TOKEN_MINT}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 border-2 border-amber-600 font-bold text-white active:scale-95 transition-transform"
+                style={{ boxShadow: "3px 3px 0 #b45309" }}
               >
-                <a
-                  href={`https://pump.fun/coin/${process.env.NEXT_PUBLIC_TOKEN_MINT}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 border-2 border-amber-600 font-bold text-white active:scale-95 transition-transform"
-                  style={{ boxShadow: "3px 3px 0 #b45309" }}
-                >
-                  <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center border-2 border-white/50">
-                    <TokenLogo size="sm" />
-                  </div>
-                  <span>BUY</span>
-                </a>
-              </motion.div>
+                <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center border-2 border-white/50">
+                  <TokenLogo size="sm" />
+                </div>
+                <span>BUY</span>
+              </a>
             </nav>
           </motion.div>
         )}

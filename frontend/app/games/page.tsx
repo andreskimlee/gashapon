@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, Sparkles, Layers, Gamepad2, Heart, Star, Coffee } from "lucide-react";
@@ -112,7 +112,7 @@ const MOCK_GAMES: Game[] = [
 ];
 
 // Game Card for the category rows - optimized for mobile
-const CategoryGameCard = React.memo(function CategoryGameCard({ game }: { game: Game }) {
+function CategoryGameCard({ game }: { game: Game }) {
   // Get the first prize with an image, or fall back to game image
   const prizeImage = game.prizes?.find(p => p.imageUrl)?.imageUrl;
   const displayImage = prizeImage || game.imageUrl;
@@ -173,10 +173,10 @@ const CategoryGameCard = React.memo(function CategoryGameCard({ game }: { game: 
       </div>
     </Link>
   );
-});
+}
 
 // Horizontal scrolling category row with Embla Carousel - optimized
-const CategoryRow = React.memo(function CategoryRow({ 
+function CategoryRow({ 
   name, 
   icon,
   games 
@@ -284,7 +284,7 @@ const CategoryRow = React.memo(function CategoryRow({
       </div>
     </div>
   );
-});
+}
 
 export default function GamesPage() {
   const { games: apiGames, loading: gamesLoading, error: gamesError } = useGames();

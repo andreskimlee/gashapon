@@ -124,7 +124,7 @@ function CategoryGameCard({ game }: { game: Game }) {
       >
         <Card variant="arcade" shadowColor="mint" padding="none" className="overflow-hidden">
           {/* Prize/Game Image */}
-          <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden group">
+          <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden group/card">
             {displayImage ? (
               <img
                 src={displayImage}
@@ -140,7 +140,7 @@ function CategoryGameCard({ game }: { game: Game }) {
             
             {/* Hover Overlay - CSS only, hidden on mobile */}
             <div
-              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden md:flex"
+              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex-col justify-end p-3 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 hidden md:flex"
             >
               <CTAButton size="sm" variant="orange" className="w-full">
                 PLAY NOW

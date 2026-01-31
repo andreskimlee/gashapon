@@ -390,7 +390,7 @@ export default function PartnershipPage() {
             >
               Questions? Reach out on{" "}
               <a
-                href="https://x.com/grababorbit"
+                href="https://x.com/Grabbitdotfun"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-pastel-coral hover:underline font-semibold"

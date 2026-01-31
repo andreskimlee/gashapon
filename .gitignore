@@ -29,3 +29,6 @@ phantom-devnet-keypair.json
 
 .vercel
 .env*.local
+
+# Assets folder (generated images/videos)
+assets/

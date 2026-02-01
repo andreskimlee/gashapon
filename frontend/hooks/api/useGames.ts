@@ -1,54 +1,56 @@
 /**
  * useGames Hook
  *
- * React hook for fetching games data
+ * React Query hook for fetching games data with caching and deduplication
  */
 
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { gamesApi } from "@/services/api/games";
 import type { Game } from "@/types/game/game";
-import { useEffect, useState } from "react";
 
-interface UseGamesResult {
-  games: Game[];
-  loading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
-}
+// Query key factory for games queries
+export const gamesKeys = {
+  all: ["games"] as const,
+  lists: () => [...gamesKeys.all, "list"] as const,
+  detail: (id: number) => [...gamesKeys.all, "detail", id] as const,
+};
 
-export function useGames(): UseGamesResult {
-  const [games, setGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchGames = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await gamesApi.getGames();
-      setGames(data);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to fetch games";
-      setError(errorMessage);
-      console.error("Error fetching games:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchGames();
-  }, []);
+/**
+ * Hook to fetch and cache all games
+ * 
+ * @returns Query result with games array, loading state, and error
+ */
+export function useGames() {
+  const query = useQuery({
+    queryKey: gamesKeys.lists(),
+    queryFn: () => gamesApi.getGames(),
+    staleTime: 60 * 1000, // Consider data fresh for 1 minute
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false,
+  });
 
   return {
-    games,
-    loading,
-    error,
-    refetch: fetchGames,
+    games: query.data ?? [],
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
   };
 }
 
+/**
+ * Hook to manually invalidate/refetch games data
+ */
+export function useInvalidateGames() {
+  const queryClient = useQueryClient();
 
+  return {
+    /** Invalidate all games queries */
+    invalidateAll: () => queryClient.invalidateQueries({ queryKey: gamesKeys.all }),
+    
+    /** Refetch games list */
+    refetchList: () => queryClient.refetchQueries({ queryKey: gamesKeys.lists() }),
+  };
+}
 

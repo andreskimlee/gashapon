@@ -20,8 +20,10 @@ import { useGames } from "@/hooks/api/useGames";
 export default function Home() {
   const { games, loading, error } = useGames();
 
-  // Filter to only show active games
-  const activeGames = games.filter((game) => game.isActive);
+  // Filter to only show active games, sorted by most plays first
+  const activeGames = games
+    .filter((game) => game.isActive)
+    .sort((a, b) => (b.totalPlays || 0) - (a.totalPlays || 0));
 
   return (
     <div className="relative min-h-screen">

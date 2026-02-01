@@ -13,6 +13,8 @@
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Gamepad2 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRef, useState } from "react";
 
 import Card from "@/components/ui/Card";
@@ -21,7 +23,6 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { formatCompact } from "@/utils/format";
 import { cn } from "@/utils/helpers";
-import Link from "next/link";
 
 export type HomeGameCardModel = {
   id: number | string;
@@ -89,18 +90,18 @@ export default function GameCard({
   const renderImage = (image: string, size: "large" | "small" | "preview") => {
     if (isImageUrl(image)) {
       return (
-        <img
-          src={image}
-          alt={game.name}
-          className={cn(
-            "object-cover rounded-lg",
-            size === "large"
-              ? "w-full h-full"
-              : size === "preview"
-                ? "w-full h-full"
-                : "w-16 h-16",
-          )}
-        />
+        <div className={cn(
+          "relative",
+          size === "large" || size === "preview" ? "w-full h-full" : "w-16 h-16",
+        )}>
+          <Image
+            src={image}
+            alt={game.name}
+            fill
+            sizes={size === "large" ? "320px" : size === "preview" ? "200px" : "64px"}
+            className="object-cover rounded-lg"
+          />
+        </div>
       );
     }
     return (
@@ -221,9 +222,11 @@ export default function GameCard({
                         ? "..."
                         : formatCompact(game.cost)}
                     {!game.costUsdCents && !priceLoading && (
-                      <img
+                      <Image
                         src="/grabbit-coin-image.png"
                         alt=""
+                        width={28}
+                        height={28}
                         className="w-6 h-6 xl:w-7 xl:h-7 rounded-full"
                       />
                     )}
@@ -234,9 +237,11 @@ export default function GameCard({
                     <span className="text-sm xl:text-base font-bold text-[#111827]">
                       ≈ {tokenAmountFormatted}
                     </span>
-                    <img
+                    <Image
                       src="/grabbit-coin-image.png"
                       alt=""
+                      width={28}
+                      height={28}
                       className="w-6 h-6 xl:w-7 xl:h-7 rounded-full"
                     />
                   </div>

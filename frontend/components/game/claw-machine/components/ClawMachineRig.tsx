@@ -294,9 +294,6 @@ export function ClawMachineRig({
 
           if (nearestId) {
             magnetizeTargetRef.current = nearestId;
-            console.log(
-              `[CLAW] WIN: Pre-selected ball ${nearestId} for guaranteed grab`
-            );
           }
         }
       } else {
@@ -346,16 +343,6 @@ export function ClawMachineRig({
             ? CLAW_CLOSE_ANGLE_LOSE // Weak grip for guaranteed loss
             : CLAW_CLOSE_ANGLE; // Normal for dev mode
 
-      // Debug log at start of grab
-      if (progress < 0.05) {
-        console.log(
-          `[CLAW] gameOutcome: ${gameOutcome}, closeAngle: ${closeAngle}`
-        );
-        console.log(
-          `[CLAW] WIN=${CLAW_CLOSE_ANGLE_WIN}, LOSE=${CLAW_CLOSE_ANGLE_LOSE}, NORMAL=${CLAW_CLOSE_ANGLE}`
-        );
-      }
-
       ["claw_1", "claw_2", "claw_3"].forEach((name) => {
         const n = nodes[name];
         const initial = initialClawRotationsRef.current[name];
@@ -380,9 +367,6 @@ export function ClawMachineRig({
           if (gameOutcome === "win") {
             if (magnetizeTargetRef.current) {
               targetId = magnetizeTargetRef.current;
-              console.log(
-                `[CLAW] WIN: Grabbing magnetized ball ONLY: ${targetId}`
-              );
             }
           }
           // LOSE/DEV: Find nearest ball within range
@@ -404,13 +388,8 @@ export function ClawMachineRig({
             });
           }
 
-          console.log(
-            `[CLAW] Grab check - targetId: ${targetId}, gameOutcome: ${gameOutcome}`
-          );
-
           // Grab the single target ball (if any)
           if (targetId) {
-            console.log(`[CLAW] ✅ GRABBING ball: ${targetId}`);
             setGrabbedBallId(targetId);
             const ballRef = ballRefs.get(targetId);
             if (ballRef?.current) {
@@ -422,8 +401,6 @@ export function ClawMachineRig({
                 ballPos.z - clawWorldPos.current.z
               );
             }
-          } else {
-            console.log("[CLAW] ⚠️ No ball to grab");
           }
         }
         phaseRef.current = "RISING";
@@ -446,16 +423,6 @@ export function ClawMachineRig({
           const currentRiseDistance = nodes.manip.position.y - risingStartY;
           const risingProgress =
             totalRiseDistance > 0 ? currentRiseDistance / totalRiseDistance : 0;
-
-          // Log progress periodically
-          if (
-            Math.floor(risingProgress * 10) !==
-            Math.floor((risingProgress - 0.1) * 10)
-          ) {
-            console.log(
-              `[CLAW] RISING progress: ${(risingProgress * 100).toFixed(0)}%, open at ${LOSE_DROP_PROGRESS * 100}%`
-            );
-          }
 
           // Animate claw opening when it's time to drop
           if (risingProgress >= LOSE_DROP_PROGRESS) {
@@ -485,9 +452,6 @@ export function ClawMachineRig({
 
             // Release the ball once claw is open enough
             if (openProgress >= 0.5 && grabbedBallId) {
-              console.log(
-                `[CLAW] 💨 DROPPING ball! Claw opened at ${(risingProgress * 100).toFixed(0)}%`
-              );
               setGrabbedBallId(null);
             }
           }

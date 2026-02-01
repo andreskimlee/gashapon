@@ -209,8 +209,8 @@ export function IntroScreen({
         )}
       </Card>
 
-      {/* Instructions at bottom */}
-      <div className="absolute bottom-6 left-0 right-0 text-center z-10">
+      {/* Instructions at bottom - desktop only (mobile has touch controls) */}
+      <div className="absolute bottom-6 left-0 right-0 text-center z-10 hidden md:block">
         <div className="inline-flex gap-4 px-5 py-2 rounded-full bg-white/80 backdrop-blur-sm border-2 border-pastel-pink shadow-sm">
           <div className="text-pastel-text text-xs font-medium flex items-center gap-1">
             <span className="px-2 py-0.5 bg-pastel-pinkLight rounded text-[10px] text-pastel-coral">

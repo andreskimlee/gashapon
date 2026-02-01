@@ -8,12 +8,26 @@
 
 "use client";
 
-import ClawMachine3D from "@/components/game/ClawMachine3D";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import ArcadeCard from "@/components/ui/ArcadeCard";
+import Loading from "@/components/ui/Loading";
+
+// Lazy load heavy 3D component - reduces initial bundle size significantly
+const ClawMachine3D = dynamic(
+  () => import("@/components/game/ClawMachine3D"),
+  {
+    loading: () => (
+      <div className="w-full h-[700px] rounded-lg overflow-hidden relative border border-pink-200 flex items-center justify-center bg-gradient-to-b from-sky-200 via-sky-100 to-pink-100">
+        <Loading size="lg" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import Loading from "@/components/ui/Loading";
 import PrizeDetailModal, { type Prize as PrizeModalData } from "@/components/ui/PrizeDetailModal";
 import { toast } from "@/components/ui/Toast";
 import { usePlayEvents } from "@/hooks/api/usePaymentVerification";
@@ -560,12 +574,14 @@ export default function GameDetailPage() {
                       })}
                     >
                       <div className="flex gap-3 items-start">
-                        <div className="h-20 w-20 rounded-xl border-2 border-pastel-pink/40 bg-pastel-pinkLight/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div className="relative h-20 w-20 rounded-xl border-2 border-pastel-pink/40 bg-pastel-pinkLight/50 flex items-center justify-center overflow-hidden flex-shrink-0">
                           {p.imageUrl ? (
-                            <img
+                            <Image
                               src={p.imageUrl}
                               alt={p.name}
-                              className="h-full w-full object-cover"
+                              fill
+                              sizes="80px"
+                              className="object-cover"
                             />
                           ) : (
                             <span className="text-3xl">⭐</span>

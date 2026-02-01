@@ -8,6 +8,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, Sparkles, Layers, Gamepad2, Heart, Star, Coffee } from "lucide-react";
@@ -15,8 +16,21 @@ import Link from "next/link";
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
-import GamesHero3D from "@/components/games/GamesHero3D";
 import Loading from "@/components/ui/Loading";
+import Image from "next/image";
+
+// Lazy load heavy 3D component - reduces initial bundle size
+const GamesHero3D = dynamic(
+  () => import("@/components/games/GamesHero3D"),
+  {
+    loading: () => (
+      <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-gradient-to-b from-pastel-sky to-pastel-mint/30">
+        <Loading size="lg" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 import { useCategories } from "@/hooks/api/useCategories";
 import { useGames } from "@/hooks/api/useGames";
 import { cn } from "@/utils/helpers";
@@ -126,11 +140,12 @@ function CategoryGameCard({ game }: { game: Game }) {
           {/* Prize/Game Image */}
           <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden group/card">
             {displayImage ? (
-              <img
+              <Image
                 src={displayImage}
                 alt={game.name}
-                className="w-full h-full object-cover"
-                loading="lazy"
+                fill
+                sizes="(max-width: 768px) 200px, 280px"
+                className="object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

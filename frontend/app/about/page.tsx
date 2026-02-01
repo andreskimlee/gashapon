@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import CTAButton from "@/components/ui/CTAButton";
+import ProfileCard from "@/components/ui/ProfileCard";
 
 const features = [
   {
@@ -258,6 +259,43 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
+        </motion.div>
+      </section>
+
+      {/* Team Section */}
+      <section className="container mx-auto px-4 py-12">
+        <motion.h2
+          className="font-display text-3xl md:text-4xl text-center text-[#111827] mb-10"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+        >
+          MEET THE TEAM
+        </motion.h2>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto"
+        >
+          <ProfileCard
+            horizontal
+            name="z00_lander"
+            role="Founder"
+            imageUrl="/images/about/avatar.png"
+            bio="Software Engineer with 7+ years of experience, currently building at one of the biggest crypto companies in the Solana ecosystem. Started the crypto journey in 2018, exploring Ethereum, Avalanche, and Binance Chain before finding a home on Solana."
+            quote="I discovered claw machine arcades all over Japan and was instantly hooked. There's something magical about the anticipation, the skill, and the thrill of winning a prize you can hold in your hands. I wanted to bring that experience on-chain—with real prizes, provably fair odds, and the transparency that only blockchain can offer. No rugs, no gimmicks—just pure arcade fun with web3 trust."
+            badges={[
+              { label: "7+ YEARS SOFTWARE ENG", color: "coral" },
+              { label: "6+ YEARS IN CRYPTO", color: "mint" },
+              { label: "SOLANA BUILDER", color: "lavender" },
+            ]}
+            socialLinks={[
+              { platform: "twitter", url: "https://x.com/z00_lander", handle: "@z00_lander" },
+            ]}
+            shadowColor="#8ECCC1"
+          />
         </motion.div>
       </section>
 

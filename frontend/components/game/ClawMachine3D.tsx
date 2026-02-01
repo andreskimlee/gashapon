@@ -3,7 +3,7 @@
 import { Environment, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Leva } from "leva";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { PhysicsScene } from "./claw-machine/components/PhysicsScene";
@@ -259,6 +259,58 @@ export default function ClawMachine3D({
     ? debugStage === "playing"
     : animationStarted;
 
+  // Pre-compute win flow visibility to avoid repetitive checks
+  const showWinFlow = showResult && gameOutcome === "win";
+
+  // Memoize static decorative elements (clouds/sparkles don't change)
+  const decorativeElements = useMemo(
+    () => (
+      <>
+        {/* Floating clouds */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute top-[8%] -left-20 w-40 h-20 bg-white/70 rounded-full blur-sm animate-cloud-slow"
+          />
+          <div
+            className="absolute top-[20%] -right-16 w-32 h-16 bg-white/60 rounded-full blur-sm animate-cloud-slow"
+            style={{ animationDelay: "3s" }}
+          />
+          <div
+            className="absolute top-[5%] left-[40%] w-24 h-12 bg-white/50 rounded-full blur-sm animate-cloud-slow"
+            style={{ animationDelay: "6s" }}
+          />
+          <div
+            className="absolute bottom-[15%] -left-10 w-28 h-14 bg-white/60 rounded-full blur-sm animate-cloud-slow"
+            style={{ animationDelay: "2s" }}
+          />
+          <div
+            className="absolute bottom-[25%] right-[10%] w-20 h-10 bg-white/50 rounded-full blur-sm animate-cloud-slow"
+            style={{ animationDelay: "4s" }}
+          />
+        </div>
+        {/* Sparkles */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute top-[15%] left-[10%] text-xl animate-sparkle">
+            ✨
+          </div>
+          <div
+            className="absolute top-[10%] right-[15%] text-lg animate-sparkle"
+            style={{ animationDelay: "0.7s" }}
+          >
+            ⭐
+          </div>
+          <div
+            className="absolute bottom-[20%] left-[8%] text-lg animate-sparkle"
+            style={{ animationDelay: "1.4s" }}
+          >
+            💫
+          </div>
+        </div>
+      </>
+    ),
+    []
+  );
+
   // Touch/swipe tracking
   const touchStartX = useRef<number | null>(null);
   const isDragging = useRef(false);
@@ -350,81 +402,7 @@ export default function ClawMachine3D({
       {shouldShowClawMachine && (
         <>
           <div className="absolute inset-0 bg-gradient-to-b from-sky-200 via-sky-100 to-pink-100" />
-          {/* Floating clouds */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div
-              className="absolute top-[8%] -left-20 w-40 h-20 bg-white/70 rounded-full blur-sm"
-              style={{ animation: "float-cloud-slow 12s ease-in-out infinite" }}
-            />
-            <div
-              className="absolute top-[20%] -right-16 w-32 h-16 bg-white/60 rounded-full blur-sm"
-              style={{
-                animation: "float-cloud-slow 15s ease-in-out infinite 3s",
-              }}
-            />
-            <div
-              className="absolute top-[5%] left-[40%] w-24 h-12 bg-white/50 rounded-full blur-sm"
-              style={{
-                animation: "float-cloud-slow 18s ease-in-out infinite 6s",
-              }}
-            />
-            <div
-              className="absolute bottom-[15%] -left-10 w-28 h-14 bg-white/60 rounded-full blur-sm"
-              style={{
-                animation: "float-cloud-slow 14s ease-in-out infinite 2s",
-              }}
-            />
-            <div
-              className="absolute bottom-[25%] right-[10%] w-20 h-10 bg-white/50 rounded-full blur-sm"
-              style={{
-                animation: "float-cloud-slow 16s ease-in-out infinite 4s",
-              }}
-            />
-          </div>
-          {/* Sparkles */}
-          <div className="absolute inset-0 pointer-events-none z-10">
-            <div
-              className="absolute top-[15%] left-[10%] text-xl"
-              style={{ animation: "sparkle 2s ease-in-out infinite" }}
-            >
-              ✨
-            </div>
-            <div
-              className="absolute top-[10%] right-[15%] text-lg"
-              style={{ animation: "sparkle 2s ease-in-out infinite 0.7s" }}
-            >
-              ⭐
-            </div>
-            <div
-              className="absolute bottom-[20%] left-[8%] text-lg"
-              style={{ animation: "sparkle 2s ease-in-out infinite 1.4s" }}
-            >
-              💫
-            </div>
-          </div>
-          {/* Animation styles */}
-          <style jsx>{`
-            @keyframes float-cloud-slow {
-              0%,
-              100% {
-                transform: translateX(0) translateY(0);
-              }
-              50% {
-                transform: translateX(15px) translateY(-8px);
-              }
-            }
-            @keyframes sparkle {
-              0%,
-              100% {
-                opacity: 1;
-                transform: scale(1);
-              }
-              50% {
-                opacity: 0.4;
-                transform: scale(0.7);
-              }
-            }
-          `}</style>
+          {decorativeElements}
         </>
       )}
 
@@ -491,45 +469,38 @@ export default function ClawMachine3D({
 
       {/* Win Flow */}
       {/* Keep WinRevealScreen mounted during "choice" step to prevent flash */}
-      {showResult &&
-        gameOutcome === "win" &&
+      {showWinFlow &&
         (effectiveWinFlowStep === "reveal" || effectiveWinFlowStep === "choice") && (
           <WinRevealScreen
             onComplete={() => setWinFlowStep("choice")}
             enableRevealControls={enableRevealControls}
           />
         )}
-      {showResult &&
-        gameOutcome === "win" &&
-        effectiveWinFlowStep === "choice" && (
-          <WinChoiceScreen
-            gameName={gameName}
-            prizeName={prizeName}
-            prizeImageUrl={prizeImageUrl}
-            onRedeem={() => setWinFlowStep("redeem")}
-            onSaveForLater={() => setWinFlowStep("saved")}
-            onViewCollection={onViewCollection}
-          />
-        )}
-      {showResult &&
-        gameOutcome === "win" &&
-        effectiveWinFlowStep === "redeem" && (
-          <RedeemPrizeScreen
-            gameName={gameName}
-            prizeName={prizeName}
-            prizeMint={prizeMint}
-            userWallet={userWallet}
-            signMessage={signMessage}
-            onBack={() => setWinFlowStep("choice")}
-            onPlayAgain={onPlayAgain}
-            onViewCollection={onViewCollection}
-          />
-        )}
-      {showResult &&
-        gameOutcome === "win" &&
-        effectiveWinFlowStep === "saved" && (
-          <SavedScreen prizeName={prizeName} onPlayAgain={onPlayAgain} />
-        )}
+      {showWinFlow && effectiveWinFlowStep === "choice" && (
+        <WinChoiceScreen
+          gameName={gameName}
+          prizeName={prizeName}
+          prizeImageUrl={prizeImageUrl}
+          onRedeem={() => setWinFlowStep("redeem")}
+          onSaveForLater={() => setWinFlowStep("saved")}
+          onViewCollection={onViewCollection}
+        />
+      )}
+      {showWinFlow && effectiveWinFlowStep === "redeem" && (
+        <RedeemPrizeScreen
+          gameName={gameName}
+          prizeName={prizeName}
+          prizeMint={prizeMint}
+          userWallet={userWallet}
+          signMessage={signMessage}
+          onBack={() => setWinFlowStep("choice")}
+          onPlayAgain={onPlayAgain}
+          onViewCollection={onViewCollection}
+        />
+      )}
+      {showWinFlow && effectiveWinFlowStep === "saved" && (
+        <SavedScreen prizeName={prizeName} onPlayAgain={onPlayAgain} />
+      )}
 
       {/* Lose Screen */}
       {showResult && gameOutcome === "lose" && (

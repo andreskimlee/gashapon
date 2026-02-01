@@ -34,7 +34,6 @@ export function GrabProvider({ children, gameOutcome: propOutcome = null }: Grab
 
   // Sync state when prop changes
   useEffect(() => {
-    console.log("[GrabContext] gameOutcome prop changed to:", propOutcome);
     setGameOutcome(propOutcome);
   }, [propOutcome]);
 

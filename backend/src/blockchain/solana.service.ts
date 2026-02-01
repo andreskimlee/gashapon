@@ -9,6 +9,7 @@ import {
   sendAndConfirmTransaction,
   SYSVAR_RENT_PUBKEY,
   TransactionExpiredBlockheightExceededError,
+  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { ConfigService } from '@nestjs/config';
 import * as bs58 from 'bs58';
@@ -479,14 +480,30 @@ export class SolanaService {
       try {
         // Get fresh blockhash for each attempt
         const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = this.payer.publicKey;
+        
+        // Create new transaction with priority fees (must be first instructions)
+        const txWithPriority = new Transaction();
+        
+        // Add compute budget instructions for priority (helps land faster)
+        // Priority fee: 100k microLamports (~$0.002) - higher to ensure fast confirmation
+        txWithPriority.add(
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }),
+          ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }),
+        );
+        
+        // Add original instructions
+        for (const ix of transaction.instructions) {
+          txWithPriority.add(ix);
+        }
+        
+        txWithPriority.recentBlockhash = blockhash;
+        txWithPriority.feePayer = this.payer.publicKey;
 
         // Sign the transaction
-        transaction.sign(...signers);
+        txWithPriority.sign(...signers);
 
         // Send the transaction
-        const rawTransaction = transaction.serialize();
+        const rawTransaction = txWithPriority.serialize();
         const signature = await this.connection.sendRawTransaction(rawTransaction, {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
@@ -495,12 +512,12 @@ export class SolanaService {
 
         this.logger.log(`Transaction sent (attempt ${attempt}/${maxRetries}): ${signature}`);
 
-        // Wait for confirmation with extended timeout (90 seconds)
+        // Wait for confirmation - must be under 25 seconds to fit in Heroku's 30s limit
         const confirmation = await this.confirmTransactionWithTimeout(
           signature,
           blockhash,
           lastValidBlockHeight,
-          90_000, // 90 second timeout
+          20_000, // 20 second timeout per attempt (leaves room for retries)
         );
 
         if (confirmation.err) {

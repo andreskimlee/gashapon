@@ -37,8 +37,7 @@ import { gamesApi } from "@/services/api/games";
 import type { Game } from "@/types/game/game";
 import { formatPercent, formatOddsRatio } from "@/utils/odds-calculator";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
-import { Keypair } from "@solana/web3.js";
+import { PublicKey, Keypair, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 // claimPrize removed - NFTs are now auto-minted in finalize_play
@@ -292,13 +291,44 @@ export default function GameDetailPage() {
 
       setPlayResult({
         status: "pending",
+        message: "Verifying transaction...",
+      });
+
+      // Pre-simulate transaction with our RPC (per Phantom docs recommendation)
+      // This helps avoid Phantom's "malicious dApp" warning by verifying tx validity ourselves
+      try {
+        // Convert legacy Transaction to VersionedTransaction for simulation
+        const messageV0 = new TransactionMessage({
+          payerKey: publicKey,
+          recentBlockhash: tx.recentBlockhash!,
+          instructions: tx.instructions,
+        }).compileToV0Message();
+        const versionedTx = new VersionedTransaction(messageV0);
+
+        const simulation = await connection.simulateTransaction(versionedTx, {
+          sigVerify: false, // Don't verify signatures (user hasn't signed yet)
+        });
+        
+        if (simulation.value.err) {
+          console.error("Transaction simulation failed:", simulation.value.err);
+          throw new Error(`Transaction would fail: ${JSON.stringify(simulation.value.err)}`);
+        }
+        console.log("Transaction simulation successful, CU used:", simulation.value.unitsConsumed);
+      } catch (simError: any) {
+        // If simulation fails, show user-friendly error
+        console.error("Simulation error:", simError);
+        setError(simError.message || "Transaction verification failed. Please try again.");
+        setPlaying(false);
+        return;
+      }
+
+      setPlayResult({
+        status: "pending",
         message: "Please approve the transaction in your wallet...",
       });
 
-      // Send the play transaction
-      const signature = await sendTransaction(tx, connection, {
-        skipPreflight: true,
-      });
+      // Send transaction - simulation already verified with our RPC
+      const signature = await sendTransaction(tx, connection);
 
       console.log("Play transaction sent:", signature);
 

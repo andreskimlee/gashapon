@@ -14,6 +14,10 @@ export type IntroScreenProps = {
   isActive: boolean;
   costDisplay?: string;
   gameName?: string;
+  /** Whether user has enough tokens to play (null = unknown/loading) */
+  hasSufficientBalance?: boolean | null;
+  /** User's current token balance */
+  userBalance?: number | null;
 };
 
 export function IntroScreen({
@@ -23,6 +27,8 @@ export function IntroScreen({
   isActive,
   costDisplay,
   gameName,
+  hasSufficientBalance,
+  userBalance,
 }: IntroScreenProps) {
   const [blinkVisible, setBlinkVisible] = useState(true);
   const { setVisible: setWalletModalVisible } = useWalletModal();
@@ -35,7 +41,9 @@ export function IntroScreen({
     return () => clearInterval(interval);
   }, []);
 
-  const canPlay = isConnected && isActive && !isLoading;
+  // User can play if connected, game is active, not loading, and has enough balance
+  const hasEnoughTokens = hasSufficientBalance !== false; // Allow if true or null (unknown)
+  const canPlay = isConnected && isActive && !isLoading && hasEnoughTokens;
 
   // Handle button click - open wallet modal if not connected, otherwise play
   const handleButtonClick = () => {
@@ -151,7 +159,7 @@ export function IntroScreen({
             variant="orange"
             size="md"
             onClick={handleButtonClick}
-            disabled={isLoading || (isConnected && !isActive)}
+            disabled={isLoading || (isConnected && !isActive) || (isConnected && !hasEnoughTokens)}
             className="w-full"
           >
             {isLoading ? (
@@ -186,14 +194,16 @@ export function IntroScreen({
                     ? "CONNECT WALLET"
                     : !isActive
                       ? "INACTIVE"
-                      : "PLAY NOW"}
+                      : !hasEnoughTokens
+                        ? "INSUFFICIENT BALANCE"
+                        : "PLAY NOW"}
               </span>
             )}
           </CTAButton>
         </div>
 
         {/* Status messages - only show when not ready */}
-        {(!isConnected || !isActive) && (
+        {(!isConnected || !isActive || !hasEnoughTokens) && (
           <div className="text-center">
             {!isConnected && (
               <p className="text-pastel-coral text-sm font-medium animate-pulse">
@@ -203,6 +213,16 @@ export function IntroScreen({
             {isConnected && !isActive && (
               <p className="text-red-400 text-sm font-medium">
                 ❌ This game is currently inactive
+              </p>
+            )}
+            {isConnected && isActive && !hasEnoughTokens && (
+              <p className="text-red-400 text-sm font-medium">
+                ❌ Not enough tokens
+                {userBalance !== null && userBalance !== undefined && (
+                  <span className="block text-xs text-pastel-textLight mt-1">
+                    Balance: {userBalance.toLocaleString()} tokens
+                  </span>
+                )}
               </p>
             )}
           </div>

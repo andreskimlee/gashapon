@@ -180,6 +180,14 @@ type ClawMachine3DProps = {
    * Debug-only reveal controls (Storybook/testing)
    */
   enableRevealControls?: boolean;
+  /**
+   * Whether user has sufficient token balance to play (null = unknown/loading)
+   */
+  hasSufficientBalance?: boolean | null;
+  /**
+   * User's current token balance
+   */
+  userBalance?: number | null;
 };
 
 /**
@@ -214,6 +222,8 @@ export default function ClawMachine3D({
   debugStage,
   debugWinFlowStep,
   enableRevealControls,
+  hasSufficientBalance,
+  userBalance,
 }: ClawMachine3DProps) {
   const [cameraAngle, setCameraAngle] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
@@ -459,6 +469,8 @@ export default function ClawMachine3D({
           isActive={isActive}
           costDisplay={costDisplay}
           gameName={gameName}
+          hasSufficientBalance={hasSufficientBalance}
+          userBalance={userBalance}
         />
       )}
 

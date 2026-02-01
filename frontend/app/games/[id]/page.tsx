@@ -31,6 +31,7 @@ import Card from "@/components/ui/Card";
 import PrizeDetailModal, { type Prize as PrizeModalData } from "@/components/ui/PrizeDetailModal";
 import { toast } from "@/components/ui/Toast";
 import { usePlayEvents } from "@/hooks/api/usePaymentVerification";
+import { useHasSufficientBalance } from "@/hooks/useTokenBalance";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { gamesApi } from "@/services/api/games";
 import type { Game } from "@/types/game/game";
@@ -215,10 +216,15 @@ export default function GameDetailPage() {
   const costUsdCents = game?.costInUsd
     ? Number(game.costInUsd) * 100
     : undefined;
-  const { tokenAmountFormatted, loading: priceLoading } = useTokenCost(
+  const { tokenAmount, tokenAmountFormatted, loading: priceLoading } = useTokenCost(
     game?.currencyTokenMintAddress,
     costUsdCents
   );
+
+  // Check if user has sufficient balance to play
+  // tokenAmount is in base units (6 decimals), balance API also returns base units
+  const requiredTokens = tokenAmount ? Number(tokenAmount) : undefined;
+  const { hasSufficientBalance, balance: userTokenBalance } = useHasSufficientBalance(requiredTokens);
 
   // Handler for play action (used by both intro screen and sidebar button)
   const handlePlayOnChain = async () => {
@@ -228,6 +234,11 @@ export default function GameDetailPage() {
     }
     if (!game) {
       setError("Game data not loaded");
+      return;
+    }
+    // Check balance before allowing play
+    if (hasSufficientBalance === false) {
+      setError("Insufficient token balance to play this game");
       return;
     }
 
@@ -527,6 +538,8 @@ export default function GameDetailPage() {
                   }, RESULT_SCREEN_DELAY_MS);
                 }
               }}
+              hasSufficientBalance={hasSufficientBalance}
+              userBalance={userTokenBalance}
             />
           </div>
 

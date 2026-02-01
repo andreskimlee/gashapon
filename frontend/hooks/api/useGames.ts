@@ -8,7 +8,6 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { gamesApi } from "@/services/api/games";
-import type { Game } from "@/types/game/game";
 
 // Query key factory for games queries
 export const gamesKeys = {

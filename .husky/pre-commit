@@ -1,0 +1,2 @@
+# Run TypeScript check on frontend before commit
+cd frontend && pnpm run typecheck

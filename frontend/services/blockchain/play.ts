@@ -264,7 +264,7 @@ export async function playOnChain(opts: {
   gamePda: string;
   tokenAmount?: number | bigint;
   costUsdCents?: number;
-}): Promise<{ tx: Transaction; sessionPda: PublicKey; sessionSeed: Uint8Array; tokenAmountPaid: bigint }> {
+}): Promise<{ tx: Transaction; sessionPda: PublicKey; sessionSeed: Uint8Array; tokenAmountPaid: bigint; blockhash: string; lastValidBlockHeight: number }> {
   if (!GAME_PROGRAM_ID) throw new Error("GAME_PROGRAM_ID not configured");
 
   const connection = new Connection(SOLANA_RPC_URL, "confirmed");
@@ -379,10 +379,10 @@ export async function playOnChain(opts: {
   // Play instruction
   tx.add(ix);
   tx.feePayer = user;
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = blockhash;
 
-  return { tx, sessionPda, sessionSeed, tokenAmountPaid: finalTokenAmount };
+  return { tx, sessionPda, sessionSeed, tokenAmountPaid: finalTokenAmount, blockhash, lastValidBlockHeight };
 }
 
 /**

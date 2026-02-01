@@ -8,6 +8,7 @@ import {
   TransactionInstruction,
   sendAndConfirmTransaction,
   SYSVAR_RENT_PUBKEY,
+  TransactionExpiredBlockheightExceededError,
 } from '@solana/web3.js';
 import { ConfigService } from '@nestjs/config';
 import * as bs58 from 'bs58';
@@ -448,12 +449,8 @@ export class SolanaService {
       signers.push(mintKeypair);
     }
 
-    const signature = await sendAndConfirmTransaction(
-      this.connection,
-      tx,
-      signers,
-      { commitment: 'confirmed' },
-    );
+    // Use robust confirmation with retry logic for mainnet reliability
+    const signature = await this.sendAndConfirmWithRetry(tx, signers, 3);
 
     const nftMint = mintKeypair ? mintKeypair.publicKey.toBase58() : null;
     this.logger.log(`✅ Play finalized: ${signature}, win: ${params.winningPrizeIndex !== null}, nftMint: ${nftMint}`);
@@ -465,6 +462,119 @@ export class SolanaService {
       prizeIndex: params.winningPrizeIndex,
       nftMint,
     };
+  }
+
+  /**
+   * Send and confirm transaction with retry logic and extended timeout
+   * Handles mainnet congestion better than default sendAndConfirmTransaction
+   */
+  private async sendAndConfirmWithRetry(
+    transaction: Transaction,
+    signers: Keypair[],
+    maxRetries: number = 3,
+  ): Promise<string> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Get fresh blockhash for each attempt
+        const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = this.payer.publicKey;
+
+        // Sign the transaction
+        transaction.sign(...signers);
+
+        // Send the transaction
+        const rawTransaction = transaction.serialize();
+        const signature = await this.connection.sendRawTransaction(rawTransaction, {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 0, // We handle retries ourselves
+        });
+
+        this.logger.log(`Transaction sent (attempt ${attempt}/${maxRetries}): ${signature}`);
+
+        // Wait for confirmation with extended timeout (90 seconds)
+        const confirmation = await this.confirmTransactionWithTimeout(
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+          90_000, // 90 second timeout
+        );
+
+        if (confirmation.err) {
+          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.err)}`);
+        }
+
+        return signature;
+      } catch (error: any) {
+        lastError = error;
+        this.logger.warn(`Transaction attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+
+        // If blockhash expired, retry with new blockhash
+        if (
+          error instanceof TransactionExpiredBlockheightExceededError ||
+          error.message?.includes('block height exceeded') ||
+          error.message?.includes('blockhash not found')
+        ) {
+          this.logger.log('Blockhash expired, retrying with fresh blockhash...');
+          continue;
+        }
+
+        // For other errors on last attempt, throw
+        if (attempt === maxRetries) {
+          throw error;
+        }
+
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+      }
+    }
+
+    throw lastError || new Error('Transaction failed after all retries');
+  }
+
+  /**
+   * Confirm transaction with custom timeout and proper status checking
+   */
+  private async confirmTransactionWithTimeout(
+    signature: string,
+    blockhash: string,
+    lastValidBlockHeight: number,
+    timeoutMs: number,
+  ): Promise<{ err: any | null }> {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      // Check if blockhash is still valid
+      const blockHeight = await this.connection.getBlockHeight('confirmed');
+      if (blockHeight > lastValidBlockHeight) {
+        throw new TransactionExpiredBlockheightExceededError(signature);
+      }
+
+      // Check transaction status
+      const status = await this.connection.getSignatureStatus(signature);
+      
+      if (status?.value !== null) {
+        if (status.value.err) {
+          return { err: status.value.err };
+        }
+        
+        // Check if confirmed
+        if (
+          status.value.confirmationStatus === 'confirmed' ||
+          status.value.confirmationStatus === 'finalized'
+        ) {
+          return { err: null };
+        }
+      }
+
+      // Wait before polling again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    throw new Error(`Transaction not confirmed within ${timeoutMs / 1000} seconds`);
   }
 
   /**

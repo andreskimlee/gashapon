@@ -281,7 +281,7 @@ export default function GameDetailPage() {
         return;
       }
 
-      const { tx, sessionPda, tokenAmountPaid } = await playOnChain({
+      const { tx, sessionPda, tokenAmountPaid, blockhash, lastValidBlockHeight } = await playOnChain({
         walletPublicKey: publicKey as PublicKey,
         gamePda: onChainAddress,
         costUsdCents: playCostUsdCents,
@@ -308,8 +308,15 @@ export default function GameDetailPage() {
         message: "Transaction sent! Waiting for confirmation...",
       });
 
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, "confirmed");
+      // Wait for confirmation with extended timeout (90 seconds) using blockhash strategy
+      const confirmation = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        "confirmed"
+      );
       if (confirmation.value.err) {
         console.error("Transaction failed:", confirmation.value.err);
         setError(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);

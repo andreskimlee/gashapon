@@ -93,6 +93,22 @@ export default function GameDetailPage() {
   
   // Prize detail modal state
   const [selectedPrize, setSelectedPrize] = useState<PrizeModalData | null>(null);
+  
+  // Debug logs for mobile testing (persists to UI and Vercel logs)
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const addDebugLog = useCallback((message: string, data?: unknown) => {
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    const logEntry = data ? `[${timestamp}] ${message}: ${JSON.stringify(data)}` : `[${timestamp}] ${message}`;
+    setDebugLogs(prev => [...prev.slice(-20), logEntry]); // Keep last 20 logs
+    console.log(logEntry);
+    
+    // Send to Vercel function logs via local API route
+    fetch("/api/debug", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "mobile-play", message, data, timestamp }),
+    }).catch(() => {}); // Fire and forget
+  }, []);
 
   // Handle payment verification events from indexer
   const handlePaymentVerified = useCallback(() => {
@@ -297,6 +313,20 @@ export default function GameDetailPage() {
       // Pre-simulate transaction with our RPC (per Phantom docs recommendation)
       // This helps avoid Phantom's "malicious dApp" warning by verifying tx validity ourselves
       try {
+        // Log which RPC we're using for debugging
+        // @ts-ignore - rpcEndpoint exists on Connection
+        addDebugLog("RPC endpoint", connection.rpcEndpoint);
+        addDebugLog("Game PDA", onChainAddress);
+        addDebugLog("Instruction count", tx.instructions.length);
+        
+        // Double-check game state right before simulation using the SAME connection
+        const { fetchGameAccountData } = await import("@/services/blockchain/play");
+        const gameStateCheck = await fetchGameAccountData(connection, new PublicKey(onChainAddress));
+        addDebugLog("Game state from RPC", {
+          isActive: gameStateCheck.isActive,
+          prizeCount: gameStateCheck.prizeCount,
+        });
+        
         // Convert legacy Transaction to VersionedTransaction for simulation
         const messageV0 = new TransactionMessage({
           payerKey: publicKey,
@@ -310,13 +340,29 @@ export default function GameDetailPage() {
         });
         
         if (simulation.value.err) {
-          console.error("Transaction simulation failed:", simulation.value.err);
-          throw new Error(`Transaction would fail: ${JSON.stringify(simulation.value.err)}`);
+          // Log detailed error info
+          addDebugLog("Simulation FAILED", simulation.value.err);
+          addDebugLog("Simulation logs", simulation.value.logs?.slice(-5)); // Last 5 logs
+          
+          // Parse the error to give a user-friendly message
+          const errStr = JSON.stringify(simulation.value.err);
+          let userMessage = "Transaction verification failed";
+          
+          if (errStr.includes('"Custom":1')) {
+            userMessage = "Game appears inactive. This may be a temporary RPC sync issue. Please try again in a few seconds.";
+            addDebugLog("Error type", "GameInactive (Custom:1)");
+          } else if (errStr.includes('"Custom":2')) {
+            userMessage = "Game is out of stock";
+          } else if (errStr.includes('"Custom":6')) {
+            userMessage = "Insufficient token balance";
+          }
+          
+          throw new Error(userMessage);
         }
-        console.log("Transaction simulation successful, CU used:", simulation.value.unitsConsumed);
+        addDebugLog("Simulation SUCCESS", { unitsConsumed: simulation.value.unitsConsumed });
       } catch (simError: any) {
         // If simulation fails, show user-friendly error
-        console.error("Simulation error:", simError);
+        addDebugLog("Simulation exception", simError.message);
         setError(simError.message || "Transaction verification failed. Please try again.");
         setPlaying(false);
         return;
@@ -689,6 +735,26 @@ export default function GameDetailPage() {
               />
             </div>
           </ArcadeCard>
+          
+          {/* Debug Panel - visible when there are logs */}
+          {debugLogs.length > 0 && (
+            <div className="mt-6 p-4 bg-gray-900 rounded-lg text-xs font-mono">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-yellow-400 font-bold">DEBUG LOGS</span>
+                <button 
+                  onClick={() => setDebugLogs([])}
+                  className="text-gray-400 hover:text-white text-xs"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {debugLogs.map((log, i) => (
+                  <div key={i} className="text-green-400 break-all">{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

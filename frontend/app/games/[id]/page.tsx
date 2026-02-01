@@ -8,38 +8,42 @@
 
 "use client";
 
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import ArcadeCard from "@/components/ui/ArcadeCard";
-import Loading from "@/components/ui/Loading";
-
-// Lazy load heavy 3D component - reduces initial bundle size significantly
-const ClawMachine3D = dynamic(
-  () => import("@/components/game/ClawMachine3D"),
-  {
-    loading: () => (
-      <div className="w-full h-[700px] rounded-lg overflow-hidden relative border border-pink-200 flex items-center justify-center bg-gradient-to-b from-sky-200 via-sky-100 to-pink-100">
-        <Loading size="lg" />
-      </div>
-    ),
-    ssr: false,
-  }
-);
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import PrizeDetailModal, { type Prize as PrizeModalData } from "@/components/ui/PrizeDetailModal";
+import Loading from "@/components/ui/Loading";
+import PrizeDetailModal, {
+  type Prize as PrizeModalData,
+} from "@/components/ui/PrizeDetailModal";
 import { toast } from "@/components/ui/Toast";
 import { usePlayEvents } from "@/hooks/api/usePaymentVerification";
 import { useHasSufficientBalance } from "@/hooks/useTokenBalance";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { gamesApi } from "@/services/api/games";
 import type { Game } from "@/types/game/game";
-import { formatPercent, formatOddsRatio } from "@/utils/odds-calculator";
+import { formatOddsRatio, formatPercent } from "@/utils/odds-calculator";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, Keypair, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+// Lazy load heavy 3D component - reduces initial bundle size significantly
+const ClawMachine3D = dynamic(() => import("@/components/game/ClawMachine3D"), {
+  loading: () => (
+    <div className="w-full h-[700px] rounded-lg overflow-hidden relative border border-pink-200 flex items-center justify-center bg-gradient-to-b from-sky-200 via-sky-100 to-pink-100">
+      <Loading size="lg" />
+    </div>
+  ),
+  ssr: false,
+});
 // claimPrize removed - NFTs are now auto-minted in finalize_play
 
 // Time (ms) to wait after claw drops before showing win/lose screen
@@ -90,18 +94,22 @@ export default function GameDetailPage() {
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { publicKey, connected, sendTransaction, signMessage } = useWallet();
   const { connection } = useConnection();
-  
+
   // Prize detail modal state
-  const [selectedPrize, setSelectedPrize] = useState<PrizeModalData | null>(null);
-  
+  const [selectedPrize, setSelectedPrize] = useState<PrizeModalData | null>(
+    null,
+  );
+
   // Debug logs for mobile testing (persists to UI and Vercel logs)
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const addDebugLog = useCallback((message: string, data?: unknown) => {
-    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-    const logEntry = data ? `[${timestamp}] ${message}: ${JSON.stringify(data)}` : `[${timestamp}] ${message}`;
-    setDebugLogs(prev => [...prev.slice(-20), logEntry]); // Keep last 20 logs
+    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+    const logEntry = data
+      ? `[${timestamp}] ${message}: ${JSON.stringify(data)}`
+      : `[${timestamp}] ${message}`;
+    setDebugLogs((prev) => [...prev.slice(-20), logEntry]); // Keep last 20 logs
     console.log(logEntry);
-    
+
     // Send to Vercel function logs via local API route
     fetch("/api/debug", {
       method: "POST",
@@ -113,20 +121,20 @@ export default function GameDetailPage() {
   // Handle payment verification events from indexer
   const handlePaymentVerified = useCallback(() => {
     if (!pendingOutcome) return;
-    
+
     // Clear the fallback timeout since we got a response
     if (verificationTimeoutRef.current) {
       clearTimeout(verificationTimeoutRef.current);
       verificationTimeoutRef.current = null;
     }
-    
+
     console.log("✅ Payment verified by indexer! Starting animation...");
     toast.success("Payment verified! Let's play!");
-    
+
     // NOW start the animation with the known outcome
     setClawOutcome(pendingOutcome.isWin ? "win" : "lose");
     setAnimationStarted(true);
-    
+
     // Set prize info if won
     if (
       pendingOutcome.isWin &&
@@ -146,43 +154,48 @@ export default function GameDetailPage() {
       clearTimeout(verificationTimeoutRef.current);
       verificationTimeoutRef.current = null;
     }
-    
+
     console.error("❌ Payment rejected by indexer:", payload.message);
     toast.error(`Payment rejected: ${payload.message}`);
-    setError("Payment was insufficient. Your tokens were transferred but you cannot play.");
+    setError(
+      "Payment was insufficient. Your tokens were transferred but you cannot play.",
+    );
     setPlaying(false);
     setPlayResult(null);
     setPendingOutcome(null);
   }, []);
 
-  const handleFinalized = useCallback((payload: {
-    status: "completed" | "failed";
-    prizeId: number | null;
-    nftMint: string | null;
-  }) => {
-    if (!pendingOutcome) return;
-    
-    const isWin = payload.status === "completed" && payload.prizeId !== null;
-    const result = {
-      status: (isWin ? "win" : "lose") as "win" | "lose",
-      playSignature: pendingOutcome.signature,
-      message: isWin ? "You won! 🎉" : "Better luck next time!",
-    };
-    
-    setPendingResult(result);
-    if (payload.nftMint) {
-      setWonNftMint(payload.nftMint);
-    }
-    
-    if (dropStartedRef.current && !resultTimerRef.current) {
-      resultTimerRef.current = setTimeout(() => {
-        setPlayResult(result);
-        setPlaying(false);
-        setShowResultScreen(true);
-        resultTimerRef.current = null;
-      }, RESULT_SCREEN_DELAY_MS);
-    }
-  }, [pendingOutcome]);
+  const handleFinalized = useCallback(
+    (payload: {
+      status: "completed" | "failed";
+      prizeId: number | null;
+      nftMint: string | null;
+    }) => {
+      if (!pendingOutcome) return;
+
+      const isWin = payload.status === "completed" && payload.prizeId !== null;
+      const result = {
+        status: (isWin ? "win" : "lose") as "win" | "lose",
+        playSignature: pendingOutcome.signature,
+        message: isWin ? "You won! 🎉" : "Better luck next time!",
+      };
+
+      setPendingResult(result);
+      if (payload.nftMint) {
+        setWonNftMint(payload.nftMint);
+      }
+
+      if (dropStartedRef.current && !resultTimerRef.current) {
+        resultTimerRef.current = setTimeout(() => {
+          setPlayResult(result);
+          setPlaying(false);
+          setShowResultScreen(true);
+          resultTimerRef.current = null;
+        }, RESULT_SCREEN_DELAY_MS);
+      }
+    },
+    [pendingOutcome],
+  );
 
   // Subscribe to play events when we have a pending signature
   usePlayEvents(
@@ -192,7 +205,7 @@ export default function GameDetailPage() {
       onPaymentRejected: handlePaymentRejected,
       onFinalized: handleFinalized,
     },
-    { timeoutMs: 60_000 }
+    { timeoutMs: 60_000 },
   );
 
   // Fallback timeout: if indexer doesn't respond within 15 seconds, proceed optimistically
@@ -200,13 +213,15 @@ export default function GameDetailPage() {
     if (!pendingOutcome || animationStarted) return;
 
     verificationTimeoutRef.current = setTimeout(() => {
-      console.warn("⚠️ Payment verification timeout - proceeding optimistically");
+      console.warn(
+        "⚠️ Payment verification timeout - proceeding optimistically",
+      );
       toast.warning("Verification taking longer than expected. Proceeding...");
-      
+
       // Start animation with known outcome
       setClawOutcome(pendingOutcome.isWin ? "win" : "lose");
       setAnimationStarted(true);
-      
+
       if (
         pendingOutcome.isWin &&
         pendingOutcome.prizeIndex !== null &&
@@ -231,15 +246,17 @@ export default function GameDetailPage() {
   const costUsdCents = game?.costInUsd
     ? Number(game.costInUsd) * 100
     : undefined;
-  const { tokenAmount, tokenAmountFormatted, loading: priceLoading } = useTokenCost(
-    game?.currencyTokenMintAddress,
-    costUsdCents
-  );
+  const {
+    tokenAmount,
+    tokenAmountFormatted,
+    loading: priceLoading,
+  } = useTokenCost(game?.currencyTokenMintAddress, costUsdCents);
 
   // Check if user has sufficient balance to play
   // tokenAmount is in base units (6 decimals), balance API also returns base units
   const requiredTokens = tokenAmount ? Number(tokenAmount) : undefined;
-  const { hasSufficientBalance, balance: userTokenBalance } = useHasSufficientBalance(requiredTokens);
+  const { hasSufficientBalance, balance: userTokenBalance } =
+    useHasSufficientBalance(requiredTokens);
 
   // Handler for play action (used by both intro screen and sidebar button)
   const handlePlayOnChain = async () => {
@@ -288,7 +305,9 @@ export default function GameDetailPage() {
       setPlayResult({ status: "pending", message: "Fetching token price..." });
 
       // Use costInUsd (dollars) converted to cents for dynamic price calculation
-      const playCostUsdCents = game.costInUsd ? Number(game.costInUsd) * 100 : undefined;
+      const playCostUsdCents = game.costInUsd
+        ? Number(game.costInUsd) * 100
+        : undefined;
 
       if (playCostUsdCents === undefined) {
         setError("Game pricing is not configured");
@@ -296,13 +315,16 @@ export default function GameDetailPage() {
         return;
       }
 
-      const { tx, sessionPda, tokenAmountPaid, lastValidBlockHeight } = await playOnChain({
-        walletPublicKey: publicKey as PublicKey,
-        gamePda: onChainAddress,
-        costUsdCents: playCostUsdCents,
-      });
+      const { tx, sessionPda, tokenAmountPaid, lastValidBlockHeight } =
+        await playOnChain({
+          walletPublicKey: publicKey as PublicKey,
+          gamePda: onChainAddress,
+          costUsdCents: playCostUsdCents,
+        });
 
-      console.log(`Token amount: ${tokenAmountPaid} tokens for $${(playCostUsdCents / 100).toFixed(2)}`);
+      console.log(
+        `Token amount: ${tokenAmountPaid} tokens for $${(playCostUsdCents / 100).toFixed(2)}`,
+      );
       console.log(`Session PDA: ${sessionPda.toString()}`);
 
       setPlayResult({
@@ -318,15 +340,19 @@ export default function GameDetailPage() {
         addDebugLog("RPC endpoint", connection.rpcEndpoint);
         addDebugLog("Game PDA", onChainAddress);
         addDebugLog("Instruction count", tx.instructions.length);
-        
+
         // Double-check game state right before simulation using the SAME connection
-        const { fetchGameAccountData } = await import("@/services/blockchain/play");
-        const gameStateCheck = await fetchGameAccountData(connection, new PublicKey(onChainAddress));
+        const { fetchGameAccountData } =
+          await import("@/services/blockchain/play");
+        const gameStateCheck = await fetchGameAccountData(
+          connection,
+          new PublicKey(onChainAddress),
+        );
         addDebugLog("Game state from RPC", {
           isActive: gameStateCheck.isActive,
           prizeCount: gameStateCheck.prizeCount,
         });
-        
+
         // Convert legacy Transaction to VersionedTransaction for simulation
         const messageV0 = new TransactionMessage({
           payerKey: publicKey,
@@ -338,32 +364,55 @@ export default function GameDetailPage() {
         const simulation = await connection.simulateTransaction(versionedTx, {
           sigVerify: false, // Don't verify signatures (user hasn't signed yet)
         });
-        
+
         if (simulation.value.err) {
           // Log detailed error info
           addDebugLog("Simulation FAILED", simulation.value.err);
           addDebugLog("Simulation logs", simulation.value.logs?.slice(-5)); // Last 5 logs
-          
+
           // Parse the error to give a user-friendly message
           const errStr = JSON.stringify(simulation.value.err);
+          const logsStr = simulation.value.logs?.join(" ") || "";
           let userMessage = "Transaction verification failed";
-          
-          if (errStr.includes('"Custom":1')) {
-            userMessage = "Game appears inactive. This may be a temporary RPC sync issue. Please try again in a few seconds.";
+
+          // Check for insufficient SOL (lamports) for rent/fees
+          if (logsStr.includes("insufficient lamports")) {
+            const match = logsStr.match(/need (\d+)/);
+            const needed = match
+              ? (parseInt(match[1]) / 1e9).toFixed(4)
+              : "more";
+            userMessage = `Insufficient SOL for transaction fees. You need approximately ${needed} SOL.`;
+            addDebugLog("Error type", "Insufficient SOL for rent/fees");
+          }
+          // Check for game program errors (program ID starts with your program)
+          else if (
+            errStr.includes('"Custom":1') &&
+            !logsStr.includes("11111111111111111111111111111111")
+          ) {
+            userMessage =
+              "Game appears inactive. Please try again in a few seconds.";
             addDebugLog("Error type", "GameInactive (Custom:1)");
           } else if (errStr.includes('"Custom":2')) {
             userMessage = "Game is out of stock";
           } else if (errStr.includes('"Custom":6')) {
             userMessage = "Insufficient token balance";
+          } else if (logsStr.includes("insufficient funds")) {
+            userMessage = "Insufficient SOL balance for transaction fees.";
+            addDebugLog("Error type", "Insufficient funds");
           }
-          
+
           throw new Error(userMessage);
         }
-        addDebugLog("Simulation SUCCESS", { unitsConsumed: simulation.value.unitsConsumed });
+        addDebugLog("Simulation SUCCESS", {
+          unitsConsumed: simulation.value.unitsConsumed,
+        });
       } catch (simError: any) {
         // If simulation fails, show user-friendly error
         addDebugLog("Simulation exception", simError.message);
-        setError(simError.message || "Transaction verification failed. Please try again.");
+        setError(
+          simError.message ||
+            "Transaction verification failed. Please try again.",
+        );
         setPlaying(false);
         return;
       }
@@ -386,9 +435,14 @@ export default function GameDetailPage() {
 
       // Wait for confirmation with Helius-optimized polling
       // This polls until confirmed or blockhash expires (~90 seconds)
-      const { confirmTransactionWithPolling } = await import("@/services/blockchain/helius");
+      const { confirmTransactionWithPolling } =
+        await import("@/services/blockchain/helius");
       try {
-        await confirmTransactionWithPolling(connection, signature, lastValidBlockHeight);
+        await confirmTransactionWithPolling(
+          connection,
+          signature,
+          lastValidBlockHeight,
+        );
       } catch (confirmError: any) {
         console.error("Transaction confirmation failed:", confirmError);
         setError(confirmError.message || "Transaction failed to confirm");
@@ -404,28 +458,37 @@ export default function GameDetailPage() {
       });
 
       // Step 2: Call backend to finalize play (generates randomness)
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const finalizeResponse = await fetch(`${backendUrl}/games/${game.id}/play/finalize`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-wallet-address": publicKey.toString(),
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const finalizeResponse = await fetch(
+        `${backendUrl}/games/${game.id}/play/finalize`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-wallet-address": publicKey.toString(),
+          },
+          body: JSON.stringify({
+            sessionPda: sessionPda.toString(),
+            gamePda: onChainAddress,
+          }),
         },
-        body: JSON.stringify({
-          sessionPda: sessionPda.toString(),
-          gamePda: onChainAddress,
-        }),
-      });
+      );
 
       if (!finalizeResponse.ok) {
         const errorData = await finalizeResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || `Backend finalize failed: ${finalizeResponse.status}`);
+        throw new Error(
+          errorData.message ||
+            `Backend finalize failed: ${finalizeResponse.status}`,
+        );
       }
 
       const finalizeResult = await finalizeResponse.json();
       console.log("Finalize result:", finalizeResult);
 
-      const isWin = finalizeResult.prizeIndex !== null && finalizeResult.prizeIndex !== undefined;
+      const isWin =
+        finalizeResult.prizeIndex !== null &&
+        finalizeResult.prizeIndex !== undefined;
       const prizeIndex = finalizeResult.prizeIndex;
 
       // Store pending outcome for animation
@@ -654,16 +717,18 @@ export default function GameDetailPage() {
                       borderColor="mint"
                       padding="sm"
                       className="bg-pastel-sky/10 cursor-pointer hover:scale-[1.02] transition-transform"
-                      onClick={() => setSelectedPrize({
-                        prizeId: p.prizeId,
-                        name: p.name,
-                        description: p.description,
-                        imageUrl: p.imageUrl,
-                        tier: p.tier,
-                        probabilityBasisPoints: p.probabilityBasisPoints,
-                        supplyRemaining: p.supplyRemaining,
-                        supplyTotal: p.supplyTotal,
-                      })}
+                      onClick={() =>
+                        setSelectedPrize({
+                          prizeId: p.prizeId,
+                          name: p.name,
+                          description: p.description,
+                          imageUrl: p.imageUrl,
+                          tier: p.tier,
+                          probabilityBasisPoints: p.probabilityBasisPoints,
+                          supplyRemaining: p.supplyRemaining,
+                          supplyTotal: p.supplyTotal,
+                        })
+                      }
                     >
                       <div className="flex gap-3 items-start">
                         <div className="relative h-20 w-20 rounded-xl border-2 border-pastel-pink/40 bg-pastel-pinkLight/50 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -712,8 +777,8 @@ export default function GameDetailPage() {
                                     0,
                                     Math.min(
                                       100,
-                                      (p.supplyRemaining / p.supplyTotal) * 100
-                                    )
+                                      (p.supplyRemaining / p.supplyTotal) * 100,
+                                    ),
                                   )}%`,
                                 }}
                               />
@@ -727,21 +792,21 @@ export default function GameDetailPage() {
               ) : (
                 <p className="text-pastel-textLight">No prizes found.</p>
               )}
-              
+
               {/* Prize Detail Modal */}
-              <PrizeDetailModal 
-                prize={selectedPrize} 
-                onClose={() => setSelectedPrize(null)} 
+              <PrizeDetailModal
+                prize={selectedPrize}
+                onClose={() => setSelectedPrize(null)}
               />
             </div>
           </ArcadeCard>
-          
+
           {/* Debug Panel - visible when there are logs */}
           {debugLogs.length > 0 && (
             <div className="mt-6 p-4 bg-gray-900 rounded-lg text-xs font-mono">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-yellow-400 font-bold">DEBUG LOGS</span>
-                <button 
+                <button
                   onClick={() => setDebugLogs([])}
                   className="text-gray-400 hover:text-white text-xs"
                 >
@@ -750,7 +815,9 @@ export default function GameDetailPage() {
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {debugLogs.map((log, i) => (
-                  <div key={i} className="text-green-400 break-all">{log}</div>
+                  <div key={i} className="text-green-400 break-all">
+                    {log}
+                  </div>
                 ))}
               </div>
             </div>

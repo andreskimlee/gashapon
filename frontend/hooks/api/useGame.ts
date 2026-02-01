@@ -1,19 +1,18 @@
 /**
  * useGame Hook
- * 
+ *
  * React Query hook for fetching a single game by ID with caching
  */
 
-'use client';
+"use client";
 
+import { gamesApi } from "@/services/api/games";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { gamesApi } from '@/services/api/games';
-import type { Game } from '@/types/game/game';
-import { gamesKeys } from './useGames';
+import { gamesKeys } from "./useGames";
 
 /**
  * Hook to fetch and cache a single game by ID
- * 
+ *
  * @param gameId - The game ID to fetch
  * @returns Query result with game data, loading state, and error
  */
@@ -43,12 +42,11 @@ export function useInvalidateGame() {
 
   return {
     /** Invalidate a specific game by ID */
-    invalidate: (gameId: number) => 
+    invalidate: (gameId: number) =>
       queryClient.invalidateQueries({ queryKey: gamesKeys.detail(gameId) }),
-    
+
     /** Refetch a specific game by ID */
     refetch: (gameId: number) =>
       queryClient.refetchQueries({ queryKey: gamesKeys.detail(gameId) }),
   };
 }
-

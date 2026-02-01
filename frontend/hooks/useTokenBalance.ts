@@ -16,7 +16,14 @@ export const balanceKeys = {
   user: (walletAddress: string) => [...balanceKeys.all, walletAddress] as const,
 };
 
-async function fetchBalance(walletAddress: string): Promise<number | null> {
+interface BalanceData {
+  /** Raw balance in base units (for comparison with token amounts) */
+  balance: number;
+  /** Display balance in human-readable units (for UI display) */
+  displayBalance: number;
+}
+
+async function fetchBalance(walletAddress: string): Promise<BalanceData | null> {
   const response = await fetch(`/api/balance/${walletAddress}`);
   
   if (!response.ok) {
@@ -25,7 +32,10 @@ async function fetchBalance(walletAddress: string): Promise<number | null> {
   }
 
   const data = await response.json();
-  return data.balance ?? null;
+  return {
+    balance: data.balance ?? 0,
+    displayBalance: data.displayBalance ?? 0,
+  };
 }
 
 interface UseTokenBalanceOptions {
@@ -57,7 +67,10 @@ export function useTokenBalance(options: UseTokenBalanceOptions = {}) {
   });
 
   return {
-    balance: query.data ?? null,
+    /** Raw balance in base units (for comparison with token amounts) */
+    balance: query.data?.balance ?? null,
+    /** Display balance in human-readable units (for UI display) */
+    displayBalance: query.data?.displayBalance ?? null,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     error: query.error,
@@ -68,30 +81,31 @@ export function useTokenBalance(options: UseTokenBalanceOptions = {}) {
 /**
  * Hook to check if user has sufficient balance to play
  * 
- * @param requiredAmount - The amount needed to play
+ * @param requiredAmount - The amount needed to play (in base units)
  * @returns Whether user has enough balance and related state
  */
 export function useHasSufficientBalance(requiredAmount: number | undefined) {
-  const { balance, isLoading } = useTokenBalance();
+  const { balance, displayBalance, isLoading } = useTokenBalance();
   const { connected } = useWallet();
 
   // Can't determine if not connected or still loading
   if (!connected || isLoading || balance === null || requiredAmount === undefined) {
     return {
       hasSufficientBalance: null, // Unknown
-      balance,
+      balance: displayBalance, // Return display balance for UI
       requiredAmount,
       isLoading,
       shortfall: null,
     };
   }
 
+  // Compare raw balances (both in base units)
   const hasSufficientBalance = balance >= requiredAmount;
   const shortfall = hasSufficientBalance ? 0 : requiredAmount - balance;
 
   return {
     hasSufficientBalance,
-    balance,
+    balance: displayBalance, // Return display balance for UI
     requiredAmount,
     isLoading: false,
     shortfall,

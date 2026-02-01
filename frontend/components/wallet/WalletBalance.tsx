@@ -44,7 +44,8 @@ export default function WalletBalance() {
 
       const data = await response.json();
       console.log("[WalletBalance] Balance fetched:", data);
-      setBalance(data.balance);
+      // Use displayBalance for UI (human-readable units)
+      setBalance(data.displayBalance);
     } catch (error) {
       console.error("[WalletBalance] Error fetching balance:", error);
       setBalance(null);

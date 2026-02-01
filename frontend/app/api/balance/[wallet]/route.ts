@@ -69,8 +69,11 @@ export async function GET(
       const rawBalance = Number(accountInfo.amount);
       const displayBalance = rawBalance / Math.pow(10, TOKEN_DECIMALS);
 
+      // Return rawBalance as "balance" for comparison with token amounts (which are in base units)
+      // Also include displayBalance for UI purposes
       return NextResponse.json({
-        balance: displayBalance,
+        balance: rawBalance,
+        displayBalance,
         rawBalance,
         tokenAccount: tokenAccount.toString(),
         tokenMint: TOKEN_MINT,
@@ -81,6 +84,7 @@ export async function GET(
       if (err.name === "TokenAccountNotFoundError") {
         return NextResponse.json({
           balance: 0,
+          displayBalance: 0,
           rawBalance: 0,
           tokenAccount: tokenAccount.toString(),
           tokenMint: TOKEN_MINT,

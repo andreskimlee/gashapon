@@ -13,12 +13,14 @@ import {
 } from "@solana/spl-token";
 import {
   Connection,
+  ComputeBudgetProgram,
   Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
+import { getPriorityFeeEstimate } from "./helius";
 
 // Anchor discriminators from IDL
 const PLAY_GAME_DISCRIMINATOR = Uint8Array.from([
@@ -382,7 +384,34 @@ export async function playOnChain(opts: {
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = blockhash;
 
-  return { tx, sessionPda, sessionSeed, tokenAmountPaid: finalTokenAmount, blockhash, lastValidBlockHeight };
+  // Get priority fee estimate from Helius
+  let priorityFee = 50_000; // Default: 50k microLamports
+  try {
+    priorityFee = await getPriorityFeeEstimate(connection, tx);
+  } catch (e) {
+    console.warn("[playOnChain] Could not get priority fee, using default:", e);
+  }
+
+  // Create a new transaction with compute budget instructions first
+  const optimizedTx = new Transaction();
+  
+  // Add compute budget instructions (must be first)
+  optimizedTx.add(
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }), // Safe limit for play transaction
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee })
+  );
+  
+  // Add all original instructions
+  for (const instruction of tx.instructions) {
+    optimizedTx.add(instruction);
+  }
+  
+  optimizedTx.feePayer = user;
+  optimizedTx.recentBlockhash = blockhash;
+
+  console.log(`[playOnChain] Transaction prepared with priority fee: ${priorityFee} microLamports`);
+
+  return { tx: optimizedTx, sessionPda, sessionSeed, tokenAmountPaid: finalTokenAmount, blockhash, lastValidBlockHeight };
 }
 
 /**

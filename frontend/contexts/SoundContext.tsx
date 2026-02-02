@@ -18,6 +18,7 @@ const SOUNDS = {
   clawMove: "/sound/claw_move.mp3",
   lose: "/sound/lose.wav",
   navPress: "/sound/nav_press.wav",
+  win: "/sound/win.mp3",
 } as const;
 
 type SoundName = keyof typeof SOUNDS;
@@ -110,27 +111,46 @@ export function SoundProvider({ children }: { children: ReactNode }) {
 
   // Listen for first user interaction to enable autoplay
   useEffect(() => {
+    // Skip if already interacted
+    if (hasUserInteracted) return;
+
     const handleInteraction = () => {
       setHasUserInteracted(true);
       // Auto-start background music after first interaction if sound is enabled
-      if (isSoundEnabled && backgroundMusicRef.current) {
+      if (isSoundEnabled) {
         setIsBackgroundMusicPlaying(true);
-        backgroundMusicRef.current.play().catch(() => {});
+        // Try to play, and if audio isn't ready yet, wait for it
+        const audio = backgroundMusicRef.current;
+        if (audio) {
+          if (audio.readyState >= 2) {
+            // HAVE_CURRENT_DATA or better - can start playing
+            audio.play().catch(() => {});
+          } else {
+            // Audio not ready, wait for canplay event
+            const onCanPlay = () => {
+              audio.play().catch(() => {});
+              audio.removeEventListener("canplay", onCanPlay);
+            };
+            audio.addEventListener("canplay", onCanPlay);
+          }
+        }
       }
     };
 
-    // Listen for common interaction events
-    const events = ["click", "touchstart", "keydown"];
+    // Listen for common interaction events - use capture to catch early
+    const events = ["click", "touchstart", "keydown", "pointerdown"];
     events.forEach((event) => {
-      document.addEventListener(event, handleInteraction, { once: true });
+      document.addEventListener(event, handleInteraction, { capture: true });
     });
 
     return () => {
       events.forEach((event) => {
-        document.removeEventListener(event, handleInteraction);
+        document.removeEventListener(event, handleInteraction, {
+          capture: true,
+        });
       });
     };
-  }, [isSoundEnabled]);
+  }, [isSoundEnabled, hasUserInteracted]);
 
   const toggleSound = useCallback(() => {
     setIsSoundEnabled((prev) => !prev);

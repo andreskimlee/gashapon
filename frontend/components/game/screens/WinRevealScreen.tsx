@@ -1,5 +1,6 @@
 "use client";
 
+import { useSound } from "@/contexts/SoundContext";
 import { useAnimations, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { button, useControls } from "leva";
@@ -173,7 +174,7 @@ function generateLightningPath(
   start: THREE.Vector3,
   end: THREE.Vector3,
   segments: number,
-  jitter: number
+  jitter: number,
 ): THREE.Vector3[] {
   const points: THREE.Vector3[] = [start.clone()];
   const direction = end.clone().sub(start);
@@ -235,7 +236,7 @@ function LightningBolt({
     return new THREE.Vector3(
       startRadius * Math.sin(phi) * Math.cos(theta),
       startRadius * Math.sin(phi) * Math.sin(theta),
-      startRadius * Math.cos(phi)
+      startRadius * Math.cos(phi),
     );
   }, [startRadius, theta, phi]);
 
@@ -243,7 +244,7 @@ function LightningBolt({
     return new THREE.Vector3(
       endRadius * Math.sin(phi) * Math.cos(theta),
       endRadius * Math.sin(phi) * Math.sin(theta),
-      endRadius * Math.cos(phi)
+      endRadius * Math.cos(phi),
     );
   }, [endRadius, theta, phi]);
 
@@ -313,7 +314,7 @@ function PlasmaBall({ enableControls = false }: { enableControls?: boolean }) {
       plasmaZ: { value: 0, min: -2, max: 2, step: 0.01 },
       plasmaScale: { value: 0.15, min: 0.01, max: 1, step: 0.01 },
     },
-    { collapsed: true, render: () => enableControls }
+    { collapsed: true, render: () => enableControls },
   );
 
   // Golden/yellow plasma colors
@@ -548,7 +549,7 @@ function SphereRevealModel({
   const hasStartedRef = useRef(false); // Prevent animation restart on re-renders
   const [fitScale, setFitScale] = useState(1);
   const [centerOffset, setCenterOffset] = useState<THREE.Vector3>(
-    new THREE.Vector3()
+    new THREE.Vector3(),
   );
 
   // Calculate scale and center from ORIGINAL scene (which has proper geometry)
@@ -618,7 +619,7 @@ function SphereRevealModel({
       capsuleScale: { value: 0.5, min: 0.1, max: 2.5, step: 0.01 },
       animationStage: { value: 0.5, min: 0, max: 1, step: 0.001 },
     },
-    { collapsed: true, render: () => enableRevealControls }
+    { collapsed: true, render: () => enableRevealControls },
   );
 
   // Store onComplete in a ref to avoid dependency changes resetting the animation
@@ -653,7 +654,7 @@ function SphereRevealModel({
     hasStartedRef.current = true;
 
     actionRef.current = action;
-    
+
     // Configure animation to play ONCE and stop at end
     action.reset();
     action.setLoop(THREE.LoopOnce, 1);
@@ -666,7 +667,7 @@ function SphereRevealModel({
     action.play();
     action.paused = false;
     action.enabled = true;
-    
+
     // Play remaining 50% over CAPSULE_ANIMATION_DURATION seconds
     action.timeScale = (clipDuration * 0.5) / CAPSULE_ANIMATION_DURATION;
     mixer.timeScale = 1;
@@ -682,7 +683,7 @@ function SphereRevealModel({
       }
     };
     mixer.addEventListener("finished", handleFinished);
-    
+
     return () => {
       mixer.removeEventListener("finished", handleFinished);
     };
@@ -723,6 +724,13 @@ export function WinRevealScreen({
   onComplete,
   enableRevealControls = false,
 }: WinRevealScreenProps) {
+  const { playSound } = useSound();
+
+  // Play win sound when screen appears
+  useEffect(() => {
+    playSound("win");
+  }, [playSound]);
+
   const handleComplete = useCallback(() => {
     if (enableRevealControls) return;
     onComplete();
@@ -737,7 +745,7 @@ export function WinRevealScreen({
         }
       }),
     },
-    { collapsed: true, render: () => enableRevealControls }
+    { collapsed: true, render: () => enableRevealControls },
   );
 
   return (

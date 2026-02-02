@@ -109,38 +109,80 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     }
   }, [isSoundEnabled, hasUserInteracted, isBackgroundMusicPlaying]);
 
+  // Track if we've already set up the interaction listener
+  const interactionHandledRef = useRef(false);
+
   // Listen for first user interaction to enable autoplay
   useEffect(() => {
-    // Skip if already interacted
-    if (hasUserInteracted) return;
+    // Skip if already handled
+    if (interactionHandledRef.current) return;
 
     const handleInteraction = () => {
+      // Prevent multiple calls
+      if (interactionHandledRef.current) return;
+      interactionHandledRef.current = true;
+
       setHasUserInteracted(true);
+
       // Auto-start background music after first interaction if sound is enabled
       if (isSoundEnabled) {
         setIsBackgroundMusicPlaying(true);
-        // Try to play, and if audio isn't ready yet, wait for it
+
         const audio = backgroundMusicRef.current;
         if (audio) {
+          // Function to attempt playing
+          const tryPlay = () => {
+            audio.play().catch(() => {
+              // If it fails, try again on next interaction
+              interactionHandledRef.current = false;
+            });
+          };
+
           if (audio.readyState >= 2) {
-            // HAVE_CURRENT_DATA or better - can start playing
-            audio.play().catch(() => {});
+            // Audio is ready, play immediately
+            tryPlay();
           } else {
             // Audio not ready, wait for canplay event
             const onCanPlay = () => {
-              audio.play().catch(() => {});
+              tryPlay();
               audio.removeEventListener("canplay", onCanPlay);
             };
             audio.addEventListener("canplay", onCanPlay);
           }
         }
       }
+
+      // Remove all listeners after first interaction
+      events.forEach((event) => {
+        document.removeEventListener(event, handleInteraction, {
+          capture: true,
+        });
+        window.removeEventListener(event, handleInteraction, { capture: true });
+      });
     };
 
-    // Listen for common interaction events - use capture to catch early
-    const events = ["click", "touchstart", "keydown", "pointerdown"];
+    // Listen for many interaction events to catch the first one
+    const events = [
+      "click",
+      "touchstart",
+      "touchend",
+      "keydown",
+      "pointerdown",
+      "mousedown",
+      "scroll",
+    ];
     events.forEach((event) => {
-      document.addEventListener(event, handleInteraction, { capture: true });
+      document.addEventListener(event, handleInteraction, {
+        capture: true,
+        passive: true,
+      });
+      // Also listen on window for scroll
+      if (event === "scroll") {
+        window.addEventListener(event, handleInteraction, {
+          capture: true,
+          passive: true,
+        });
+      }
     });
 
     return () => {
@@ -148,9 +190,14 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         document.removeEventListener(event, handleInteraction, {
           capture: true,
         });
+        if (event === "scroll") {
+          window.removeEventListener(event, handleInteraction, {
+            capture: true,
+          });
+        }
       });
     };
-  }, [isSoundEnabled, hasUserInteracted]);
+  }, [isSoundEnabled]);
 
   const toggleSound = useCallback(() => {
     setIsSoundEnabled((prev) => !prev);

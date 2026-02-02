@@ -67,13 +67,15 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     const bgMusic = new Audio(SOUNDS.backgroundMusic);
     bgMusic.loop = true;
     bgMusic.volume = VOLUME_BACKGROUND_MUSIC;
+    // Use 'auto' to leverage browser preload hints from <link rel="preload">
     bgMusic.preload = "auto";
     backgroundMusicRef.current = bgMusic;
 
-    // Preload all sound effects
+    // Preload all sound effects with metadata first for faster initial load
     Object.entries(SOUNDS).forEach(([name, path]) => {
       if (name !== "backgroundMusic") {
         const audio = new Audio(path);
+        // 'auto' for commonly used sounds, browser will cache them
         audio.preload = "auto";
         audio.volume = VOLUME_SFX;
         sfxCacheRef.current.set(name, audio);

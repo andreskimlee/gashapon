@@ -26,6 +26,27 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="font-sans">
+      <head>
+        {/* Preload audio files for faster playback */}
+        <link
+          rel="preload"
+          href="/sound/background_music.mp3"
+          as="audio"
+          type="audio/mpeg"
+        />
+        <link
+          rel="preload"
+          href="/sound/button_press.wav"
+          as="audio"
+          type="audio/wav"
+        />
+        <link
+          rel="preload"
+          href="/sound/nav_press.wav"
+          as="audio"
+          type="audio/wav"
+        />
+      </head>
       <body className="font-sans antialiased min-h-screen bg-cloud-tile">
         <QueryProvider>
           <SolanaWalletProvider>

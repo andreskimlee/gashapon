@@ -90,15 +90,21 @@ export default function GameCard({
   const renderImage = (image: string, size: "large" | "small" | "preview") => {
     if (isImageUrl(image)) {
       return (
-        <div className={cn(
-          "relative",
-          size === "large" || size === "preview" ? "w-full h-full" : "w-16 h-16",
-        )}>
+        <div
+          className={cn(
+            "relative",
+            size === "large" || size === "preview"
+              ? "w-full h-full"
+              : "w-16 h-16",
+          )}
+        >
           <Image
             src={image}
             alt={game.name}
             fill
-            sizes={size === "large" ? "320px" : size === "preview" ? "200px" : "64px"}
+            sizes={
+              size === "large" ? "320px" : size === "preview" ? "200px" : "64px"
+            }
             className="object-cover rounded-lg"
           />
         </div>
@@ -151,6 +157,7 @@ export default function GameCard({
           variant="arcade"
           shadowColor="mint"
           padding="none"
+          hover
           className="h-full"
         >
           {/* Subtle shine on hover */}

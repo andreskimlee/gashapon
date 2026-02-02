@@ -8,8 +8,8 @@
 
 "use client";
 
-import { HTMLAttributes, ReactNode, CSSProperties } from "react";
 import { cn } from "@/utils/helpers";
+import { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
 type ShadowColor = "mint" | "pink" | "coral" | "purple" | "lavender" | "yellow";
 type BorderColor = "dark" | "pink" | "coral" | "purple" | "mint";
@@ -39,10 +39,10 @@ const shadowColors: Record<ShadowColor, string> = {
 
 const borderColors: Record<BorderColor, string> = {
   dark: "#111827",
-  pink: "#C9909A",    // Darker pink
-  coral: "#D4868A",   // Darker coral
-  purple: "#9B7BA8",  // Darker purple
-  mint: "#5BA898",    // Darker mint
+  pink: "#C9909A", // Darker pink
+  coral: "#D4868A", // Darker coral
+  purple: "#9B7BA8", // Darker purple
+  mint: "#5BA898", // Darker mint
 };
 
 const paddingStyles = {
@@ -65,7 +65,7 @@ export default function Card({
   ...props
 }: CardProps) {
   const borderHex = borderColors[borderColor];
-  
+
   // Arcade style: 3D border with colored drop shadow
   const arcadeStyle: CSSProperties = {
     border: `2px solid ${borderHex}`,
@@ -82,7 +82,7 @@ export default function Card({
           "bg-white rounded-2xl overflow-hidden",
           paddingStyles[padding],
           hover && "transition-all duration-200 hover:-translate-y-1",
-          className
+          className,
         )}
         style={arcadeStyle}
         {...props}
@@ -99,7 +99,7 @@ export default function Card({
         "rounded-2xl bg-white shadow-soft",
         paddingStyles[padding],
         hover && "hover:shadow-lg transition-shadow duration-200",
-        className
+        className,
       )}
       style={style}
       {...props}

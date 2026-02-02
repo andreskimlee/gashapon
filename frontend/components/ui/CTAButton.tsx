@@ -6,6 +6,7 @@
 
 "use client";
 
+import { useSound } from "@/contexts/SoundContext";
 import { cn } from "@/utils/helpers";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -33,6 +34,12 @@ export default function CTAButton({
   type = "button",
 }: CTAButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const { playSound } = useSound();
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    playSound("buttonPress");
+    onClick?.(e);
+  };
 
   const sizes = {
     xs: "px-3 py-1.5 text-base",
@@ -58,11 +65,12 @@ export default function CTAButton({
     "active:scale-95 active:brightness-95",
     "disabled:opacity-50 disabled:cursor-not-allowed",
     sizes[size],
-    className
+    className,
   );
 
   const style = {
-    background: isHovered && !disabled ? hoverGradients[variant] : gradients[variant],
+    background:
+      isHovered && !disabled ? hoverGradients[variant] : gradients[variant],
     borderTop: "2px solid #374151",
     borderLeft: "2px solid #374151",
     borderRight: "4px solid #374151",
@@ -87,10 +95,11 @@ export default function CTAButton({
 
   if (href) {
     return (
-      <Link 
-        href={href} 
-        className={buttonClasses} 
+      <Link
+        href={href}
+        className={buttonClasses}
         style={style}
+        onClick={() => playSound("buttonPress")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -104,7 +113,7 @@ export default function CTAButton({
       className={buttonClasses}
       style={style}
       disabled={disabled}
-      onClick={onClick}
+      onClick={handleClick}
       type={type}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

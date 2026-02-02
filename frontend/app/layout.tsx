@@ -2,6 +2,7 @@ import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import { Toaster } from "@/components/ui/Toast/Toaster";
 import SolanaWalletProvider from "@/components/wallet/SolanaWalletProvider";
+import { SoundProvider } from "@/contexts/SoundContext";
 import { QueryProvider } from "@/providers/QueryProvider";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import type { Metadata } from "next";
@@ -9,7 +10,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Grabbit - Play Games, Win NFTs, Redeem Prizes",
-  description: "A blockchain-based gachapon platform on Solana. Play games, win NFTs, and redeem physical prizes.",
+  description:
+    "A blockchain-based gachapon platform on Solana. Play games, win NFTs, and redeem physical prizes.",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -27,12 +29,14 @@ export default function RootLayout({
       <body className="font-sans antialiased min-h-screen bg-cloud-tile">
         <QueryProvider>
           <SolanaWalletProvider>
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="relative flex-1">{children}</main>
-              <Footer />
-            </div>
-            <Toaster />
+            <SoundProvider>
+              <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="relative flex-1">{children}</main>
+                <Footer />
+              </div>
+              <Toaster />
+            </SoundProvider>
           </SolanaWalletProvider>
         </QueryProvider>
       </body>

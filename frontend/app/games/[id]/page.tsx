@@ -716,6 +716,7 @@ export default function GameDetailPage() {
                       shadowColor="mint"
                       borderColor="mint"
                       padding="sm"
+                      hover
                       className="bg-pastel-sky/10 cursor-pointer hover:scale-[1.02] transition-transform"
                       onClick={() =>
                         setSelectedPrize({

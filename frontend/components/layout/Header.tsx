@@ -9,41 +9,62 @@
 
 "use client";
 
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { Gamepad2, Grid3X3, Handshake, Home, Menu, Store, X } from "lucide-react";
+import { useSound } from "@/contexts/SoundContext";
+import { AnimatePresence, motion, useAnimation } from "framer-motion";
+import {
+  Gamepad2,
+  Grid3X3,
+  Handshake,
+  Home,
+  Menu,
+  Store,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import SoundToggle from "../ui/SoundToggle";
 import TokenLogo from "../ui/TokenLogo";
 import WalletBalance from "../wallet/WalletBalance";
 
 // Claw grab animation for nav links
-function GrabLink({ href, children }: { href: string; children: React.ReactNode }) {
+function GrabLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   const controls = useAnimation();
-  
+  const { playSound } = useSound();
+
   const handleHoverStart = async () => {
     // Grab effect: pull up and squeeze
     await controls.start({
       y: -8,
       scale: 0.95,
-      transition: { type: "spring", stiffness: 400, damping: 10 }
+      transition: { type: "spring", stiffness: 400, damping: 10 },
     });
   };
-  
+
   const handleHoverEnd = async () => {
     // Release effect: drop with bounce
     await controls.start({
       y: [null, 4, -2, 0],
       scale: [null, 1.05, 0.98, 1],
-      transition: { 
+      transition: {
         duration: 0.5,
         times: [0, 0.4, 0.7, 1],
-        ease: "easeOut"
-      }
+        ease: "easeOut",
+      },
     });
   };
 
+  const handleClick = () => {
+    playSound("navPress");
+  };
+
   return (
-    <Link href={href}>
+    <Link href={href} onClick={handleClick}>
       <motion.span
         className="relative block text-pastel-text font-bold cursor-pointer"
         animate={controls}
@@ -58,7 +79,8 @@ function GrabLink({ href, children }: { href: string; children: React.ReactNode 
           whileHover={{ height: 12 }}
           transition={{ duration: 0.15 }}
         />
-        <span className="relative z-10 px-3 py-1.5 rounded-xl bg-white/80 border-2 border-[#111827] inline-block"
+        <span
+          className="relative z-10 px-3 py-1.5 rounded-xl bg-white/80 border-2 border-[#111827] inline-block"
           style={{ boxShadow: "2px 2px 0 #111827" }}
         >
           {children}
@@ -69,16 +91,16 @@ function GrabLink({ href, children }: { href: string; children: React.ReactNode 
 }
 
 // Mobile menu item - optimized with CSS transitions
-function MobileMenuItem({ 
-  href, 
-  icon: Icon, 
-  iconBg, 
-  iconColor, 
+function MobileMenuItem({
+  href,
+  icon: Icon,
+  iconBg,
+  iconColor,
   borderColor,
-  children, 
-  onClick 
-}: { 
-  href: string; 
+  children,
+  onClick,
+}: {
+  href: string;
   icon: typeof Home;
   iconBg: string;
   iconColor: string;
@@ -86,14 +108,21 @@ function MobileMenuItem({
   children: React.ReactNode;
   onClick: () => void;
 }) {
+  const { playSound } = useSound();
+
+  const handleClick = () => {
+    playSound("navPress");
+    onClick();
+  };
+
   return (
     <Link
       href={href}
-      onClick={onClick}
+      onClick={handleClick}
       className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border-2 border-[#111827] font-bold text-[#111827] active:scale-95 transition-transform duration-150"
       style={{ boxShadow: "3px 3px 0 #111827" }}
     >
-      <div 
+      <div
         className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center border-2 ${borderColor}`}
       >
         <Icon className={`w-4 h-4 ${iconColor}`} />
@@ -126,20 +155,20 @@ export default function Header() {
           <GrabLink href="/games">Games</GrabLink>
           <GrabLink href="/collection">Collection</GrabLink>
           <GrabLink href="/partnership">Partnership</GrabLink>
-          
+
           {/* Marketplace - disabled with swing */}
-          <motion.span 
+          <motion.span
             className="relative px-3 py-1.5 rounded-xl bg-white/50 border-2 border-[#111827]/30 text-pastel-text/50 font-bold cursor-not-allowed"
             style={{ boxShadow: "2px 2px 0 #11182730" }}
             animate={{ rotate: [-0.5, 0.5, -0.5] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
             Marketplace
-            <motion.sup 
+            <motion.sup
               className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-pastel-coral text-white rounded-full align-super"
-              animate={{ 
+              animate={{
                 scale: [1, 1.15, 1],
-                y: [0, -2, 0]
+                y: [0, -2, 0],
               }}
               transition={{ duration: 1.5, repeat: Infinity }}
             >
@@ -148,7 +177,7 @@ export default function Header() {
           </motion.span>
         </nav>
 
-        {/* Buy $GRAB + Wallet balance + hamburger */}
+        {/* Buy $GRAB + Wallet balance + hamburger + Sound toggle */}
         <div className="flex items-center gap-2 md:gap-3 ml-auto shrink-0">
           {/* Buy button */}
           <a
@@ -160,7 +189,7 @@ export default function Header() {
             <TokenLogo size="lg" />
             <span>BUY</span>
           </a>
-          
+
           <WalletBalance />
 
           {/* Mobile hamburger - claw grip animation */}
@@ -169,17 +198,20 @@ export default function Header() {
             style={{ boxShadow: "2px 2px 0 #111827" }}
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Open menu"
-            whileHover={{ 
+            whileHover={{
               y: -4,
-              transition: { type: "spring", stiffness: 400 }
+              transition: { type: "spring", stiffness: 400 },
             }}
-            whileTap={{ 
+            whileTap={{
               scale: 0.85,
-              y: 2
+              y: 2,
             }}
           >
             <Menu className="w-5 h-5 text-[#111827]" />
           </motion.button>
+
+          {/* Sound toggle - far right */}
+          <SoundToggle />
         </div>
       </div>
 
@@ -234,7 +266,7 @@ export default function Header() {
               >
                 Home
               </MobileMenuItem>
-              
+
               <MobileMenuItem
                 href="/games"
                 icon={Gamepad2}
@@ -245,7 +277,7 @@ export default function Header() {
               >
                 Games
               </MobileMenuItem>
-              
+
               <MobileMenuItem
                 href="/collection"
                 icon={Grid3X3}
@@ -256,7 +288,7 @@ export default function Header() {
               >
                 Collection
               </MobileMenuItem>
-              
+
               <MobileMenuItem
                 href="/partnership"
                 icon={Handshake}
@@ -267,7 +299,7 @@ export default function Header() {
               >
                 Partnership
               </MobileMenuItem>
-              
+
               {/* Marketplace - disabled */}
               <div
                 className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/60 border-2 border-[#111827]/40 font-bold text-[#111827]/40 cursor-not-allowed"

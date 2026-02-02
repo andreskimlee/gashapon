@@ -1,55 +1,61 @@
 /**
  * Games Listing Page - Netflix Style
- * 
+ *
  * Displays games organized by categories with horizontal scrolling.
  * Categories are fetched from backend API.
  */
 
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Sparkles, Layers, Gamepad2, Heart, Star, Coffee } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Gamepad2,
+  Heart,
+  Layers,
+  Sparkles,
+  Star,
+} from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
 import Loading from "@/components/ui/Loading";
+import { useCategories } from "@/hooks/api/useCategories";
+import { useGames } from "@/hooks/api/useGames";
+import type { Game } from "@/types/game/game";
+import { cn } from "@/utils/helpers";
 import Image from "next/image";
 
 // Lazy load heavy 3D component - reduces initial bundle size
-const GamesHero3D = dynamic(
-  () => import("@/components/games/GamesHero3D"),
-  {
-    loading: () => (
-      <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-gradient-to-b from-pastel-sky to-pastel-mint/30">
-        <Loading size="lg" />
-      </div>
-    ),
-    ssr: false,
-  }
-);
-import { useCategories } from "@/hooks/api/useCategories";
-import { useGames } from "@/hooks/api/useGames";
-import { cn } from "@/utils/helpers";
-import type { Game } from "@/types/game/game";
+const GamesHero3D = dynamic(() => import("@/components/games/GamesHero3D"), {
+  loading: () => (
+    <div className="w-full h-[400px] md:h-[500px] flex items-center justify-center bg-gradient-to-b from-pastel-sky to-pastel-mint/30">
+      <Loading size="lg" />
+    </div>
+  ),
+  ssr: false,
+});
 
 // Category icons mapping (matches Lucide icon names stored in DB)
 const CATEGORY_ICONS: Record<string, typeof Sparkles> = {
-  "Sparkles": Sparkles,
-  "Layers": Layers,
-  "Gamepad2": Gamepad2,
-  "Heart": Heart,
-  "Star": Star,
-  "Coffee": Coffee,
+  Sparkles: Sparkles,
+  Layers: Layers,
+  Gamepad2: Gamepad2,
+  Heart: Heart,
+  Star: Star,
+  Coffee: Coffee,
 };
 
 // Mock categories with game IDs (will be replaced with API call)
 const MOCK_CATEGORIES: Record<string, number[]> = {
-  "Featured": [1, 2, 3, 4, 5],
-  "Trending": [2, 4, 1, 3],
+  Featured: [1, 2, 3, 4, 5],
+  Trending: [2, 4, 1, 3],
   "New Arrivals": [5, 4, 3, 2, 1],
   "Top Rated": [1, 3, 5],
   "Hot Right Now": [2, 1, 4, 5, 3],
@@ -128,15 +134,19 @@ const MOCK_GAMES: Game[] = [
 // Game Card for the category rows - optimized for mobile
 function CategoryGameCard({ game }: { game: Game }) {
   // Get the first prize with an image, or fall back to game image
-  const prizeImage = game.prizes?.find(p => p.imageUrl)?.imageUrl;
+  const prizeImage = game.prizes?.find((p) => p.imageUrl)?.imageUrl;
   const displayImage = prizeImage || game.imageUrl;
 
   return (
     <Link href={`/games/${game.id}`}>
-      <div
-        className="relative flex-shrink-0 w-[200px] md:w-[280px] cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-98"
-      >
-        <Card variant="arcade" shadowColor="mint" padding="none" className="overflow-hidden">
+      <div className="relative flex-shrink-0 w-[200px] md:w-[280px] cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-98">
+        <Card
+          variant="arcade"
+          shadowColor="mint"
+          padding="none"
+          hover
+          className="overflow-hidden"
+        >
           {/* Prize/Game Image */}
           <div className="relative aspect-[4/3] bg-gradient-to-br from-pastel-mint to-pastel-sky overflow-hidden group/card">
             {displayImage ? (
@@ -152,11 +162,9 @@ function CategoryGameCard({ game }: { game: Game }) {
                 <span className="text-6xl">🎮</span>
               </div>
             )}
-            
+
             {/* Hover Overlay - CSS only, hidden on mobile */}
-            <div
-              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex-col justify-end p-3 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 hidden md:flex"
-            >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex-col justify-end p-3 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 hidden md:flex">
               <CTAButton size="sm" variant="orange" className="w-full">
                 PLAY NOW
               </CTAButton>
@@ -169,7 +177,10 @@ function CategoryGameCard({ game }: { game: Game }) {
 
             {/* Price Badge */}
             <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-pastel-yellow border-2 border-yellow-400/50 text-[10px] md:text-xs font-bold text-[#111827]">
-              ${(Number(game.costInUsd) || Number(game.costInTokens) / 100).toFixed(2)}
+              $
+              {(
+                Number(game.costInUsd) || Number(game.costInTokens) / 100
+              ).toFixed(2)}
             </div>
           </div>
 
@@ -191,12 +202,12 @@ function CategoryGameCard({ game }: { game: Game }) {
 }
 
 // Horizontal scrolling category row with Embla Carousel - optimized
-function CategoryRow({ 
-  name, 
+function CategoryRow({
+  name,
   icon,
-  games 
-}: { 
-  name: string; 
+  games,
+}: {
+  name: string;
   icon: string | null;
   games: Game[];
 }) {
@@ -205,7 +216,7 @@ function CategoryRow({
     containScroll: "trimSnaps",
     dragFree: true,
   });
-  
+
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
@@ -243,13 +254,13 @@ function CategoryRow({
       {/* Category Header */}
       <div className="flex items-center gap-3 mb-5 px-4 md:px-8">
         {/* Icon - no hover animation on mobile */}
-        <div 
+        <div
           className="relative w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-pastel-coral to-pastel-pink flex items-center justify-center border-2 border-[#111827] md:hover:scale-110 md:hover:rotate-3 transition-transform duration-200"
           style={{ boxShadow: "2px 2px 0 #111827" }}
         >
           <Icon className="w-5 h-5 md:w-6 md:h-6 text-white drop-shadow-md" />
         </div>
-        
+
         {/* Title */}
         <h2 className="font-display text-lg md:text-2xl text-[#111827]">
           {name.toUpperCase()}
@@ -264,7 +275,7 @@ function CategoryRow({
             "absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] items-center justify-center",
             "opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-90",
             "hidden md:flex",
-            !canScrollPrev && "!opacity-0 pointer-events-none"
+            !canScrollPrev && "!opacity-0 pointer-events-none",
           )}
           style={{ boxShadow: "3px 3px 0 #111827" }}
           onClick={scrollPrev}
@@ -274,7 +285,7 @@ function CategoryRow({
 
         {/* Embla Viewport */}
         <div className="overflow-hidden px-4 md:px-8" ref={emblaRef}>
-          <div className="flex gap-4 py-2">
+          <div className="flex gap-4 pt-4 pb-2">
             {games.map((game) => (
               <div key={`${name}-${game.id}`} className="flex-none">
                 <CategoryGameCard game={game} />
@@ -289,7 +300,7 @@ function CategoryRow({
             "absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border-2 border-[#111827] items-center justify-center",
             "opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-90",
             "hidden md:flex",
-            !canScrollNext && "!opacity-0 pointer-events-none"
+            !canScrollNext && "!opacity-0 pointer-events-none",
           )}
           style={{ boxShadow: "3px 3px 0 #111827" }}
           onClick={scrollNext}
@@ -302,36 +313,47 @@ function CategoryRow({
 }
 
 export default function GamesPage() {
-  const { games: apiGames, loading: gamesLoading, error: gamesError } = useGames();
-  const { categories: apiCategories, loading: categoriesLoading, error: categoriesError } = useCategories();
+  const {
+    games: apiGames,
+    loading: gamesLoading,
+    error: gamesError,
+  } = useGames();
+  const {
+    categories: apiCategories,
+    loading: categoriesLoading,
+    error: categoriesError,
+  } = useCategories();
 
   const loading = gamesLoading || categoriesLoading;
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = process.env.NODE_ENV === "development";
 
   // Use API games if available, fall back to mock data only in development
-  const allGames = apiGames.length > 0 ? apiGames : (isDev ? MOCK_GAMES : []);
+  const allGames = apiGames.length > 0 ? apiGames : isDev ? MOCK_GAMES : [];
 
   // Use API categories if available, fall back to mock categories only in development
-  const categoryRows = apiCategories.length > 0
-    ? apiCategories.map(cat => ({
-        name: cat.name,
-        icon: cat.icon,
-        games: cat.games.length > 0 ? cat.games : 
-          // If no games in category, try to populate from allGames using mock IDs (dev only)
-          isDev 
-            ? (MOCK_CATEGORIES[cat.name] || [])
-                .map(id => allGames.find(g => g.id === id))
-                .filter((g): g is Game => g !== undefined)
-            : []
-      }))
-    : isDev 
-      ? Object.entries(MOCK_CATEGORIES).map(([categoryName, gameIds]) => {
-          const categoryGames = gameIds
-            .map(id => allGames.find(g => g.id === id))
-            .filter((g): g is Game => g !== undefined);
-          return { name: categoryName, icon: null, games: categoryGames };
-        })
-      : [];
+  const categoryRows =
+    apiCategories.length > 0
+      ? apiCategories.map((cat) => ({
+          name: cat.name,
+          icon: cat.icon,
+          games:
+            cat.games.length > 0
+              ? cat.games
+              : // If no games in category, try to populate from allGames using mock IDs (dev only)
+                isDev
+                ? (MOCK_CATEGORIES[cat.name] || [])
+                    .map((id) => allGames.find((g) => g.id === id))
+                    .filter((g): g is Game => g !== undefined)
+                : [],
+        }))
+      : isDev
+        ? Object.entries(MOCK_CATEGORIES).map(([categoryName, gameIds]) => {
+            const categoryGames = gameIds
+              .map((id) => allGames.find((g) => g.id === id))
+              .filter((g): g is Game => g !== undefined);
+            return { name: categoryName, icon: null, games: categoryGames };
+          })
+        : [];
 
   if (loading) {
     return (
@@ -372,16 +394,22 @@ export default function GamesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <CategoryRow name={category.name} icon={category.icon} games={category.games} />
+              <CategoryRow
+                name={category.name}
+                icon={category.icon}
+                games={category.games}
+              />
             </motion.div>
           ))}
         </div>
 
         {/* Empty State */}
-        {categoryRows.every(c => c.games.length === 0) && (
+        {categoryRows.every((c) => c.games.length === 0) && (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🎮</div>
-            <h2 className="font-display text-2xl text-[#111827] mb-2">NO GAMES AVAILABLE</h2>
+            <h2 className="font-display text-2xl text-[#111827] mb-2">
+              NO GAMES AVAILABLE
+            </h2>
             <p className="text-pastel-text">Check back soon for new games!</p>
           </div>
         )}

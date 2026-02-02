@@ -34,6 +34,9 @@ type PhysicsSceneProps = {
   modelUrl: string;
   gameOutcome?: GameOutcome;
   onDropStart?: () => void;
+  onClawMoveStart?: () => void;
+  onClawMoveStop?: () => void;
+  onClawAscend?: () => void;
 };
 
 /**
@@ -44,6 +47,9 @@ export function PhysicsScene({
   modelUrl,
   gameOutcome = null,
   onDropStart,
+  onClawMoveStart,
+  onClawMoveStop,
+  onClawAscend,
 }: PhysicsSceneProps) {
   const [physicsKey, setPhysicsKey] = useState(0);
 
@@ -144,7 +150,7 @@ export function PhysicsScene({
         label: "🎱 Model Scale",
       },
     },
-    { collapsed: true }
+    { collapsed: true },
   );
 
   // ====================================
@@ -190,7 +196,7 @@ export function PhysicsScene({
           label: "📏 Chute Height",
         },
       },
-      { collapsed: false }
+      { collapsed: false },
     );
 
   // ====================================
@@ -252,7 +258,7 @@ export function PhysicsScene({
         label: "⬆️ Y Offset",
       },
     },
-    { collapsed: false }
+    { collapsed: false },
   );
 
   // ====================================
@@ -313,7 +319,7 @@ export function PhysicsScene({
         label: "⬆️ Y Offset",
       },
     },
-    { collapsed: false }
+    { collapsed: false },
   );
 
   // ====================================
@@ -361,7 +367,7 @@ export function PhysicsScene({
         label: "⬆️ Y Offset",
       },
     },
-    { collapsed: false }
+    { collapsed: false },
   );
 
   // ====================================
@@ -382,7 +388,7 @@ export function PhysicsScene({
         label: "🔄 Rotation Scale",
       },
     },
-    { collapsed: false }
+    { collapsed: false },
   );
 
   // ====================================
@@ -393,7 +399,7 @@ export function PhysicsScene({
       showDebug: devMode && showClawDebug,
       rotationMultiplier,
     }),
-    [devMode, showClawDebug, rotationMultiplier]
+    [devMode, showClawDebug, rotationMultiplier],
   );
 
   const glassArea = useMemo<GlassAreaConfig>(
@@ -407,7 +413,7 @@ export function PhysicsScene({
       sphereRadius,
       sphereCount,
     }),
-    [minX, maxX, minY, maxY, minZ, maxZ, sphereRadius, sphereCount]
+    [minX, maxX, minY, maxY, minZ, maxZ, sphereRadius, sphereCount],
   );
 
   const dropBox = useMemo<DropBoxConfig>(
@@ -418,7 +424,7 @@ export function PhysicsScene({
       depth: dropBoxDepth,
       chuteHeight: chuteHeight,
     }),
-    [dropBoxX, dropBoxZ, dropBoxWidth, dropBoxDepth, chuteHeight]
+    [dropBoxX, dropBoxZ, dropBoxWidth, dropBoxDepth, chuteHeight],
   );
 
   const backWall = useMemo<BackWallConfig>(
@@ -429,7 +435,7 @@ export function PhysicsScene({
       width: backWallWidth,
       offsetY: backWallOffsetY,
     }),
-    [showBackWall, backWallZ, backWallHeight, backWallWidth, backWallOffsetY]
+    [showBackWall, backWallZ, backWallHeight, backWallWidth, backWallOffsetY],
   );
 
   const sideWalls = useMemo<SideWallsConfig>(
@@ -450,7 +456,7 @@ export function PhysicsScene({
       sideWallHeight,
       sideWallDepth,
       sideWallOffsetY,
-    ]
+    ],
   );
 
   const frontWall = useMemo<FrontWallConfig>(
@@ -467,7 +473,7 @@ export function PhysicsScene({
       frontWallHeight,
       frontWallWidth,
       frontWallOffsetY,
-    ]
+    ],
   );
 
   // Generate sphere configs (avoiding drop box and back wall)
@@ -478,7 +484,7 @@ export function PhysicsScene({
         glassArea,
         sphereRadius,
         dropBox,
-        backWall
+        backWall,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -493,7 +499,7 @@ export function PhysicsScene({
       dropBoxWidth,
       dropBoxDepth,
       backWallZ,
-    ]
+    ],
   );
 
   return (
@@ -504,6 +510,9 @@ export function PhysicsScene({
           clawColliderConfig={clawColliderConfig}
           glassOpacity={glassOpacity}
           onDropStart={onDropStart}
+          onClawMoveStart={onClawMoveStart}
+          onClawMoveStop={onClawMoveStop}
+          onClawAscend={onClawAscend}
         />
         <GlassBoundaries
           area={glassArea}

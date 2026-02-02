@@ -1,9 +1,17 @@
 "use client";
 
+import { useSound } from "@/contexts/SoundContext";
 import { Environment, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Leva } from "leva";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
 
 import { PhysicsScene } from "./claw-machine/components/PhysicsScene";
@@ -65,7 +73,7 @@ function OrbitingCamera({ targetAngle }: { targetAngle: number }) {
     currentAngle.current = THREE.MathUtils.lerp(
       currentAngle.current,
       targetAngle,
-      ROTATION_LERP_SPEED
+      ROTATION_LERP_SPEED,
     );
 
     // Calculate camera position on circular orbit around target
@@ -231,6 +239,49 @@ export default function ClawMachine3D({
   const effectiveWinFlowStep = debugWinFlowStep ?? winFlowStep;
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Sound integration
+  const { playSound, isSoundEnabled } = useSound();
+  const clawMoveAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isMovingSoundPlayingRef = useRef(false);
+
+  // Initialize claw move audio (this needs to loop while moving)
+  useEffect(() => {
+    const audio = new Audio("/sound/claw_move.mp3");
+    audio.loop = true;
+    audio.volume = 0.4;
+    clawMoveAudioRef.current = audio;
+    return () => {
+      audio.pause();
+      clawMoveAudioRef.current = null;
+    };
+  }, []);
+
+  // Sound callbacks for claw machine
+  const handleClawMoveStart = useCallback(() => {
+    if (!isSoundEnabled || isMovingSoundPlayingRef.current) return;
+    clawMoveAudioRef.current?.play().catch(() => {});
+    isMovingSoundPlayingRef.current = true;
+  }, [isSoundEnabled]);
+
+  const handleClawMoveStop = useCallback(() => {
+    clawMoveAudioRef.current?.pause();
+    if (clawMoveAudioRef.current) {
+      clawMoveAudioRef.current.currentTime = 0;
+    }
+    isMovingSoundPlayingRef.current = false;
+  }, []);
+
+  const handleClawAscend = useCallback(() => {
+    playSound("clawAscend");
+  }, [playSound]);
+
+  // Stop claw move sound when sound is disabled
+  useEffect(() => {
+    if (!isSoundEnabled) {
+      handleClawMoveStop();
+    }
+  }, [isSoundEnabled, handleClawMoveStop]);
+
   // Handle play button click
   const handlePlay = useCallback(() => {
     if (onPlay) {
@@ -278,9 +329,7 @@ export default function ClawMachine3D({
       <>
         {/* Floating clouds */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute top-[8%] -left-20 w-40 h-20 bg-white/70 rounded-full blur-sm animate-cloud-slow"
-          />
+          <div className="absolute top-[8%] -left-20 w-40 h-20 bg-white/70 rounded-full blur-sm animate-cloud-slow" />
           <div
             className="absolute top-[20%] -right-16 w-32 h-16 bg-white/60 rounded-full blur-sm animate-cloud-slow"
             style={{ animationDelay: "3s" }}
@@ -318,7 +367,7 @@ export default function ClawMachine3D({
         </div>
       </>
     ),
-    []
+    [],
   );
 
   // Touch/swipe tracking
@@ -332,7 +381,7 @@ export default function ClawMachine3D({
       startAngle.current = cameraAngle;
       isDragging.current = true;
     },
-    [cameraAngle]
+    [cameraAngle],
   );
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -344,7 +393,7 @@ export default function ClawMachine3D({
     // Clamp to min/max rotation
     const clampedAngle = Math.max(
       MIN_ROTATION_ANGLE,
-      Math.min(MAX_ROTATION_ANGLE, newAngle)
+      Math.min(MAX_ROTATION_ANGLE, newAngle),
     );
 
     setCameraAngle(clampedAngle);
@@ -362,7 +411,7 @@ export default function ClawMachine3D({
       startAngle.current = cameraAngle;
       isDragging.current = true;
     },
-    [cameraAngle]
+    [cameraAngle],
   );
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -374,7 +423,7 @@ export default function ClawMachine3D({
     // Clamp to min/max rotation
     const clampedAngle = Math.max(
       MIN_ROTATION_ANGLE,
-      Math.min(MAX_ROTATION_ANGLE, newAngle)
+      Math.min(MAX_ROTATION_ANGLE, newAngle),
     );
 
     setCameraAngle(clampedAngle);
@@ -407,7 +456,7 @@ export default function ClawMachine3D({
     >
       {/* Hide Leva debug controls in production */}
       <Leva hidden={isProduction} collapsed={true} />
-      
+
       {/* Pastel sky gradient background - kawaii theme */}
       {shouldShowClawMachine && (
         <>
@@ -455,6 +504,9 @@ export default function ClawMachine3D({
               modelUrl={MODEL_URL}
               gameOutcome={gameOutcome}
               onDropStart={onDropStart}
+              onClawMoveStart={handleClawMoveStart}
+              onClawMoveStop={handleClawMoveStop}
+              onClawAscend={handleClawAscend}
             />
           </Suspense>
         </Canvas>
@@ -482,7 +534,8 @@ export default function ClawMachine3D({
       {/* Win Flow */}
       {/* Keep WinRevealScreen mounted during "choice" step to prevent flash */}
       {showWinFlow &&
-        (effectiveWinFlowStep === "reveal" || effectiveWinFlowStep === "choice") && (
+        (effectiveWinFlowStep === "reveal" ||
+          effectiveWinFlowStep === "choice") && (
           <WinRevealScreen
             onComplete={() => setWinFlowStep("choice")}
             enableRevealControls={enableRevealControls}
@@ -537,9 +590,7 @@ export default function ClawMachine3D({
       )}
 
       {/* Mobile game controls - only show when claw machine is visible and not showing result */}
-      {shouldShowClawMachine && !showResult && (
-        <MobileGameControls />
-      )}
+      {shouldShowClawMachine && !showResult && <MobileGameControls />}
     </div>
   );
 }

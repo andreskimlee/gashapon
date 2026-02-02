@@ -2,6 +2,8 @@
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
+import { useSound } from "@/contexts/SoundContext";
+import { useEffect } from "react";
 
 export type LoseScreenProps = {
   gameName?: string;
@@ -9,6 +11,13 @@ export type LoseScreenProps = {
 };
 
 export function LoseScreen({ onPlayAgain }: LoseScreenProps) {
+  const { playSound } = useSound();
+
+  // Play lose sound when screen appears
+  useEffect(() => {
+    playSound("lose");
+  }, [playSound]);
+
   return (
     <div className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-hidden">
       {/* Soft pastel gradient background */}

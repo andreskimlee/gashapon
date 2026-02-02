@@ -38,6 +38,9 @@ type ClawMachineRigProps = {
   clawColliderConfig: ClawColliderConfig;
   glassOpacity: number;
   onDropStart?: () => void;
+  onClawMoveStart?: () => void;
+  onClawMoveStop?: () => void;
+  onClawAscend?: () => void;
 };
 
 /**
@@ -53,6 +56,9 @@ export function ClawMachineRig({
   clawColliderConfig,
   glassOpacity,
   onDropStart,
+  onClawMoveStart,
+  onClawMoveStop,
+  onClawAscend,
 }: ClawMachineRigProps) {
   const gltf = useGLTF(modelUrl);
   const { getBallRefs, grabbedBallId, setGrabbedBallId, gameOutcome } =
@@ -61,7 +67,7 @@ export function ClawMachineRig({
   const scene = useMemo(
     () =>
       SkeletonUtils.clone((gltf as unknown as { scene: THREE.Object3D }).scene),
-    [gltf]
+    [gltf],
   );
 
   const nodeMapRef = useRef<Record<string, THREE.Object3D>>({});
@@ -88,6 +94,9 @@ export function ClawMachineRig({
   const magnetizeTargetRef = useRef<string | null>(null);
   // For lose early drop - track rising progress
   const risingStartYRef = useRef<number | null>(null);
+  // For sound effects - track movement and phase changes
+  const wasMovingRef = useRef(false);
+  const ascendSoundPlayedRef = useRef(false);
 
   // Claw collider hook
   const { tooth2Ref, tooth3Ref, tooth4Ref, updateColliders } =
@@ -186,12 +195,12 @@ export function ClawMachineRig({
       nodes.lever_1.rotation.x = THREE.MathUtils.lerp(
         nodes.lever_1.rotation.x,
         targetX,
-        0.2
+        0.2,
       );
       nodes.lever_1.rotation.z = THREE.MathUtils.lerp(
         nodes.lever_1.rotation.z,
         targetZ,
-        0.2
+        0.2,
       );
     }
 
@@ -205,7 +214,7 @@ export function ClawMachineRig({
       nodes.button_1.position.y = THREE.MathUtils.lerp(
         nodes.button_1.position.y,
         targetY,
-        0.3
+        0.3,
       );
     }
 
@@ -229,7 +238,7 @@ export function ClawMachineRig({
         moveX,
         moveY,
         moveZ,
-        clawColliderConfig
+        clawColliderConfig,
       );
     }
 
@@ -240,13 +249,24 @@ export function ClawMachineRig({
 
     // Manual movement only while IDLE
     if (phaseRef.current === "IDLE") {
+      const isMoving =
+        keys.ArrowLeft || keys.ArrowRight || keys.ArrowUp || keys.ArrowDown;
+
+      // Handle claw movement sound
+      if (isMoving && !wasMovingRef.current) {
+        onClawMoveStart?.();
+      } else if (!isMoving && wasMovingRef.current) {
+        onClawMoveStop?.();
+      }
+      wasMovingRef.current = isMoving;
+
       if (nodes.side_scroll) {
         if (keys.ArrowLeft) nodes.side_scroll.position.x -= speed;
         if (keys.ArrowRight) nodes.side_scroll.position.x += speed;
         nodes.side_scroll.position.x = THREE.MathUtils.clamp(
           nodes.side_scroll.position.x,
           BOUNDS.minX,
-          BOUNDS.maxX
+          BOUNDS.maxX,
         );
       }
 
@@ -256,10 +276,16 @@ export function ClawMachineRig({
         nodes.vertical_scroll.position.z = THREE.MathUtils.clamp(
           nodes.vertical_scroll.position.z,
           BOUNDS.minZ,
-          BOUNDS.maxZ
+          BOUNDS.maxZ,
         );
       }
       return;
+    } else {
+      // Stop movement sound when leaving IDLE phase
+      if (wasMovingRef.current) {
+        onClawMoveStop?.();
+        wasMovingRef.current = false;
+      }
     }
 
     const dropSpeed = DROP_SPEED * delta;
@@ -283,7 +309,7 @@ export function ClawMachineRig({
               const ballPos = ref.current.translation();
               const dist = Math.sqrt(
                 Math.pow(ballPos.x - clawWorldPos.current.x, 2) +
-                  Math.pow(ballPos.z - clawWorldPos.current.z, 2)
+                  Math.pow(ballPos.z - clawWorldPos.current.z, 2),
               );
               if (dist < nearestDist) {
                 nearestDist = dist;
@@ -307,7 +333,7 @@ export function ClawMachineRig({
     if (phaseRef.current === "WIDENING") {
       const progress = Math.min(
         1,
-        (performance.now() - timerRef.current) / WIDEN_DURATION
+        (performance.now() - timerRef.current) / WIDEN_DURATION,
       );
 
       ["claw_1", "claw_2", "claw_3"].forEach((name) => {
@@ -332,7 +358,7 @@ export function ClawMachineRig({
     if (phaseRef.current === "GRABBING") {
       const progress = Math.min(
         1,
-        (performance.now() - timerRef.current) / GRAB_DURATION
+        (performance.now() - timerRef.current) / GRAB_DURATION,
       );
 
       // Determine close angle based on game outcome
@@ -378,7 +404,7 @@ export function ClawMachineRig({
                 const dist = Math.sqrt(
                   Math.pow(ballPos.x - clawWorldPos.current.x, 2) +
                     Math.pow(ballPos.y - clawWorldPos.current.y, 2) +
-                    Math.pow(ballPos.z - clawWorldPos.current.z, 2)
+                    Math.pow(ballPos.z - clawWorldPos.current.z, 2),
                 );
                 if (dist < nearestDist) {
                   nearestDist = dist;
@@ -398,13 +424,18 @@ export function ClawMachineRig({
               grabOffsetRef.current.set(
                 ballPos.x - clawWorldPos.current.x,
                 ballPos.y - clawWorldPos.current.y,
-                ballPos.z - clawWorldPos.current.z
+                ballPos.z - clawWorldPos.current.z,
               );
             }
           }
         }
         phaseRef.current = "RISING";
         risingStartYRef.current = nodes.manip?.position.y ?? null;
+        // Play claw ascend sound
+        if (!ascendSoundPlayedRef.current) {
+          onClawAscend?.();
+          ascendSoundPlayedRef.current = true;
+        }
       }
       return;
     }
@@ -429,7 +460,7 @@ export function ClawMachineRig({
             // Calculate how far into the opening animation we are
             const openProgress = Math.min(
               1,
-              (risingProgress - LOSE_DROP_PROGRESS) / LOSE_OPEN_DURATION
+              (risingProgress - LOSE_DROP_PROGRESS) / LOSE_OPEN_DURATION,
             );
 
             // Animate claw from closed position to release position
@@ -445,7 +476,7 @@ export function ClawMachineRig({
                 n.rotation.z = THREE.MathUtils.lerp(
                   closedAngle,
                   openAngle,
-                  openProgress
+                  openProgress,
                 );
               }
             });
@@ -566,7 +597,7 @@ export function ClawMachineRig({
       const duration = 500;
       const progress = Math.min(
         1,
-        (performance.now() - timerRef.current) / duration
+        (performance.now() - timerRef.current) / duration,
       );
 
       // On LOSE, claw is at CLAW_RELEASE_ANGLE, on WIN it's at CLAW_WIDEN_ANGLE
@@ -592,6 +623,8 @@ export function ClawMachineRig({
         // Reset magnetize target for next play
         magnetizeTargetRef.current = null;
         risingStartYRef.current = null;
+        // Reset sound flags for next play
+        ascendSoundPlayedRef.current = false;
       }
     }
   });

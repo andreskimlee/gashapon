@@ -10,6 +10,7 @@
 
 import CTAButton from "@/components/ui/CTAButton";
 import { cn } from "@/utils/helpers";
+import { motion } from "framer-motion";
 import Image from "next/image";
 
 export default function HeroSection({ className }: { className?: string }) {
@@ -21,7 +22,7 @@ export default function HeroSection({ className }: { className?: string }) {
         "bg-[#BFEFFF]",
         // Fixed hero height - increased to fit larger machine
         "h-[500px] md:h-[480px] lg:h-[520px]",
-        className
+        className,
       )}
     >
       {/* Cloud background (tiled) */}
@@ -49,7 +50,7 @@ export default function HeroSection({ className }: { className?: string }) {
           "lg:left-12 lg:w-[550px] lg:h-[750px]",
           // Push down so it gets clipped at bottom
           "-bottom-24 md:-bottom-48 lg:-bottom-56",
-          "z-0" // Behind the text
+          "z-0", // Behind the text
         )}
         aria-hidden="true"
       >
@@ -69,11 +70,21 @@ export default function HeroSection({ className }: { className?: string }) {
           <div className="max-w-4xl mx-auto h-full flex items-center justify-center md:justify-end">
             {/* Text content - centered on mobile, right on desktop */}
             <div className="text-center md:text-right max-w-md">
-              <h1 className="font-display uppercase text-[36px] md:text-[48px] lg:text-[56px] leading-[0.92] tracking-wide text-outline-xl text-white drop-shadow-lg">
+              <motion.h1
+                className="font-display uppercase text-[36px] md:text-[48px] lg:text-[56px] leading-[0.92] tracking-wide text-outline-xl text-white drop-shadow-lg"
+                animate={{
+                  y: [0, -8, 0, -4, 0],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
                 <span className="text-white">WIN </span>
                 <span className="text-[#F59E0B]">REAL </span>
                 <span className="text-white">PRIZES ONLINE!</span>
-              </h1>
+              </motion.h1>
               <div className="mt-6">
                 <CTAButton href="/games" size="lg">
                   PLAY NOW

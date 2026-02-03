@@ -156,8 +156,7 @@ export default function GameDetailPage() {
     }
 
     console.error("❌ Payment rejected by indexer:", payload.message);
-    toast.error(`Payment rejected: ${payload.message}`);
-    setError(
+    toast.error(
       "Payment was insufficient. Your tokens were transferred but you cannot play.",
     );
     setPlaying(false);
@@ -261,28 +260,27 @@ export default function GameDetailPage() {
   // Handler for play action (used by both intro screen and sidebar button)
   const handlePlayOnChain = async () => {
     if (!connected || !publicKey) {
-      setError("Connect your wallet first");
+      toast.error("Connect your wallet first");
       return;
     }
     if (!game) {
-      setError("Game data not loaded");
+      toast.error("Game data not loaded");
       return;
     }
     // Check balance before allowing play
     if (hasSufficientBalance === false) {
-      setError("Insufficient token balance to play this game");
+      toast.error("Insufficient token balance to play this game");
       return;
     }
 
     // Validate game has on-chain address
     const onChainAddress = (game as any).onChainAddress;
     if (!onChainAddress) {
-      setError("This game is not configured for on-chain play yet");
+      toast.error("This game is not configured for on-chain play yet");
       return;
     }
 
-    // Clear any previous errors and reset states
-    setError(null);
+    // Clear any previous states and start playing
     setPlaying(true);
     setClawOutcome(null); // Reset for new play
     setAnimationStarted(false); // Reset animation state
@@ -310,7 +308,7 @@ export default function GameDetailPage() {
         : undefined;
 
       if (playCostUsdCents === undefined) {
-        setError("Game pricing is not configured");
+        toast.error("Game pricing is not configured");
         setPlaying(false);
         return;
       }
@@ -338,8 +336,25 @@ export default function GameDetailPage() {
         // Log which RPC we're using for debugging
         // @ts-ignore - rpcEndpoint exists on Connection
         addDebugLog("RPC endpoint", connection.rpcEndpoint);
+        addDebugLog("User wallet", publicKey.toString());
         addDebugLog("Game PDA", onChainAddress);
         addDebugLog("Instruction count", tx.instructions.length);
+
+        // Check user's SOL balance first - AccountNotFound often means 0 SOL
+        const userSolBalance = await connection.getBalance(publicKey);
+        addDebugLog("User SOL balance", userSolBalance / 1e9);
+        if (userSolBalance === 0) {
+          throw new Error(
+            "Your wallet has no SOL. You need SOL to pay for transaction fees.",
+          );
+        }
+        if (userSolBalance < 5000000) {
+          // Less than 0.005 SOL
+          addDebugLog(
+            "Warning",
+            "Low SOL balance - may not be enough for rent",
+          );
+        }
 
         // Double-check game state right before simulation using the SAME connection
         const { fetchGameAccountData } =
@@ -352,6 +367,26 @@ export default function GameDetailPage() {
           isActive: gameStateCheck.isActive,
           prizeCount: gameStateCheck.prizeCount,
         });
+
+        // Log all accounts in the transaction for debugging
+        const allAccounts: string[] = [];
+        for (const ix of tx.instructions) {
+          for (const key of ix.keys) {
+            if (!allAccounts.includes(key.pubkey.toString())) {
+              allAccounts.push(key.pubkey.toString());
+            }
+          }
+        }
+        addDebugLog("Transaction accounts", allAccounts);
+
+        // Check which accounts exist
+        const accountInfos = await connection.getMultipleAccountsInfo(
+          allAccounts.map((a) => new PublicKey(a)),
+        );
+        const missingAccounts = allAccounts.filter((_, i) => !accountInfos[i]);
+        if (missingAccounts.length > 0) {
+          addDebugLog("Missing accounts (will be created)", missingAccounts);
+        }
 
         // Convert legacy Transaction to VersionedTransaction for simulation
         const messageV0 = new TransactionMessage({
@@ -375,8 +410,14 @@ export default function GameDetailPage() {
           const logsStr = simulation.value.logs?.join(" ") || "";
           let userMessage = "Transaction verification failed";
 
+          // Check for AccountNotFound - often means user has no SOL or token account issue
+          if (errStr.includes("AccountNotFound")) {
+            userMessage =
+              "Account not found. Please ensure you have SOL in your wallet and try again.";
+            addDebugLog("Error type", "AccountNotFound - check wallet has SOL");
+          }
           // Check for insufficient SOL (lamports) for rent/fees
-          if (logsStr.includes("insufficient lamports")) {
+          else if (logsStr.includes("insufficient lamports")) {
             const match = logsStr.match(/need (\d+)/);
             const needed = match
               ? (parseInt(match[1]) / 1e9).toFixed(4)
@@ -407,13 +448,14 @@ export default function GameDetailPage() {
           unitsConsumed: simulation.value.unitsConsumed,
         });
       } catch (simError: any) {
-        // If simulation fails, show user-friendly error
+        // If simulation fails, show toast and allow retry
         addDebugLog("Simulation exception", simError.message);
-        setError(
+        toast.error(
           simError.message ||
             "Transaction verification failed. Please try again.",
         );
         setPlaying(false);
+        setPlayResult(null);
         return;
       }
 
@@ -445,8 +487,12 @@ export default function GameDetailPage() {
         );
       } catch (confirmError: any) {
         console.error("Transaction confirmation failed:", confirmError);
-        setError(confirmError.message || "Transaction failed to confirm");
+        toast.error(
+          confirmError.message ||
+            "Transaction failed to confirm. Please try again.",
+        );
         setPlaying(false);
+        setPlayResult(null);
         return;
       }
 
@@ -543,7 +589,7 @@ export default function GameDetailPage() {
         }
       }
 
-      setError(errorMessage);
+      toast.error(errorMessage);
       setPlayResult(null); // Clear pending result on error
       setPlaying(false);
     }

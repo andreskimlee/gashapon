@@ -12,6 +12,7 @@ import Link from "next/link";
 import ArcadeCard from "../ui/ArcadeCard";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import { getTokenImageUrl } from "../ui/TokenLogo";
 
 interface GameCardProps {
   gameId: string;
@@ -21,6 +22,7 @@ interface GameCardProps {
   costInTokens: number;
   isActive: boolean;
   totalPlays?: number;
+  tokenMint?: string | null;
 }
 
 export default function GameCard({
@@ -31,6 +33,7 @@ export default function GameCard({
   costInTokens,
   isActive,
   totalPlays,
+  tokenMint,
 }: GameCardProps) {
   // Determine glow color based on game status
   const glowColor = isActive ? "cyan" : "none";
@@ -89,7 +92,7 @@ export default function GameCard({
               {formatTokenAmount(costInTokens)}
             </span>
             <img
-              src="/grabbit-coin-image.png"
+              src={getTokenImageUrl(tokenMint)}
               alt=""
               className="w-7 h-7 rounded-full"
             />

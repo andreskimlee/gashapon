@@ -40,9 +40,11 @@ export type HomeGameCardModel = {
 export default function GameCard({
   game,
   className,
+  isPartnership = false,
 }: {
   game: HomeGameCardModel;
   className?: string;
+  isPartnership?: boolean;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -129,11 +131,11 @@ export default function GameCard({
   const prizePreviewImage = game.prizeImage || game.image;
 
   return (
-    <Link href={`/games/${game.id}`} className="block h-full">
+    <Link href={`/games/${game.id}`} className="block h-full overflow-visible">
       <motion.div
         ref={cardRef}
         className={cn(
-          "cursor-pointer h-full touch-pan-y",
+          "cursor-pointer h-full touch-pan-y overflow-visible",
           !isMobile && "perspective-1000",
           className,
         )}
@@ -158,8 +160,17 @@ export default function GameCard({
           shadowColor="mint"
           padding="none"
           hover
-          className="h-full"
+          className="h-full overflow-visible"
         >
+          {/* Partnership badge - hovering top left corner of card */}
+          {isPartnership && (
+            <div className="absolute -top-3 -left-3 xl:-top-4 xl:-left-4 z-30 pointer-events-none">
+              <div className="px-3 py-1.5 rounded-full bg-[#4169E1] text-white text-xs xl:text-sm font-bold shadow-lg shadow-blue-500/30 border-2 border-white">
+                PARTNERSHIP
+              </div>
+            </div>
+          )}
+
           {/* Subtle shine on hover */}
           {isHovered && (
             <motion.div

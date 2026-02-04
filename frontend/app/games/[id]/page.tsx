@@ -100,23 +100,36 @@ export default function GameDetailPage() {
     null,
   );
 
-  // Debug logs for mobile testing (persists to UI and Vercel logs)
+  // Debug logs for mobile testing (UI only in development, API logs always)
+  const isDev = process.env.NODE_ENV === "development";
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const addDebugLog = useCallback((message: string, data?: unknown) => {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    const logEntry = data
-      ? `[${timestamp}] ${message}: ${JSON.stringify(data)}`
-      : `[${timestamp}] ${message}`;
-    setDebugLogs((prev) => [...prev.slice(-20), logEntry]); // Keep last 20 logs
-    console.log(logEntry);
+  const addDebugLog = useCallback(
+    (message: string, data?: unknown) => {
+      const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+      const logEntry = data
+        ? `[${timestamp}] ${message}: ${JSON.stringify(data)}`
+        : `[${timestamp}] ${message}`;
 
-    // Send to Vercel function logs via local API route
-    fetch("/api/debug", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source: "mobile-play", message, data, timestamp }),
-    }).catch(() => {}); // Fire and forget
-  }, []);
+      // Only update UI state and console.log in development
+      if (isDev) {
+        setDebugLogs((prev) => [...prev.slice(-20), logEntry]); // Keep last 20 logs
+        console.log(logEntry);
+      }
+
+      // Always send to Vercel function logs via API route
+      fetch("/api/debug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "mobile-play",
+          message,
+          data,
+          timestamp,
+        }),
+      }).catch(() => {}); // Fire and forget
+    },
+    [isDev],
+  );
 
   // Handle payment verification events from indexer
   const handlePaymentVerified = useCallback(() => {
@@ -728,6 +741,7 @@ export default function GameDetailPage() {
               }}
               hasSufficientBalance={hasSufficientBalance}
               userBalance={userTokenBalance}
+              tokenMint={game.currencyTokenMintAddress}
             />
           </div>
 
@@ -848,8 +862,8 @@ export default function GameDetailPage() {
             </div>
           </ArcadeCard>
 
-          {/* Debug Panel - visible when there are logs */}
-          {debugLogs.length > 0 && (
+          {/* Debug Panel - only visible in development when there are logs */}
+          {isDev && debugLogs.length > 0 && (
             <div className="mt-6 p-4 bg-gray-900 rounded-lg text-xs font-mono">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-yellow-400 font-bold">DEBUG LOGS</span>

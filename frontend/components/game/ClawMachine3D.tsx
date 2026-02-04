@@ -196,6 +196,10 @@ type ClawMachine3DProps = {
    * User's current token balance
    */
   userBalance?: number | null;
+  /**
+   * Token mint address for custom token image display
+   */
+  tokenMint?: string | null;
 };
 
 /**
@@ -232,6 +236,7 @@ export default function ClawMachine3D({
   enableRevealControls,
   hasSufficientBalance,
   userBalance,
+  tokenMint,
 }: ClawMachine3DProps) {
   const [cameraAngle, setCameraAngle] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
@@ -523,6 +528,7 @@ export default function ClawMachine3D({
           gameName={gameName}
           hasSufficientBalance={hasSufficientBalance}
           userBalance={userBalance}
+          tokenMint={tokenMint}
         />
       )}
 

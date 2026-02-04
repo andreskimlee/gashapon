@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import CTAButton from "@/components/ui/CTAButton";
+import { getTokenImageUrl } from "@/components/ui/TokenLogo";
 
 export type IntroScreenProps = {
   onPlay: () => void;
@@ -18,6 +19,8 @@ export type IntroScreenProps = {
   hasSufficientBalance?: boolean | null;
   /** User's current token balance */
   userBalance?: number | null;
+  /** Token mint address for custom token image */
+  tokenMint?: string | null;
 };
 
 export function IntroScreen({
@@ -29,6 +32,7 @@ export function IntroScreen({
   gameName,
   hasSufficientBalance,
   userBalance,
+  tokenMint,
 }: IntroScreenProps) {
   const [blinkVisible, setBlinkVisible] = useState(true);
   const { setVisible: setWalletModalVisible } = useWalletModal();
@@ -143,7 +147,7 @@ export function IntroScreen({
         {costDisplay && (
           <div className="mb-6 inline-flex items-center gap-2 bg-pastel-yellow rounded-full px-4 py-2 border-2 border-yellow-400/50">
             <img
-              src="/grabbit-coin-image.png"
+              src={getTokenImageUrl(tokenMint)}
               alt="Token"
               className="w-8 h-8 rounded-full"
             />
@@ -159,7 +163,11 @@ export function IntroScreen({
             variant="orange"
             size="md"
             onClick={handleButtonClick}
-            disabled={isLoading || (isConnected && !isActive) || (isConnected && !hasEnoughTokens)}
+            disabled={
+              isLoading ||
+              (isConnected && !isActive) ||
+              (isConnected && !hasEnoughTokens)
+            }
             className="w-full"
           >
             {isLoading ? (

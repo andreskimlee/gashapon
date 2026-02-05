@@ -24,10 +24,10 @@ function SceneSetup() {
   return null;
 }
 
-// Camera for broadcast view - slightly zoomed out for better viewing
-const CAMERA_DISTANCE = 160;
-const CAMERA_HEIGHT = 20;
-const CAMERA_TARGET = new THREE.Vector3(0, 1, 0);
+// Camera for broadcast view - matches original game's telephoto style
+const CAMERA_DISTANCE = 147;
+const CAMERA_HEIGHT = 15;
+const CAMERA_TARGET = new THREE.Vector3(0, 3, 0);
 
 function BroadcastCamera({ autoRotate = true }: { autoRotate?: boolean }) {
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);

@@ -7,12 +7,14 @@ import { GameEntity } from '../game/game.entity';
 import { PrizeEntity } from '../prize/prize.entity';
 import { AuthModule } from '../auth/auth.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
+import { SupabaseModule } from '../supabase/supabase.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PlayEntity, GameEntity, PrizeEntity]),
     AuthModule,
     BlockchainModule,
+    SupabaseModule,
   ],
   controllers: [PlayController],
   providers: [PlayService],

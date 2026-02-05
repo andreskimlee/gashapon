@@ -54,6 +54,9 @@ export class PlayEntity {
   })
   status: PlayStatus;
 
+  @Column({ type: 'text', nullable: true })
+  recording: string | null;
+
   @CreateDateColumn()
   @Index()
   playedAt: Date;

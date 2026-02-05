@@ -74,6 +74,35 @@ export class PlayController {
   async getPlay(@Param('signature') signature: string) {
     return this.playService.getPlayBySignature(signature);
   }
+
+  /**
+   * Save a recording of player actions for a play session
+   * Used for broadcast replay feature
+   */
+  @Post('plays/:signature/recording')
+  @UseGuards(WalletAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Save recording for a play session',
+    description: 'Saves a base64-encoded recording of player actions for broadcast replay'
+  })
+  @ApiBody({ 
+    schema: { 
+      type: 'object', 
+      properties: {
+        recording: { type: 'string', description: 'Base64-encoded recording data' },
+      },
+      required: ['recording'],
+    } 
+  })
+  @ApiResponse({ status: 200, description: 'Recording saved successfully' })
+  async saveRecording(
+    @Param('signature') signature: string,
+    @CurrentWallet() wallet: string,
+    @Body() body: { recording: string },
+  ) {
+    return this.playService.saveRecording(signature, body.recording, wallet);
+  }
 }
 
 

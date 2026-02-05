@@ -5,6 +5,7 @@ import { PlayEntity, PlayStatus } from './play.entity';
 import { GameEntity } from '../game/game.entity';
 import { PrizeEntity } from '../prize/prize.entity';
 import { SolanaService } from '../blockchain/solana.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 function generateFakeSignature(): string {
   // Not a real signature - just a unique-looking dev token for simulate flow
@@ -27,6 +28,7 @@ export class PlayService {
     @InjectRepository(PrizeEntity)
     private readonly prizeRepository: Repository<PrizeEntity>,
     private readonly solanaService: SolanaService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async getPlayBySignature(signature: string) {
@@ -56,12 +58,15 @@ export class PlayService {
     return {
       status,
       playSignature: play.transactionSignature,
+      userWallet: play.userWallet,
+      recording: play.recording ?? null,
       prize: play.prize
         ? {
             id: play.prize.id,
             prizeId: play.prize.prizeId,
             name: play.prize.name,
             tier: play.prize.tier,
+            imageUrl: play.prize.imageUrl ?? null,
           }
         : undefined,
       tokenAmountPaid: play.tokenAmountPaid ?? undefined,
@@ -70,6 +75,7 @@ export class PlayService {
         id: play.game.id,
         gameId: play.game.gameId,
         name: play.game.name,
+        imageUrl: play.game.imageUrl ?? null,
       },
     };
   }
@@ -223,6 +229,93 @@ export class PlayService {
           }
         : undefined,
     };
+  }
+
+  /**
+   * Save a recording for a play session
+   * Recording is a base64-encoded JSON of player actions
+   */
+  async saveRecording(signature: string, recording: string, userWallet: string) {
+    // Find the play by signature with relations for broadcast
+    const play = await this.playRepository.findOne({
+      where: { transactionSignature: signature },
+      relations: ['game', 'prize'],
+    });
+
+    if (!play) {
+      throw new NotFoundException(`Play with signature ${signature} not found`);
+    }
+
+    // Verify the play belongs to this user
+    if (play.userWallet !== userWallet) {
+      throw new BadRequestException('You do not own this play session');
+    }
+
+    // Don't overwrite existing recording
+    if (play.recording) {
+      this.logger.log(`Recording already exists for play ${signature}, skipping`);
+      return { success: true, message: 'Recording already saved' };
+    }
+
+    // Validate recording size (max 100KB to prevent abuse)
+    if (recording.length > 100 * 1024) {
+      throw new BadRequestException('Recording too large (max 100KB)');
+    }
+
+    // Save the recording
+    play.recording = recording;
+    await this.playRepository.save(play);
+
+    this.logger.log(`Saved recording for play ${signature} (${recording.length} bytes)`);
+
+    // Broadcast to live stream channel for broadcast page
+    await this.broadcastPlayToLiveStream(play, recording);
+
+    return { success: true, message: 'Recording saved' };
+  }
+
+  /**
+   * Broadcast play with recording to the live stream channel
+   * Used by the broadcast page to show replays
+   */
+  private async broadcastPlayToLiveStream(play: PlayEntity, recording: string): Promise<void> {
+    try {
+      const client = this.supabaseService.getClient();
+      const channel = client.channel('plays:broadcast');
+
+      await new Promise<void>((resolve) => {
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') resolve();
+        });
+      });
+
+      const outcome = play.prizeId ? 'win' : 'lose';
+
+      await channel.send({
+        type: 'broadcast',
+        event: 'play_completed',
+        payload: {
+          transactionSignature: play.transactionSignature,
+          userWallet: play.userWallet,
+          gameId: play.game?.id,
+          gameName: play.game?.name || 'Unknown Game',
+          gameImage: play.game?.imageUrl || null,
+          outcome,
+          prizeName: play.prize?.name || null,
+          prizeTier: play.prize?.tier || null,
+          prizeImage: play.prize?.imageUrl || null,
+          playedAt: play.playedAt?.toISOString() || new Date().toISOString(),
+          recording,
+        },
+      });
+
+      await client.removeChannel(channel);
+      this.logger.debug(`Broadcasted play with recording to live stream: ${play.transactionSignature}`);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to broadcast play to live stream: ${play.transactionSignature} - ${(err as Error).message}`,
+      );
+    }
   }
 
   /**

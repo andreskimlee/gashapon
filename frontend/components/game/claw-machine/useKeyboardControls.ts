@@ -14,6 +14,11 @@ export const mobileControlsRef = {
   current: { ...DEFAULT_KEYS } as KeyboardState,
 };
 
+// Global ref for replay mode to inject key states
+export const replayControlsRef = {
+  current: null as KeyboardState | null,
+};
+
 export function useKeyboardControls() {
   const keysRef = useRef<KeyboardState>({ ...DEFAULT_KEYS });
 
@@ -56,9 +61,15 @@ export function useKeyboardControls() {
     };
   }, []);
 
-  // Merge keyboard and mobile control states
+  // Return replay keys if in replay mode, otherwise merge keyboard and mobile
   return {
     get current() {
+      // If replay mode is active, use replay keys exclusively
+      if (replayControlsRef.current !== null) {
+        return replayControlsRef.current;
+      }
+      
+      // Normal mode: merge keyboard and mobile control states
       return {
         ArrowUp: keysRef.current.ArrowUp || mobileControlsRef.current.ArrowUp,
         ArrowDown: keysRef.current.ArrowDown || mobileControlsRef.current.ArrowDown,

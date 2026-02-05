@@ -18,6 +18,7 @@ import PrizeDetailModal, {
 } from "@/components/ui/PrizeDetailModal";
 import { toast } from "@/components/ui/Toast";
 import { usePlayEvents } from "@/hooks/api/usePaymentVerification";
+import { useActionRecorder, compressRecording } from "@/hooks/useActionRecorder";
 import { useHasSufficientBalance } from "@/hooks/useTokenBalance";
 import { useTokenCost } from "@/hooks/useTokenCost";
 import { gamesApi } from "@/services/api/games";
@@ -94,6 +95,10 @@ export default function GameDetailPage() {
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { publicKey, connected, sendTransaction, signMessage } = useWallet();
   const { connection } = useConnection();
+  
+  // Action recorder for broadcast replay
+  const { startRecording, stopRecording, isRecording } = useActionRecorder();
+  const recordingSubmittedRef = useRef(false);
 
   // Prize detail modal state
   const [selectedPrize, setSelectedPrize] = useState<PrizeModalData | null>(
@@ -147,6 +152,9 @@ export default function GameDetailPage() {
     // NOW start the animation with the known outcome
     setClawOutcome(pendingOutcome.isWin ? "win" : "lose");
     setAnimationStarted(true);
+    
+    // Start recording player actions for broadcast replay
+    startRecording();
 
     // Set prize info if won
     if (
@@ -233,6 +241,9 @@ export default function GameDetailPage() {
       // Start animation with known outcome
       setClawOutcome(pendingOutcome.isWin ? "win" : "lose");
       setAnimationStarted(true);
+      
+      // Start recording player actions for broadcast replay
+      startRecording();
 
       if (
         pendingOutcome.isWin &&
@@ -303,6 +314,7 @@ export default function GameDetailPage() {
     setWonPrizeImageUrl(undefined);
     dropStartedRef.current = false;
     setPendingResult(null);
+    recordingSubmittedRef.current = false; // Reset recording submission flag
     if (resultTimerRef.current) {
       clearTimeout(resultTimerRef.current);
       resultTimerRef.current = null;
@@ -620,6 +632,7 @@ export default function GameDetailPage() {
     dropStartedRef.current = false;
     setPendingResult(null);
     setPendingOutcome(null);
+    recordingSubmittedRef.current = false; // Reset recording submission flag
     if (resultTimerRef.current) {
       clearTimeout(resultTimerRef.current);
       resultTimerRef.current = null;
@@ -667,6 +680,40 @@ export default function GameDetailPage() {
       return () => clearTimeout(refetchTimer);
     }
   }, [showResultScreen, playResult?.status]);
+
+  // Stop recording and submit when result screen shows
+  useEffect(() => {
+    if (showResultScreen && isRecording && !recordingSubmittedRef.current && playResult?.playSignature) {
+      recordingSubmittedRef.current = true;
+      
+      // Stop recording and get the data
+      const recording = stopRecording();
+      if (recording && recording.frames.length > 0) {
+        // Compress and submit the recording
+        const compressed = compressRecording(recording);
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        
+        fetch(`${backendUrl}/games/plays/${playResult.playSignature}/recording`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-wallet-address": publicKey?.toString() || "",
+          },
+          body: JSON.stringify({ recording: compressed }),
+        })
+          .then((res) => {
+            if (!res.ok) {
+              console.warn("Failed to save recording:", res.status);
+            } else {
+              console.log("Recording saved successfully");
+            }
+          })
+          .catch((err) => {
+            console.warn("Error saving recording:", err);
+          });
+      }
+    }
+  }, [showResultScreen, isRecording, playResult?.playSignature, publicKey, stopRecording]);
 
   if (loading) {
     return (

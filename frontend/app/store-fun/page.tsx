@@ -21,14 +21,6 @@ import { useTokenCost } from "@/hooks/useTokenCost";
 // store.fun partnership game ID
 const STORE_FUN_GAME_ID = 24;
 
-// Royal blue theme colors
-const THEME = {
-  primary: "#4169E1", // Royal blue
-  primaryLight: "#6B8DD6",
-  primaryDark: "#2E4BA0",
-  glow: "rgba(65, 105, 225, 0.4)",
-};
-
 function HeroSection() {
   return (
     <section className="relative py-8 md:py-12 px-4">

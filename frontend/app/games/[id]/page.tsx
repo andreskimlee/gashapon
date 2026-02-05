@@ -580,6 +580,9 @@ export default function GameDetailPage() {
       // Start animation with the known outcome
       setClawOutcome(isWin ? "win" : "lose");
       setAnimationStarted(true);
+      
+      // Start recording player actions for broadcast replay
+      startRecording();
 
       if (isWin && prizeIndex !== null && game?.prizes?.[prizeIndex]) {
         const prize = game.prizes[prizeIndex];

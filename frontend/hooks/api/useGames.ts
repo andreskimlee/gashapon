@@ -6,8 +6,8 @@
 
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { gamesApi } from "@/services/api/games";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Query key factory for games queries
 export const gamesKeys = {
@@ -18,7 +18,7 @@ export const gamesKeys = {
 
 /**
  * Hook to fetch and cache all games
- * 
+ *
  * @returns Query result with games array, loading state, and error
  */
 export function useGames() {
@@ -39,6 +39,30 @@ export function useGames() {
 }
 
 /**
+ * Hook to fetch and cache a single game by ID
+ *
+ * @param gameId - The ID of the game to fetch
+ * @returns Query result with game data, loading state, and error
+ */
+export function useGame(gameId: number) {
+  const query = useQuery({
+    queryKey: gamesKeys.detail(gameId),
+    queryFn: () => gamesApi.getGame(gameId),
+    staleTime: 60 * 1000, // Consider data fresh for 1 minute
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false,
+    enabled: Number.isFinite(gameId) && gameId > 0,
+  });
+
+  return {
+    game: query.data ?? null,
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
+}
+
+/**
  * Hook to manually invalidate/refetch games data
  */
 export function useInvalidateGames() {
@@ -46,10 +70,11 @@ export function useInvalidateGames() {
 
   return {
     /** Invalidate all games queries */
-    invalidateAll: () => queryClient.invalidateQueries({ queryKey: gamesKeys.all }),
-    
+    invalidateAll: () =>
+      queryClient.invalidateQueries({ queryKey: gamesKeys.all }),
+
     /** Refetch games list */
-    refetchList: () => queryClient.refetchQueries({ queryKey: gamesKeys.lists() }),
+    refetchList: () =>
+      queryClient.refetchQueries({ queryKey: gamesKeys.lists() }),
   };
 }
-

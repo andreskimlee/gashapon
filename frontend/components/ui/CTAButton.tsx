@@ -16,7 +16,7 @@ interface CTAButtonProps {
   children: ReactNode;
   href?: string;
   size?: "xs" | "sm" | "md" | "lg";
-  variant?: "orange" | "pink";
+  variant?: "orange" | "pink" | "royalBlue";
   disabled?: boolean;
   className?: string;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -51,11 +51,15 @@ export default function CTAButton({
   const gradients = {
     orange: "linear-gradient(to bottom, #FFB366 0%, #FF9C45 50%, #FF8A2B 100%)",
     pink: "linear-gradient(to bottom, #FFB3B8 0%, #F8959E 50%, #F07A84 100%)",
+    royalBlue:
+      "linear-gradient(to bottom, #6B8DD6 0%, #4169E1 50%, #3458B8 100%)",
   };
 
   const hoverGradients = {
     orange: "linear-gradient(to bottom, #FFCC99 0%, #FFB366 50%, #FF9C45 100%)",
     pink: "linear-gradient(to bottom, #FFD4D8 0%, #FFB3B8 50%, #F8959E 100%)",
+    royalBlue:
+      "linear-gradient(to bottom, #8BA5E0 0%, #6B8DD6 50%, #4169E1 100%)",
   };
 
   const buttonClasses = cn(

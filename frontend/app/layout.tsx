@@ -1,5 +1,4 @@
-import Footer from "@/components/layout/Footer";
-import Header from "@/components/layout/Header";
+import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { Toaster } from "@/components/ui/Toast/Toaster";
 import SolanaWalletProvider from "@/components/wallet/SolanaWalletProvider";
 import { SoundProvider } from "@/contexts/SoundContext";
@@ -51,11 +50,7 @@ export default function RootLayout({
         <QueryProvider>
           <SolanaWalletProvider>
             <SoundProvider>
-              <div className="flex flex-col min-h-screen">
-                <Header />
-                <main className="relative flex-1">{children}</main>
-                <Footer />
-              </div>
+              <LayoutWrapper>{children}</LayoutWrapper>
               <Toaster />
             </SoundProvider>
           </SolanaWalletProvider>

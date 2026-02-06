@@ -8,21 +8,18 @@ import { useEffect, useRef, useState } from "react";
 
 interface PlayDisplayProps {
   play: PlayEvent;
-  /** Called when replay should be shown (triggers parent to show claw machine) */
   onShowReplay?: () => void;
-  /** Called when replay should be hidden */
   onHideReplay?: () => void;
-  /** Whether the replay is currently visible (controlled by parent) */
   isReplayVisible?: boolean;
+  /** Called when the display is completely done (result shown for enough time) */
+  onComplete?: () => void;
 }
 
-// Truncate wallet address for display
 function truncateWallet(wallet: string) {
   if (wallet.length <= 12) return wallet;
   return `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
 }
 
-// Get tier styling
 function getTierStyles(tier: string | null | undefined) {
   switch (tier?.toLowerCase()) {
     case "legendary":
@@ -63,58 +60,65 @@ export function PlayDisplay({
   onShowReplay, 
   onHideReplay,
   isReplayVisible = false,
+  onComplete,
 }: PlayDisplayProps) {
   const [phase, setPhase] = useState<"intro" | "replay" | "result">("intro");
   const isWin = play.outcome === "win";
   const tierStyles = getTierStyles(play.prizeTier);
   const hasRecording = !!play.recording;
 
-  // Use refs for callbacks to prevent useEffect from re-running
   const onShowReplayRef = useRef(onShowReplay);
   const onHideReplayRef = useRef(onHideReplay);
+  const onCompleteRef = useRef(onComplete);
   
   useEffect(() => {
     onShowReplayRef.current = onShowReplay;
     onHideReplayRef.current = onHideReplay;
-  }, [onShowReplay, onHideReplay]);
+    onCompleteRef.current = onComplete;
+  }, [onShowReplay, onHideReplay, onComplete]);
 
-  // Animate through phases
   useEffect(() => {
     setPhase("intro");
-    onHideReplayRef.current?.(); // Ensure replay is hidden when new play starts
+    onHideReplayRef.current?.();
 
     if (hasRecording) {
-      // With recording: intro → replay → result
       const introTimer = setTimeout(() => {
         setPhase("replay");
-        onShowReplayRef.current?.(); // Tell parent to show the claw machine
+        onShowReplayRef.current?.();
       }, 1500);
       return () => clearTimeout(introTimer);
     } else {
-      // Without recording: intro → result (skip replay)
       const introTimer = setTimeout(() => setPhase("result"), 2000);
       return () => clearTimeout(introTimer);
     }
   }, [play.id, hasRecording, play.recording]);
 
-  // When replay finishes (detected by parent hiding it), transition to result
   useEffect(() => {
     if (phase === "replay" && !isReplayVisible) {
       setPhase("result");
     }
   }, [phase, isReplayVisible]);
 
+  // For plays without recordings, auto-complete after showing result for 6 seconds
+  useEffect(() => {
+    if (phase === "result" && !hasRecording) {
+      const timer = setTimeout(() => {
+        onCompleteRef.current?.();
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, hasRecording]);
+
   return (
     <div className="relative w-full h-full min-h-[500px] flex items-center justify-center overflow-hidden">
-      {/* Animated background */}
+      {/* Background */}
       <div className="absolute inset-0">
-        {/* Base gradient */}
         <div
           className={cn(
             "absolute inset-0 transition-all duration-1000",
             isWin
-              ? "bg-gradient-to-br from-pastel-yellow/40 via-pastel-coral/30 to-pastel-lavender/40"
-              : "bg-gradient-to-br from-pastel-lavender/40 via-pastel-sky/30 to-pastel-mint/40",
+              ? "bg-gradient-to-br from-[#2d1b4e] via-[#3e2e1b] to-[#1b2e4e]"
+              : "bg-gradient-to-br from-[#1b2040] via-[#1a2a3e] to-[#1b3e2e]",
           )}
         />
 
@@ -124,12 +128,7 @@ export function PlayDisplay({
             {[...Array(20)].map((_, i) => (
               <motion.div
                 key={i}
-                initial={{
-                  x: "50%",
-                  y: "50%",
-                  scale: 0,
-                  opacity: 1,
-                }}
+                initial={{ x: "50%", y: "50%", scale: 0, opacity: 1 }}
                 animate={{
                   x: `${Math.random() * 100}%`,
                   y: `${Math.random() * 100}%`,
@@ -159,7 +158,7 @@ export function PlayDisplay({
       {/* Main content */}
       <div className={cn(
         "relative z-10",
-        phase === "replay" ? "absolute inset-0" : "max-w-2xl w-full px-8"
+        phase === "replay" ? "absolute inset-0" : "max-w-3xl w-full px-8"
       )}>
         <AnimatePresence mode="wait">
           {phase === "intro" && (
@@ -175,18 +174,18 @@ export function PlayDisplay({
                 initial={{ y: 30, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="flex items-center justify-center gap-4 mb-6"
+                className="flex items-center justify-center gap-5 mb-8"
               >
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pastel-mint to-pastel-sky flex items-center justify-center border-4 border-white shadow-xl">
-                  <span className="text-white font-bold text-2xl">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pastel-mint to-pastel-sky flex items-center justify-center border-4 border-white/20 shadow-xl">
+                  <span className="text-white font-bold text-3xl">
                     {play.userWallet.slice(0, 2).toUpperCase()}
                   </span>
                 </div>
                 <div className="text-left">
-                  <p className="font-display text-2xl text-pastel-text">
+                  <p className="font-display text-3xl text-white">
                     {truncateWallet(play.userWallet)}
                   </p>
-                  <p className="text-pastel-text/60">is playing...</p>
+                  <p className="text-white/60 text-lg">is playing...</p>
                 </div>
               </motion.div>
 
@@ -195,7 +194,7 @@ export function PlayDisplay({
                 initial={{ y: 30, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="inline-flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl px-6 py-4 border-2 border-pastel-mint shadow-lg"
+                className="inline-flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl px-8 py-5 border border-white/20"
               >
                 {play.gameImage ? (
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden">
@@ -207,18 +206,17 @@ export function PlayDisplay({
                     />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-xl bg-pastel-lavender flex items-center justify-center">
-                    <span className="text-3xl">🎰</span>
+                  <div className="w-16 h-16 rounded-xl bg-pastel-lavender/30 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-pastel-lavender/50" />
                   </div>
                 )}
-                <span className="font-display text-xl text-pastel-text">
+                <span className="font-display text-2xl text-white">
                   {play.gameName}
                 </span>
               </motion.div>
             </motion.div>
           )}
 
-          {/* Replay phase - content is rendered by parent, this is just a placeholder */}
           {phase === "replay" && (
             <motion.div
               key="replay"
@@ -226,10 +224,7 @@ export function PlayDisplay({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-10"
-            >
-              {/* The claw machine is rendered by the parent component for persistence */}
-              {/* This empty div maintains the phase structure */}
-            </motion.div>
+            />
           )}
 
           {phase === "result" && (
@@ -241,17 +236,16 @@ export function PlayDisplay({
             >
               {isWin ? (
                 <>
-                  {/* Winner header */}
                   <motion.div
                     initial={{ y: -50, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="mb-6"
+                    className="mb-8"
                   >
                     <motion.h2
                       animate={{ scale: [1, 1.05, 1] }}
                       transition={{ duration: 0.5, repeat: Infinity }}
                       className={cn(
-                        "font-display text-5xl bg-gradient-to-r bg-clip-text text-transparent",
+                        "font-display text-6xl bg-gradient-to-r bg-clip-text text-transparent",
                         tierStyles.gradient,
                       )}
                     >
@@ -259,18 +253,17 @@ export function PlayDisplay({
                     </motion.h2>
                   </motion.div>
 
-                  {/* Prize display */}
                   <motion.div
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", damping: 15, delay: 0.2 }}
                     className={cn(
-                      "inline-block p-2 rounded-3xl bg-white",
+                      "inline-block p-2 rounded-3xl bg-white/10 backdrop-blur-sm",
                       tierStyles.glow,
                     )}
                   >
                     {play.prizeImage ? (
-                      <div className="relative w-48 h-48 rounded-2xl overflow-hidden">
+                      <div className="relative w-52 h-52 rounded-2xl overflow-hidden">
                         <Image
                           src={play.prizeImage}
                           alt={play.prizeName || "Prize"}
@@ -279,26 +272,25 @@ export function PlayDisplay({
                         />
                       </div>
                     ) : (
-                      <div className="w-48 h-48 rounded-2xl bg-gradient-to-br from-pastel-yellow to-pastel-coral flex items-center justify-center">
-                        <span className="text-7xl">🎁</span>
+                      <div className="w-52 h-52 rounded-2xl bg-gradient-to-br from-pastel-yellow/30 to-pastel-coral/30 flex items-center justify-center">
+                        <div className="w-24 h-24 rounded-xl bg-pastel-yellow/20 border-2 border-pastel-yellow/30" />
                       </div>
                     )}
                   </motion.div>
 
-                  {/* Prize info */}
                   <motion.div
                     initial={{ y: 30, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.4 }}
                     className="mt-6"
                   >
-                    <p className="font-display text-2xl text-pastel-text mb-2">
+                    <p className="font-display text-3xl text-white mb-3">
                       {play.prizeName || "Mystery Prize"}
                     </p>
                     {play.prizeTier && (
                       <span
                         className={cn(
-                          "inline-block px-4 py-2 rounded-full text-sm font-bold uppercase bg-gradient-to-r",
+                          "inline-block px-5 py-2 rounded-full text-base font-bold uppercase bg-gradient-to-r",
                           tierStyles.gradient,
                           "text-white shadow-lg",
                         )}
@@ -308,26 +300,24 @@ export function PlayDisplay({
                     )}
                   </motion.div>
 
-                  {/* Player attribution */}
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
-                    className="mt-4 text-pastel-text/60"
+                    className="mt-5 text-white/60 text-lg"
                   >
                     Won by {truncateWallet(play.userWallet)}
                   </motion.p>
                 </>
               ) : (
                 <>
-                  {/* No win display */}
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="inline-block p-4"
                   >
-                    <div className="w-40 h-40 rounded-full bg-pastel-lavender/50 flex items-center justify-center border-4 border-pastel-lavender">
-                      <span className="text-6xl opacity-50">💨</span>
+                    <div className="w-44 h-44 rounded-full bg-white/5 flex items-center justify-center border-4 border-white/10">
+                      <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-white/10" />
                     </div>
                   </motion.div>
 
@@ -336,10 +326,10 @@ export function PlayDisplay({
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.3 }}
                   >
-                    <h2 className="font-display text-3xl text-pastel-text/60 mb-2">
+                    <h2 className="font-display text-4xl text-white/50 mb-3">
                       No Prize This Time
                     </h2>
-                    <p className="text-pastel-text/40">
+                    <p className="text-white/30 text-lg">
                       {truncateWallet(play.userWallet)} will try again!
                     </p>
                   </motion.div>

@@ -134,7 +134,7 @@ export function PlayCard({
               </div>
             ) : (
               <div className="w-12 h-12 rounded-lg bg-pastel-lavender flex items-center justify-center">
-                <span className="text-2xl">🎰</span>
+                <div className="w-6 h-6 rounded bg-pastel-lavender/80 border-2 border-white/30" />
               </div>
             )}
             <span className={cn("font-display text-pastel-text", styles.text)}>

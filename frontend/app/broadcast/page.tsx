@@ -8,6 +8,7 @@ import {
   WinnerTicker,
 } from "@/components/broadcast";
 import { BroadcastClawMachine } from "@/components/broadcast/BroadcastClawMachine";
+import { CRTFrame } from "@/components/broadcast/CRTFrame";
 import { useSound } from "@/contexts/SoundContext";
 import { useBroadcastQueue, PlayEvent } from "@/hooks/useBroadcastQueue";
 import { cn } from "@/utils/helpers";
@@ -21,13 +22,10 @@ const MOCK_RECORDING: PlayRecording = {
   duration: 8000,
   frames: [
     { t: 0, k: { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false, Space: false } },
-    // Move right for 2 seconds
     { t: 500, k: { ArrowRight: true } },
     { t: 2500, k: { ArrowRight: false } },
-    // Move up/forward for 1.5 seconds  
     { t: 3000, k: { ArrowUp: true } },
     { t: 4500, k: { ArrowUp: false } },
-    // Press space to grab
     { t: 5000, k: { Space: true } },
     { t: 5200, k: { Space: false } },
   ],
@@ -63,8 +61,10 @@ export default function BroadcastPage() {
     recentWins,
     setIsShowingVideo,
     onVideoComplete,
+    skip,
   } = useBroadcastQueue({
-    playDisplayDuration: 8000,
+    // Long timeout as safety fallback — replay completion triggers skip() explicitly
+    playDisplayDuration: 120000,
     commercialDuration: 10000,
   });
 
@@ -72,25 +72,24 @@ export default function BroadcastPage() {
   const prevPlayIdRef = useRef<string | null>(null);
   const prevIsWinRef = useRef<boolean>(false);
   
-  // Persistent claw machine state - keeps 3D scene mounted to avoid WebGL context recreation
   const [clawMachineState, setClawMachineState] = useState<{
     visible: boolean;
     play: PlayEvent | null;
-    key: string; // Used to reset the replay
+    key: string;
   }>({
     visible: false,
     play: null,
     key: "initial",
   });
 
-  // Handle replay completion - transition to result phase
   const handleReplayComplete = useCallback(() => {
     setTimeout(() => {
       setClawMachineState(prev => ({ ...prev, visible: false }));
+      // Explicitly advance the queue now that the replay is done
+      skip();
     }, 500);
-  }, []);
+  }, [skip]);
 
-  // Memoized callbacks for PlayDisplay to prevent useEffect re-runs
   const handleShowReplay = useCallback(() => {
     if (!currentPlay) return;
     setClawMachineState({
@@ -104,7 +103,14 @@ export default function BroadcastPage() {
     setClawMachineState(prev => ({ ...prev, visible: false }));
   }, []);
 
-  // Test function to trigger mock replay
+  // Ensure claw machine is hidden when commercials start playing
+  // (prevents video from rendering behind the 3D canvas)
+  useEffect(() => {
+    if (isShowingCommercial) {
+      setClawMachineState(prev => ({ ...prev, visible: false }));
+    }
+  }, [isShowingCommercial]);
+
   const triggerMockReplay = useCallback(() => {
     if (USE_MOCK_DATA) {
       setClawMachineState({
@@ -115,119 +121,48 @@ export default function BroadcastPage() {
     }
   }, []);
 
-  // Play sound effects when plays change
   useEffect(() => {
     if (!currentPlay) return;
-
-    // Play queue entry sound when new play starts
     if (prevPlayIdRef.current !== currentPlay.id) {
-      if (isSoundEnabled) {
-        playSound("buttonPress");
-      }
+      if (isSoundEnabled) playSound("buttonPress");
       prevPlayIdRef.current = currentPlay.id;
     }
   }, [currentPlay, playSound, isSoundEnabled]);
 
-  // Play win sound when outcome is revealed
   useEffect(() => {
     if (!currentPlay) return;
-
     const isWin = currentPlay.outcome === "win";
     if (isWin && !prevIsWinRef.current && isSoundEnabled) {
-      // Delay to sync with reveal animation
-      const timer = setTimeout(() => {
-        playSound("win");
-      }, 3500);
+      const timer = setTimeout(() => playSound("win"), 3500);
       return () => clearTimeout(timer);
     }
     prevIsWinRef.current = isWin;
   }, [currentPlay, playSound, isSoundEnabled]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pastel-sky via-pastel-mint/30 to-pastel-lavender overflow-hidden">
-      {/* Animated background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Floating clouds */}
-        <motion.div
-          animate={{
-            x: [0, 100, 0],
-            y: [0, -30, 0],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-20 left-10 w-40 h-20 rounded-full bg-white/30 blur-2xl"
-        />
-        <motion.div
-          animate={{
-            x: [0, -80, 0],
-            y: [0, 20, 0],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 5,
-          }}
-          className="absolute top-40 right-20 w-60 h-24 rounded-full bg-white/20 blur-2xl"
-        />
-        <motion.div
-          animate={{
-            x: [0, 60, 0],
-            y: [0, -40, 0],
-          }}
-          transition={{
-            duration: 22,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 10,
-          }}
-          className="absolute bottom-40 left-1/4 w-48 h-16 rounded-full bg-white/25 blur-2xl"
-        />
-
-        {/* Sparkle particles */}
-        {[...Array(15)].map((_, i) => (
-          <motion.div
-            key={i}
-            animate={{
-              y: ["100vh", "-10vh"],
-              x: [
-                `${Math.random() * 100}vw`,
-                `${Math.random() * 100}vw`,
-              ],
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0],
-            }}
-            transition={{
-              duration: 10 + Math.random() * 10,
-              repeat: Infinity,
-              delay: Math.random() * 10,
-              ease: "linear",
-            }}
-            className={cn(
-              "absolute w-2 h-2 rounded-full",
-              i % 4 === 0
-                ? "bg-pastel-yellow"
-                : i % 4 === 1
-                  ? "bg-pastel-coral"
-                  : i % 4 === 2
-                    ? "bg-pastel-mint"
-                    : "bg-white",
+    <div className="h-screen w-screen bg-gradient-to-br from-pastel-sky via-pastel-mint/30 to-pastel-lavender overflow-hidden">
+      {/* Main content - TV fills the viewport */}
+      <div className="relative z-10 h-full flex p-3 gap-3">
+        {/* CRT TV Frame - takes up all available width */}
+        <CRTFrame
+          isLive={true}
+          queueLength={queueLength}
+          className="flex-1 h-full"
+        >
+          {/* Screen content container */}
+          <div className="relative w-full h-full" style={{ minHeight: "600px" }}>
+            {/* In-screen header overlay - hidden during claw machine replay */}
+            {!clawMachineState.visible && (
+              <BroadcastHeader
+                isShowingCommercial={isShowingCommercial}
+                currentPlayerWallet={currentPlay?.userWallet}
+                gameName={currentPlay?.gameName}
+              />
             )}
-          />
-        ))}
-      </div>
 
-      {/* Main content */}
-      <div className="relative z-10 h-screen flex flex-col">
-        {/* Header */}
-        <BroadcastHeader queueLength={queueLength} isLive={true} />
-
-        {/* Main area */}
-        <main className="flex-1 flex overflow-hidden">
-          {/* Main display area (70%) */}
-          <div className="flex-1 relative">
-            {/* Claw Machine - only rendered when visible to avoid WebGL context loss */}
+            {/* Claw Machine */}
             {clawMachineState.visible && clawMachineState.play && (
-              <div className="absolute inset-0 z-30">
+              <div className="absolute inset-0 z-20">
                 <BroadcastClawMachine
                   key={clawMachineState.key}
                   recordingData={clawMachineState.play.recording}
@@ -240,22 +175,59 @@ export default function BroadcastPage() {
                   userWallet={clawMachineState.play.userWallet}
                 />
                 
-                {/* Player info overlay - shown during replay */}
-                <div className="absolute top-4 left-4 z-40 flex items-center gap-3 bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-lg">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-mint to-pastel-sky flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">
-                      {clawMachineState.play.userWallet.slice(0, 2).toUpperCase()}
-                    </span>
+                {/* Player info badge */}
+                <motion.div 
+                  initial={{ y: -20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3, type: "spring", damping: 20 }}
+                  className="absolute top-4 left-4 z-40"
+                >
+                  <div className="flex items-stretch bg-black/70 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+                    {/* Prize image section */}
+                    {clawMachineState.play.prizeImage && (
+                      <div className="relative w-20 h-20 shrink-0">
+                        <img
+                          src={clawMachineState.play.prizeImage}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/30" />
+                      </div>
+                    )}
+                    {/* Player details */}
+                    <div className="flex flex-col justify-center px-4 py-2.5 gap-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pastel-coral to-pastel-yellow flex items-center justify-center ring-2 ring-white/20">
+                          <span className="text-white text-[8px] font-bold">
+                            {clawMachineState.play.userWallet.slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="font-display text-white text-sm tracking-wide">
+                          {clawMachineState.play.userWallet.length > 12 
+                            ? `${clawMachineState.play.userWallet.slice(0, 6)}...${clawMachineState.play.userWallet.slice(-4)}`
+                            : clawMachineState.play.userWallet}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white/50 text-[10px] uppercase tracking-wider">Playing</span>
+                        <span className="text-pastel-yellow text-xs font-medium">{clawMachineState.play.gameName}</span>
+                      </div>
+                      {clawMachineState.play.prizeName && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-white/50 text-[10px] uppercase tracking-wider">For</span>
+                          <span className="text-pastel-mint text-xs font-medium">{clawMachineState.play.prizeName}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* LIVE indicator */}
+                    <div className="flex items-start px-3 pt-2.5">
+                      <div className="flex items-center gap-1.5 bg-red-500/90 rounded-full px-2 py-0.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        <span className="text-white text-[9px] font-bold tracking-wider">LIVE</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-pastel-text text-sm">
-                      {clawMachineState.play.userWallet.length > 12 
-                        ? `${clawMachineState.play.userWallet.slice(0, 6)}...${clawMachineState.play.userWallet.slice(-4)}`
-                        : clawMachineState.play.userWallet}
-                    </p>
-                    <p className="text-pastel-text/60 text-xs">{clawMachineState.play.gameName}</p>
-                  </div>
-                </div>
+                </motion.div>
               </div>
             )}
             
@@ -290,29 +262,34 @@ export default function BroadcastPage() {
                     onShowReplay={handleShowReplay}
                     onHideReplay={handleHideReplay}
                     isReplayVisible={clawMachineState.visible}
+                    onComplete={skip}
                   />
                 </motion.div>
               ) : null}
             </AnimatePresence>
-          </div>
 
-          {/* Side panel (30%) */}
+            {/* Winner ticker inside TV */}
+            <div className="absolute bottom-0 left-0 right-0 z-30">
+              <WinnerTicker recentWins={recentWins} />
+            </div>
+          </div>
+        </CRTFrame>
+
+        {/* Side panel */}
+        <div className="h-full flex-shrink-0">
           <QueuePanel
             queue={queue}
             currentPlay={currentPlay}
-            maxVisible={5}
+            maxVisible={8}
           />
-        </main>
-
-        {/* Bottom ticker */}
-        <WinnerTicker recentWins={recentWins} />
+        </div>
       </div>
 
-      {/* Test button for mock replay (only in development) */}
+      {/* Test button */}
       {USE_MOCK_DATA && (
         <button
           onClick={triggerMockReplay}
-          className="fixed bottom-4 left-4 z-50 bg-pastel-coral text-white px-4 py-2 rounded-lg shadow-lg hover:bg-pastel-coral/80 transition-colors font-medium"
+          className="fixed bottom-4 left-4 z-50 bg-pastel-coral text-white px-4 py-2 rounded-lg shadow-lg hover:bg-pastel-coral/80 transition-colors font-medium text-sm"
         >
           Test Mock Replay
         </button>
@@ -332,11 +309,7 @@ export default function BroadcastPage() {
               {[...Array(50)].map((_, i) => (
                 <motion.div
                   key={i}
-                  initial={{
-                    x: "50vw",
-                    y: "30vh",
-                    scale: 0,
-                  }}
+                  initial={{ x: "50vw", y: "30vh", scale: 0 }}
                   animate={{
                     x: `${Math.random() * 100}vw`,
                     y: `${50 + Math.random() * 60}vh`,
@@ -350,15 +323,11 @@ export default function BroadcastPage() {
                   }}
                   className={cn(
                     "absolute w-3 h-3",
-                    i % 5 === 0
-                      ? "bg-pastel-yellow rounded-full"
-                      : i % 5 === 1
-                        ? "bg-pastel-coral rounded-sm"
-                        : i % 5 === 2
-                          ? "bg-pastel-mint rounded-full"
-                          : i % 5 === 3
-                            ? "bg-pastel-lavender rounded-sm"
-                            : "bg-white rounded-full",
+                    i % 5 === 0 ? "bg-pastel-yellow rounded-full"
+                      : i % 5 === 1 ? "bg-pastel-coral rounded-sm"
+                      : i % 5 === 2 ? "bg-pastel-mint rounded-full"
+                      : i % 5 === 3 ? "bg-pastel-lavender rounded-sm"
+                      : "bg-white rounded-full",
                   )}
                 />
               ))}

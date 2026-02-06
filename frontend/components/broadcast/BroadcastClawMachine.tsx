@@ -233,7 +233,7 @@ function BroadcastClawMachineInner({
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
           <p className="text-pastel-text font-medium">Unable to load 3D view</p>
           <p className="text-pastel-text/60 text-sm">
-            {gameOutcome === "win" ? "🎉 Winner!" : "Better luck next time!"}
+            {gameOutcome === "win" ? "Winner!" : "Better luck next time!"}
           </p>
         </div>
       </div>

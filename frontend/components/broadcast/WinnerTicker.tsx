@@ -9,28 +9,25 @@ interface WinnerTickerProps {
   recentWins: PlayEvent[];
 }
 
-// Truncate wallet for display
 function truncateWallet(wallet: string) {
   return `${wallet.slice(0, 4)}...${wallet.slice(-4)}`;
 }
 
-// Get tier color
 function getTierColor(tier: string | null | undefined) {
   switch (tier?.toLowerCase()) {
     case "legendary":
-      return "text-yellow-500";
+      return "text-yellow-300";
     case "epic":
-      return "text-purple-500";
+      return "text-purple-300";
     case "rare":
-      return "text-blue-500";
+      return "text-blue-300";
     case "uncommon":
-      return "text-green-500";
+      return "text-green-300";
     default:
-      return "text-gray-500";
+      return "text-gray-300";
   }
 }
 
-// Format time ago
 function timeAgo(dateString: string) {
   const date = new Date(dateString);
   const now = new Date();
@@ -43,30 +40,26 @@ function timeAgo(dateString: string) {
 }
 
 export function WinnerTicker({ recentWins }: WinnerTickerProps) {
-  // Duplicate wins for seamless scrolling if we have enough
   const displayWins = recentWins.length >= 3 
     ? [...recentWins, ...recentWins] 
     : recentWins;
 
+  // Don't render anything when there are no winners — avoids covering video content
   if (recentWins.length === 0) {
-    return (
-      <div className="relative z-20 h-16 bg-white/50 backdrop-blur-md border-t border-white/30 flex items-center justify-center">
-        <p className="text-pastel-text/50 text-sm">
-          Waiting for winners... Play now at gashapon.fun!
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="relative z-20 h-16 bg-white/50 backdrop-blur-md border-t border-white/30 overflow-hidden">
-      {/* Label */}
-      <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-4 bg-gradient-to-r from-pastel-coral to-pastel-coral/90">
-        <span className="font-display text-white text-sm">WINNERS</span>
+    <div className="relative h-12 bg-[#1a1a2e]/90 border-t border-[#2a2a3e] overflow-hidden">
+      {/* WINNERS label */}
+      <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-4 bg-gradient-to-r from-pastel-coral to-pastel-coral/90 border-r border-pastel-coral/50">
+        <span className="font-display text-white text-xs tracking-wider">
+          WINNERS
+        </span>
       </div>
 
       {/* Scrolling content */}
-      <div className="h-full flex items-center ml-28 overflow-hidden">
+      <div className="h-full flex items-center ml-[100px] overflow-hidden">
         <motion.div
           animate={{
             x: recentWins.length >= 3 ? [0, `-${50}%`] : 0,
@@ -78,16 +71,16 @@ export function WinnerTicker({ recentWins }: WinnerTickerProps) {
               ease: "linear",
             },
           }}
-          className="flex items-center gap-8 whitespace-nowrap"
+          className="flex items-center gap-6 whitespace-nowrap"
         >
           {displayWins.map((win, index) => (
             <div
               key={`${win.id}-${index}`}
-              className="flex items-center gap-3 bg-white/70 rounded-full pl-1 pr-4 py-1"
+              className="flex items-center gap-2.5 bg-white/5 rounded-full pl-1 pr-4 py-1"
             >
               {/* Prize thumbnail */}
               {win.prizeImage ? (
-                <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20">
                   <Image
                     src={win.prizeImage}
                     alt=""
@@ -96,17 +89,17 @@ export function WinnerTicker({ recentWins }: WinnerTickerProps) {
                   />
                 </div>
               ) : (
-                <div className="w-10 h-10 rounded-full bg-pastel-yellow flex items-center justify-center">
-                  <span className="text-lg">🎁</span>
+                <div className="w-8 h-8 rounded-full bg-pastel-yellow/20 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded bg-pastel-yellow/40" />
                 </div>
               )}
 
               {/* Win info */}
               <div className="flex items-center gap-2">
-                <span className="font-medium text-pastel-text text-sm">
+                <span className="font-medium text-white/80 text-sm">
                   {truncateWallet(win.userWallet)}
                 </span>
-                <span className="text-pastel-text/40">won</span>
+                <span className="text-white/30 text-xs">won</span>
                 <span
                   className={cn(
                     "font-medium text-sm",
@@ -115,8 +108,8 @@ export function WinnerTicker({ recentWins }: WinnerTickerProps) {
                 >
                   {win.prizeName || "Prize"}
                 </span>
-                <span className="text-pastel-text/30 text-xs">
-                  • {timeAgo(win.playedAt)}
+                <span className="text-white/20 text-xs">
+                  {timeAgo(win.playedAt)}
                 </span>
               </div>
             </div>
@@ -124,8 +117,8 @@ export function WinnerTicker({ recentWins }: WinnerTickerProps) {
         </motion.div>
       </div>
 
-      {/* Gradient fade on right */}
-      <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white/50 to-transparent pointer-events-none" />
+      {/* Gradient fade */}
+      <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#1a1a2e] to-transparent pointer-events-none" />
     </div>
   );
 }

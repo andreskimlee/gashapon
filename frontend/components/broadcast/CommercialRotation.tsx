@@ -14,13 +14,13 @@ interface CommercialRotationProps {
   setIsShowingVideo?: (isVideo: boolean) => void;
 }
 
-// Static promotional content types
 type PromoContent = {
   type: "welcome" | "stats" | "winner-highlight" | "game-promo" | "cta" | "video";
   title: string;
   subtitle?: string;
-  gradient: string;
-  icon?: string;
+  bgGradient: string;
+  titleColor: string;
+  subtitleColor: string;
   videoSrc?: string;
 };
 
@@ -28,38 +28,41 @@ const staticPromos: PromoContent[] = [
   {
     type: "video",
     title: "Grabbit Fun",
-    gradient: "from-pastel-coral via-pastel-yellow to-pastel-mint",
+    bgGradient: "from-[#1a1a2e] to-[#1a1a2e]",
+    titleColor: "text-white",
+    subtitleColor: "text-white/70",
     videoSrc: "/broadcast/promos/Grabbit Fun Video.mp4",
   },
   {
     type: "welcome",
-    title: "Welcome to Gashapon Live",
+    title: "Welcome to Grabbit Live",
     subtitle: "Watch players win amazing prizes in real-time!",
-    gradient: "from-pastel-coral via-pastel-yellow to-pastel-mint",
-    icon: "🎰",
+    bgGradient: "from-[#2d1b4e] via-[#1a1a3e] to-[#1b2e4e]",
+    titleColor: "text-white",
+    subtitleColor: "text-white/70",
   },
   {
     type: "stats",
     title: "Thousands of Prizes Won",
     subtitle: "Join the fun and try your luck today!",
-    gradient: "from-pastel-mint via-pastel-sky to-pastel-lavender",
-    icon: "🏆",
+    bgGradient: "from-[#1b3e2e] via-[#1a2a3e] to-[#1b2040]",
+    titleColor: "text-white",
+    subtitleColor: "text-white/70",
   },
   {
     type: "cta",
     title: "Play Now!",
-    subtitle: "gashapon.fun",
-    gradient: "from-pastel-yellow via-pastel-coral to-pastel-lavender",
-    icon: "🎮",
+    subtitle: "grabbit.fun",
+    bgGradient: "from-[#3e1b2e] via-[#2e1a3e] to-[#1b2e4e]",
+    titleColor: "text-white",
+    subtitleColor: "text-white/70",
   },
 ];
 
-// Truncate wallet for display
 function truncateWallet(wallet: string) {
   return `${wallet.slice(0, 4)}...${wallet.slice(-4)}`;
 }
 
-// Get tier badge styling
 function getTierGradient(tier: string | null | undefined) {
   switch (tier?.toLowerCase()) {
     case "legendary":
@@ -84,79 +87,66 @@ export function CommercialRotation({
   const [contentIndex, setContentIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Cycle through content types
   useEffect(() => {
     setContentIndex(commercialIndex % (staticPromos.length + (recentWins.length > 0 ? 1 : 0)));
   }, [commercialIndex, recentWins.length]);
 
-  // Determine what content to show
   const showWinnerHighlight =
     recentWins.length > 0 && contentIndex === staticPromos.length;
   const currentPromo = showWinnerHighlight
     ? null
     : staticPromos[contentIndex % staticPromos.length];
 
-  // Notify parent when showing video vs non-video content
   useEffect(() => {
     const isVideo = currentPromo?.type === "video";
     setIsShowingVideo?.(isVideo);
   }, [currentPromo, setIsShowingVideo]);
 
-  // Auto-play video when it's a video promo
+  // Auto-play video — depend on both contentIndex and commercialIndex.
+  // commercialIndex ensures re-fire on remount even when contentIndex doesn't change
+  // (e.g. component remounts with useState(0) and computed index is also 0).
   useEffect(() => {
     if (currentPromo?.type === "video" && videoRef.current) {
       videoRef.current.currentTime = 0;
       videoRef.current.play().catch(() => {
-        // Autoplay blocked - advance to next content
         onVideoComplete?.();
       });
     }
-  }, [currentPromo, onVideoComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentIndex, commercialIndex]);
 
-  // Handle video end
   const handleVideoEnded = () => {
     onVideoComplete?.();
   };
 
   return (
     <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      {/* Animated background */}
+      {/* Background gradient */}
       <div className="absolute inset-0">
         <motion.div
           key={contentIndex}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.8 }}
           className={cn(
             "absolute inset-0 bg-gradient-to-br",
             showWinnerHighlight
-              ? "from-pastel-yellow/30 via-pastel-coral/20 to-pastel-lavender/30"
-              : `${currentPromo?.gradient}`,
-            "opacity-30",
+              ? "from-[#2d1b4e] via-[#1a1a3e] to-[#3e2e1b]"
+              : currentPromo?.bgGradient,
           )}
         />
 
-        {/* Floating decorative elements */}
+        {/* Subtle ambient glow */}
         <motion.div
-          animate={{
-            y: [0, -20, 0],
-            rotate: [0, 5, 0],
-          }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-10 left-10 w-20 h-20 rounded-full bg-white/20 blur-xl"
+          animate={{ opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/4 left-1/4 w-1/2 h-1/2 rounded-full bg-pastel-coral/10 blur-[100px]"
         />
         <motion.div
-          animate={{
-            y: [0, 20, 0],
-            rotate: [0, -5, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-          className="absolute bottom-10 right-10 w-32 h-32 rounded-full bg-white/20 blur-xl"
+          animate={{ opacity: [0.2, 0.4, 0.2] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-1/4 right-1/4 w-1/2 h-1/2 rounded-full bg-pastel-mint/10 blur-[100px]"
         />
       </div>
 
@@ -174,7 +164,7 @@ export function CommercialRotation({
             <motion.p
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="text-pastel-coral font-medium mb-4"
+              className="text-pastel-coral font-display text-lg tracking-wider mb-6"
             >
               RECENT WINNER
             </motion.p>
@@ -186,22 +176,20 @@ export function CommercialRotation({
               className="inline-block"
             >
               <div className="flex flex-col items-center">
-                {/* Winner avatar */}
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pastel-yellow to-pastel-coral flex items-center justify-center border-4 border-white shadow-lg mb-4">
-                  <span className="text-white font-bold text-3xl">
+                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-pastel-yellow to-pastel-coral flex items-center justify-center border-4 border-white shadow-lg mb-4">
+                  <span className="text-white font-bold text-4xl">
                     {recentWins[0].userWallet.slice(0, 2).toUpperCase()}
                   </span>
                 </div>
 
-                <p className="font-display text-xl text-pastel-text mb-2">
+                <p className="font-display text-2xl text-pastel-text mb-2">
                   {truncateWallet(recentWins[0].userWallet)}
                 </p>
 
-                <p className="text-pastel-text/60 mb-4">won</p>
+                <p className="text-pastel-text/60 mb-4 text-lg">won</p>
 
-                {/* Prize display */}
                 {recentWins[0].prizeImage && (
-                  <div className="relative w-32 h-32 rounded-2xl overflow-hidden border-4 border-white shadow-xl mb-4">
+                  <div className="relative w-36 h-36 rounded-2xl overflow-hidden border-4 border-white shadow-xl mb-4">
                     <Image
                       src={recentWins[0].prizeImage}
                       alt={recentWins[0].prizeName || "Prize"}
@@ -211,14 +199,14 @@ export function CommercialRotation({
                   </div>
                 )}
 
-                <p className="font-display text-lg text-pastel-text mb-2">
+                <p className="font-display text-xl text-pastel-text mb-2">
                   {recentWins[0].prizeName || "Amazing Prize"}
                 </p>
 
                 {recentWins[0].prizeTier && (
                   <span
                     className={cn(
-                      "px-4 py-1 rounded-full text-sm font-bold text-white bg-gradient-to-r",
+                      "px-5 py-1.5 rounded-full text-base font-bold text-white bg-gradient-to-r",
                       getTierGradient(recentWins[0].prizeTier),
                     )}
                   >
@@ -226,7 +214,7 @@ export function CommercialRotation({
                   </span>
                 )}
 
-                <p className="text-pastel-text/40 text-sm mt-4">
+                <p className="text-pastel-text/40 text-base mt-4">
                   from {recentWins[0].gameName}
                 </p>
               </div>
@@ -241,27 +229,25 @@ export function CommercialRotation({
             transition={{ duration: 0.5 }}
             className="relative z-10 w-full h-full flex items-center justify-center"
           >
-            <div className="relative w-full h-full max-w-5xl max-h-[80vh] rounded-3xl overflow-hidden shadow-2xl">
+            <div className="relative w-full h-full overflow-hidden">
               <video
                 ref={videoRef}
                 src={currentPromo.videoSrc}
-                className="w-full h-full object-contain bg-black/10"
-                muted
+                className="w-full h-full object-cover"
                 playsInline
                 onEnded={handleVideoEnded}
               />
-              {/* Video overlay with branding */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent p-6">
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-8">
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5 }}
                   className="flex items-center justify-between"
                 >
-                  <span className="font-display text-xl text-white drop-shadow-lg">
+                  <span className="font-display text-2xl text-white drop-shadow-lg">
                     {currentPromo.title}
                   </span>
-                  <span className="text-white/80 text-sm">gashapon.fun</span>
+                  <span className="text-white/80 text-base font-medium">grabbit.fun</span>
                 </motion.div>
               </div>
             </div>
@@ -273,65 +259,55 @@ export function CommercialRotation({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -50, opacity: 0 }}
             transition={{ type: "spring", damping: 20 }}
-            className="relative z-10 text-center max-w-2xl px-8"
+            className="relative z-10 text-center max-w-3xl px-12"
           >
-            {/* Icon */}
-            {currentPromo.icon && (
-              <motion.div
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", damping: 15, delay: 0.2 }}
-                className="mb-8"
-              >
-                <span className="text-8xl drop-shadow-lg">
-                  {currentPromo.icon}
-                </span>
-              </motion.div>
-            )}
-
-            {/* Title */}
+            {/* Title - large, white, readable */}
             <motion.h2
-              initial={{ y: 20, opacity: 0 }}
+              initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.2 }}
               className={cn(
-                "font-display text-4xl md:text-5xl mb-4 bg-gradient-to-r bg-clip-text text-transparent",
-                currentPromo.gradient,
+                "font-display text-5xl md:text-6xl lg:text-7xl mb-6 leading-tight",
+                currentPromo.titleColor,
               )}
+              style={{ textShadow: "0 2px 20px rgba(0,0,0,0.3)" }}
             >
               {currentPromo.title}
             </motion.h2>
 
-            {/* Subtitle */}
+            {/* Subtitle - clearly readable */}
             {currentPromo.subtitle && (
               <motion.p
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="text-xl text-pastel-text/80"
+                className={cn(
+                  "text-2xl md:text-3xl",
+                  currentPromo.subtitleColor,
+                )}
               >
                 {currentPromo.subtitle}
               </motion.p>
             )}
 
-            {/* CTA type specific styling */}
+            {/* CTA specific */}
             {currentPromo.type === "cta" && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.5, type: "spring" }}
-                className="mt-8"
+                className="mt-10"
               >
-                <div className="inline-flex items-center gap-3 bg-white/90 backdrop-blur-sm rounded-full px-8 py-4 border-2 border-pastel-coral shadow-lg">
-                  <span className="font-display text-2xl text-pastel-coral">
-                    gashapon.fun
+                <div className="inline-flex items-center gap-4 bg-white rounded-full px-10 py-5 shadow-2xl">
+                  <span className="font-display text-3xl text-pastel-coral">
+                    grabbit.fun
                   </span>
                   <motion.span
-                    animate={{ x: [0, 5, 0] }}
+                    animate={{ x: [0, 8, 0] }}
                     transition={{ duration: 1, repeat: Infinity }}
-                    className="text-2xl"
+                    className="text-3xl text-pastel-coral"
                   >
-                    →
+                    &rarr;
                   </motion.span>
                 </div>
               </motion.div>
@@ -339,44 +315,6 @@ export function CommercialRotation({
           </motion.div>
         ) : null}
       </AnimatePresence>
-
-      {/* Decorative corner elements */}
-      <div className="absolute top-4 left-4">
-        <motion.span
-          animate={{ rotate: 360 }}
-          transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-          className="text-3xl text-pastel-yellow/60"
-        >
-          ✦
-        </motion.span>
-      </div>
-      <div className="absolute top-4 right-4">
-        <motion.span
-          animate={{ rotate: -360 }}
-          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-          className="text-3xl text-pastel-coral/60"
-        >
-          ✦
-        </motion.span>
-      </div>
-      <div className="absolute bottom-4 left-4">
-        <motion.span
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="text-3xl text-pastel-mint/60"
-        >
-          ★
-        </motion.span>
-      </div>
-      <div className="absolute bottom-4 right-4">
-        <motion.span
-          animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 2.5, repeat: Infinity }}
-          className="text-3xl text-pastel-lavender/60"
-        >
-          ★
-        </motion.span>
-      </div>
     </div>
   );
 }

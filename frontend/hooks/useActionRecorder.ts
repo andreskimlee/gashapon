@@ -56,16 +56,17 @@ export function useActionRecorder() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Key event handlers for keyboard input
+  // Use e.code (not e.key) so Space bar maps to "Space" instead of " "
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key in keyboardStateRef.current) {
-        keyboardStateRef.current[e.key as keyof KeyState] = true;
+      if (e.code in keyboardStateRef.current) {
+        keyboardStateRef.current[e.code as keyof KeyState] = true;
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key in keyboardStateRef.current) {
-        keyboardStateRef.current[e.key as keyof KeyState] = false;
+      if (e.code in keyboardStateRef.current) {
+        keyboardStateRef.current[e.code as keyof KeyState] = false;
       }
     };
 

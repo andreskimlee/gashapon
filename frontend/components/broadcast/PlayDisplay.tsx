@@ -4,11 +4,16 @@ import { PlayEvent } from "@/hooks/useBroadcastQueue";
 import { cn } from "@/utils/helpers";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
-import { BroadcastClawMachine } from "./BroadcastClawMachine";
+import { useEffect, useRef, useState } from "react";
 
 interface PlayDisplayProps {
   play: PlayEvent;
+  /** Called when replay should be shown (triggers parent to show claw machine) */
+  onShowReplay?: () => void;
+  /** Called when replay should be hidden */
+  onHideReplay?: () => void;
+  /** Whether the replay is currently visible (controlled by parent) */
+  isReplayVisible?: boolean;
 }
 
 // Truncate wallet address for display
@@ -53,35 +58,54 @@ function getTierStyles(tier: string | null | undefined) {
   }
 }
 
-export function PlayDisplay({ play }: PlayDisplayProps) {
+export function PlayDisplay({ 
+  play, 
+  onShowReplay, 
+  onHideReplay,
+  isReplayVisible = false,
+}: PlayDisplayProps) {
   const [phase, setPhase] = useState<"intro" | "replay" | "result">("intro");
   const isWin = play.outcome === "win";
   const tierStyles = getTierStyles(play.prizeTier);
   const hasRecording = !!play.recording;
 
-  // Handle replay completion
-  const handleReplayComplete = useCallback(() => {
-    // Show result after replay finishes
-    setTimeout(() => setPhase("result"), 500);
-  }, []);
+  // Use refs for callbacks to prevent useEffect from re-running
+  const onShowReplayRef = useRef(onShowReplay);
+  const onHideReplayRef = useRef(onHideReplay);
+  
+  useEffect(() => {
+    onShowReplayRef.current = onShowReplay;
+    onHideReplayRef.current = onHideReplay;
+  }, [onShowReplay, onHideReplay]);
 
   // Animate through phases
   useEffect(() => {
     setPhase("intro");
+    onHideReplayRef.current?.(); // Ensure replay is hidden when new play starts
 
     if (hasRecording) {
       // With recording: intro → replay → result
-      const introTimer = setTimeout(() => setPhase("replay"), 1500);
+      const introTimer = setTimeout(() => {
+        setPhase("replay");
+        onShowReplayRef.current?.(); // Tell parent to show the claw machine
+      }, 1500);
       return () => clearTimeout(introTimer);
     } else {
       // Without recording: intro → result (skip replay)
       const introTimer = setTimeout(() => setPhase("result"), 2000);
       return () => clearTimeout(introTimer);
     }
-  }, [play.id, hasRecording]);
+  }, [play.id, hasRecording, play.recording]);
+
+  // When replay finishes (detected by parent hiding it), transition to result
+  useEffect(() => {
+    if (phase === "replay" && !isReplayVisible) {
+      setPhase("result");
+    }
+  }, [phase, isReplayVisible]);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+    <div className="relative w-full h-full min-h-[500px] flex items-center justify-center overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0">
         {/* Base gradient */}
@@ -194,36 +218,17 @@ export function PlayDisplay({ play }: PlayDisplayProps) {
             </motion.div>
           )}
 
+          {/* Replay phase - content is rendered by parent, this is just a placeholder */}
           {phase === "replay" && (
             <motion.div
               key="replay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0"
+              className="absolute inset-0 z-10"
             >
-              {/* Player info overlay */}
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-3 bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-lg">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pastel-mint to-pastel-sky flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
-                    {play.userWallet.slice(0, 2).toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-medium text-pastel-text text-sm">
-                    {truncateWallet(play.userWallet)}
-                  </p>
-                  <p className="text-pastel-text/60 text-xs">{play.gameName}</p>
-                </div>
-              </div>
-
-              {/* Claw machine replay */}
-              <BroadcastClawMachine
-                recordingData={play.recording}
-                gameOutcome={play.outcome}
-                onReplayComplete={handleReplayComplete}
-                autoPlay={true}
-              />
+              {/* The claw machine is rendered by the parent component for persistence */}
+              {/* This empty div maintains the phase structure */}
             </motion.div>
           )}
 

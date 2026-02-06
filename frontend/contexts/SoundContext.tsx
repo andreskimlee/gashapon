@@ -38,6 +38,8 @@ interface SoundContextType {
   stopBackgroundMusic: () => void;
   /** Whether background music is currently playing */
   isBackgroundMusicPlaying: boolean;
+  /** Whether the sound state has been hydrated from localStorage */
+  isHydrated: boolean;
 }
 
 const SoundContext = createContext<SoundContextType | null>(null);
@@ -47,16 +49,22 @@ const VOLUME_BACKGROUND_MUSIC = 0.3;
 const VOLUME_SFX = 0.3;
 
 export function SoundProvider({ children }: { children: ReactNode }) {
-  // Initialize from localStorage, default to true
-  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === null ? true : stored === "true";
-  });
+  // Initialize with default value for SSR consistency, then sync from localStorage
+  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] =
     useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
+  // Sync from localStorage after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored !== null) {
+      setIsSoundEnabled(stored === "true");
+    }
+    setIsHydrated(true);
+  }, []);
 
   // Audio refs
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -249,6 +257,7 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         startBackgroundMusic,
         stopBackgroundMusic,
         isBackgroundMusicPlaying,
+        isHydrated,
       }}
     >
       {children}

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Volume2, VolumeX } from "lucide-react";
 
 export default function SoundToggle() {
-  const { isSoundEnabled, toggleSound, startBackgroundMusic } = useSound();
+  const { isSoundEnabled, toggleSound, startBackgroundMusic, isHydrated } = useSound();
 
   const handleClick = () => {
     if (!isSoundEnabled) {
@@ -14,6 +14,9 @@ export default function SoundToggle() {
     }
     toggleSound();
   };
+
+  // Use default state (sound on) during SSR and before hydration for consistency
+  const showSoundOn = !isHydrated || isSoundEnabled;
 
   return (
     <motion.button
@@ -25,10 +28,10 @@ export default function SoundToggle() {
         transition: { type: "spring", stiffness: 400 },
       }}
       whileTap={{ scale: 0.9, y: 1 }}
-      aria-label={isSoundEnabled ? "Mute sound" : "Enable sound"}
-      title={isSoundEnabled ? "Sound On" : "Sound Off"}
+      aria-label={showSoundOn ? "Mute sound" : "Enable sound"}
+      title={showSoundOn ? "Sound On" : "Sound Off"}
     >
-      {isSoundEnabled ? (
+      {showSoundOn ? (
         <Volume2 className="w-5 h-5 text-pastel-coral" />
       ) : (
         <VolumeX className="w-5 h-5 text-pastel-text/50" />

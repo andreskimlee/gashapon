@@ -419,6 +419,28 @@
   .animate-sparkle {
     animation: sparkle 2s ease-in-out infinite;
   }
+
+  /* Bounce in animation for win/result screens */
+  @keyframes bounceIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-bounce-in {
+    animation: bounceIn 0.5s ease-out;
+  }
 }
 
 @layer base {
